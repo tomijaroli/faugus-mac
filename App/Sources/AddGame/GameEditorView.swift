@@ -25,6 +25,7 @@ struct GameEditorState: Identifiable {
     var addAppPath = ""
     var addAppDelay = 0
     var addAppFirst = false
+    var artwork = EditorArtworkDraft()
 
     @MainActor static func new(model: AppModel) -> GameEditorState {
         var s = GameEditorState()
@@ -79,6 +80,8 @@ struct GameEditorView: View {
     @State private var section: SettingsSection = .tools
     @State private var invalid: Set<GameEditing.InvalidField> = []
     @State private var warning: String?
+    @State private var warningDetail: String?
+    @State private var urlPrompt: ArtworkSlot?
 
     init(model: AppModel, state: GameEditorState, dismiss: @escaping () -> Void) {
         self.model = model
@@ -163,16 +166,33 @@ struct GameEditorView: View {
             }
             .padding(20)
         }
-        .frame(width: 600)
+        .frame(width: showsCover ? 800 : 600)
         .environment(\.layoutDirection, model.isRightToLeft ? .rightToLeft : .leftToRight)
-        .alert(warning ?? "", isPresented: Binding(get: { warning != nil }, set: { if !$0 { warning = nil } })) {
+        .alert(warning ?? "", isPresented: Binding(get: { warning != nil }, set: { if !$0 { warning = nil; warningDetail = nil } })) {
             Button(t("Ok")) {}
+        } message: {
+            Text(warningDetail ?? "")
         }
+        .sheet(item: $urlPrompt) { slot in
+            ImageURLPrompt(t: t, slot: slot) { data in
+                urlPrompt = nil
+                if let data { applyImage(data, to: slot) }
+            }
+        }
+        .task { prepareArtwork() }
+        .onDisappear { state.artwork.cleanUp() }
     }
 
     // MARK: General page
 
     private func general(_ t: Translator) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            generalForm(t)
+            if showsCover { coverPanel(t).padding(.trailing, 20).padding(.top, 20) }
+        }
+    }
+
+    private func generalForm(_ t: Translator) -> some View {
         Form {
             TextField(t("Title"), text: $state.title)
                 .invalidMark(invalid.contains(.title))
@@ -183,7 +203,11 @@ struct GameEditorView: View {
                     .help(t("Path to the game executable"))
                     .accessibilityIdentifier("editor-path")
                 SearchButton {
-                    if let p = FilePicker.choose(message: t("Select the game executable"), startIn: state.path) { state.path = p }
+                    let dir = state.path.isEmpty ? nil : (model.paths.expand(state.path) as NSString).deletingLastPathComponent
+                    if let p = FilePicker.choose(message: t("Select the game executable"), startIn: dir) {
+                        fillFromExecutable(p)
+                        state.path = p
+                    }
                 }
                 .help(t("Select the game executable"))
             }
@@ -214,6 +238,18 @@ struct GameEditorView: View {
             .disabled(!state.customRunner)
             Picker("Graphics", selection: $state.graphics) {
                 ForEach(graphicsChoices, id: \.self) { Text(graphicsLabel($0)).tag($0) }
+            }
+            LabeledContent(t("Icon")) {
+                ArtworkMenu(
+                    t: t, hasImage: state.artwork.icon != nil,
+                    loadFile: { loadFile(.icon) }, loadURL: { urlPrompt = .icon }, remove: { state.artwork.clear(.icon) }
+                ) {
+                    TempImage(path: state.artwork.icon, size: CGSize(width: 50, height: 50)) {
+                        FaugusFallbackIcon()
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .accessibilityIdentifier("editor-icon")
             }
         }
         .formStyle(.grouped)
@@ -313,6 +349,70 @@ struct GameEditorView: View {
         .formStyle(.grouped)
     }
 
+    // MARK: Artwork
+
+    private var showsCover: Bool { model.interfaceMode == .covers || model.interfaceMode == .carrousel }
+
+    private func coverPanel(_ t: Translator) -> some View {
+        ArtworkMenu(
+            t: t, hasImage: state.artwork.cover != nil,
+            loadFile: { loadFile(.cover) }, loadURL: { urlPrompt = .cover }, remove: { state.artwork.clear(.cover) }
+        ) {
+            TempImage(path: state.artwork.cover, size: CGSize(width: 200, height: 300), fill: true) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8).fill(.quaternary)
+                    Image(systemName: "plus").font(.largeTitle).foregroundStyle(.secondary)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .accessibilityIdentifier("editor-cover")
+    }
+
+    /// The editor starts from the game's current cover and icon (copied, so Cancel changes nothing).
+    private func prepareArtwork() {
+        guard !state.artwork.prepared else { return }
+        state.artwork.prepared = true
+        guard let game = state.original else { return }
+        let fm = FileManager.default
+        let cover = model.paths.expand(game.cover)
+        if !cover.isEmpty, let d = fm.contents(atPath: cover) { _ = state.artwork.setCover(data: d) }
+        let icon = model.paths.expand(game.icon)
+        if !icon.isEmpty, let d = fm.contents(atPath: icon) { _ = state.artwork.setIcon(data: d) }
+    }
+
+    private func loadFile(_ slot: ArtworkSlot) {
+        let t = model.translator
+        let message = slot == .cover ? t("Select an image for the cover") : t("Select an image for the icon")
+        guard let path = FilePicker.chooseImage(message: message) else { return }
+        guard let data = FileManager.default.contents(atPath: path), ImageTools.isValid(data) else { return invalidImage() }
+        applyImage(data, to: slot)
+    }
+
+    private func applyImage(_ data: Data, to slot: ArtworkSlot) {
+        let ok = slot == .cover ? state.artwork.setCover(data: data) : state.artwork.setIcon(data: data)
+        if !ok { invalidImage() }
+    }
+
+    private func invalidImage() {
+        let t = model.translator
+        warning = t("The selected file is not a valid image.")
+        warningDetail = t("Please choose another one.")
+    }
+
+    /// `fill_from_executable`: an empty title takes the executable's product name (or file
+    /// name), and the executable's main icon replaces the icon.
+    private func fillFromExecutable(_ path: String) {
+        let hadTitle = !state.title.trimmingCharacters(in: .whitespaces).isEmpty
+        Task.detached {
+            let info = GameArtwork.inspect(executable: path)
+            await MainActor.run {
+                if !hadTitle, state.title.trimmingCharacters(in: .whitespaces).isEmpty { state.title = info.title }
+                if let png = info.iconPNG { _ = state.artwork.setIcon(data: png) } else { state.artwork.clear(.icon) }
+            }
+        }
+    }
+
     // MARK: Save
 
     private func confirm() {
@@ -349,8 +449,13 @@ struct GameEditorView: View {
         draft.addAppPath = state.addAppPath
         draft.addAppDelay = state.addAppDelay
         draft.addAppFirst = state.addAppFirst
-        let game = GameEditing.apply(
+        let applied = GameEditing.apply(
             draft, to: state.original ?? Game(gameID: suggestedID, title: title), paths: model.paths)
+
+        var game = applied
+        let id = game.gameID
+        if showsCover { game.cover = GameArtwork.saveCover(temp: state.artwork.cover, gameID: id, paths: model.paths) }
+        game.icon = GameArtwork.saveIcon(temp: state.artwork.icon, gameID: id, paths: model.paths)
 
         do {
             try? PresetsStore(paths: model.paths).save(state.presets.map(\.text))

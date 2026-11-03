@@ -66,7 +66,7 @@ struct ArtworkView<Placeholder: View>: View {
         }
         .frame(width: size.width, height: size.height)
         .clipped()
-        .task(id: "\(path)|\(maxPixel)") {
+        .task(id: ArtworkCache.key(path: path, maxPixel: maxPixel)) {
             guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { image = nil; return }
             if let hit = ArtworkCache.shared.cached(path: path, maxPixel: maxPixel) { image = hit; return }
             image = await ArtworkCache.shared.load(path: path, maxPixel: maxPixel)
