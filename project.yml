@@ -1,0 +1,83 @@
+name: FaugusForMac
+
+options:
+  # PROVISIONAL: replace with the owner's reverse-DNS prefix before the first release (plan section 7).
+  # Must never be io.github.Faugus.faugus-launcher.
+  bundleIdPrefix: me.tomijaroli
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ARCHS: arm64
+    ONLY_ACTIVE_ARCH: NO
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    ENABLE_HARDENED_RUNTIME: YES
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+
+packages:
+  FaugusCore:
+    path: Packages/FaugusCore
+
+targets:
+  Faugus:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/Sources
+    dependencies:
+      - package: FaugusCore
+    entitlements:
+      path: App/Resources/Faugus.entitlements
+      properties:
+        com.apple.security.automation.apple-events: true
+    info:
+      path: App/Resources/Info.plist
+      properties:
+        CFBundleName: Faugus for Mac
+        CFBundleDisplayName: Faugus for Mac
+        CFBundleExecutable: Faugus
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.0"
+        LSApplicationCategoryType: public.app-category.games
+        NSHumanReadableCopyright: "Unofficial macOS port of Faugus Launcher by Felix Ribeiro. Tracks upstream 2.5.6. Not affiliated."
+        NSAppleEventsUsageDescription: Faugus uses Apple Events to shut down, restart or sleep the Mac from the power menu.
+        NSHighResolutionCapable: true
+        LSArchitecturePriority: [arm64]
+    settings:
+      base:
+        PRODUCT_NAME: Faugus for Mac
+        EXECUTABLE_NAME: Faugus
+        PRODUCT_BUNDLE_IDENTIFIER: me.tomijaroli.FaugusForMac
+        GENERATE_INFOPLIST_FILE: NO
+        COMBINE_HIDPI_IMAGES: YES
+    postBuildScripts:
+      - name: Bundle upstream translations and assets
+        script: |
+          "${SRCROOT}/Tools/bundle-resources.sh"
+        basedOnDependencyAnalysis: false
+
+schemes:
+  Faugus:
+    build:
+      targets:
+        Faugus: all
+    run:
+      config: Debug
+      environmentVariables:
+        - variable: FAUGUS_HOME
+          value: ""
+          isEnabled: false
+        - variable: FAUGUS_LANG
+          value: ""
+          isEnabled: false

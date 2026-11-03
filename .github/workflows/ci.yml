@@ -1,0 +1,27 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Tools
+        run: brew install xcodegen gettext
+      - name: Upstream fixtures are up to date
+        run: |
+          python3 Tools/gen-fixtures/gen.py
+          git diff --exit-code Packages/FaugusCore/Tests
+      - name: FaugusCore tests
+        run: swift test
+        working-directory: Packages/FaugusCore
+      - name: Build app
+        run: |
+          xcodegen generate
+          xcodebuild -project FaugusForMac.xcodeproj -scheme Faugus -configuration Debug \
+            -derivedDataPath build build

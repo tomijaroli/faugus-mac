@@ -9,7 +9,7 @@ project:
 
 build: project
 	xcodebuild -project FaugusForMac.xcodeproj -scheme Faugus -configuration Debug \
-		-derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+		-derivedDataPath build build
 
 test:
 	cd Packages/FaugusCore && swift test

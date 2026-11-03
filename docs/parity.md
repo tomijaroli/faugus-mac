@@ -4,14 +4,14 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 
 | Area | Upstream | Mac port | Status |
 | --- | --- | --- | --- |
-| Atomic JSON writes (`core.atomic_write`, indent 4, no ASCII escape) | `core.py` | `FaugusCore/JSON` | wip |
-| `config.json` defaults and string booleans | `config_manager.py` | `FaugusCore/Config` | wip |
-| `games.json` `GAME_FIELDS` + unknown field preservation | `utils.py` | `FaugusCore/Games` | wip |
-| `format_title`, `unique_gameid` | `utils.py` | `FaugusCore/Games` | wip |
-| Hidden games survive save | `launcher.py:save_games` | `FaugusCore/Games` | wip |
-| Games backup snapshots (20 kept) | `launcher.py:backup_games` | `FaugusCore/Games` | wip |
-| gettext + 70% completeness filter | `language_config.py` | `FaugusCore/I18n` | wip |
-| Paths (XDG to Library) | `path_manager.py` | `FaugusCore/Paths` | wip |
+| Atomic JSON writes (`core.atomic_write`, indent 4, no ASCII escape) | `core.py` | `FaugusCore/JSON` | done |
+| `config.json` defaults and string booleans | `config_manager.py` | `FaugusCore/Config` | done |
+| `games.json` `GAME_FIELDS` + unknown field preservation | `utils.py` | `FaugusCore/Games` | done |
+| `format_title`, `unique_gameid` | `utils.py` | `FaugusCore/Games` | done |
+| Hidden games survive save | `launcher.py:save_games` | `FaugusCore/Games` | done |
+| Games backup snapshots (20 kept) | `launcher.py:backup_games` | `FaugusCore/Games` | done |
+| gettext + 70% completeness filter | `language_config.py` | `FaugusCore/I18n` | done |
+| Paths (XDG to Library) | `path_manager.py` | `FaugusCore/Paths` | done |
 | Runner Manager (Gcenx Wine) | Proton Manager | `RunnerManager` | todo |
 | Graphics backend per game | n/a | `Graphics` | todo |
 | Prefix creation | umu-run | `Prefix` | todo |
