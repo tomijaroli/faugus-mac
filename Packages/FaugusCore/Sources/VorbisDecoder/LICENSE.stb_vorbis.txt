@@ -1,0 +1,2 @@
+stb_vorbis, Sean Barrett. Dual-licensed as MIT or public domain. The vendored
+copy is Packages/FaugusCore/Sources/VorbisDecoder/stb_vorbis.c (see NOTICE.md).

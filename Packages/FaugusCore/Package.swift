@@ -8,7 +8,17 @@ let package = Package(
         .library(name: "FaugusCore", targets: ["FaugusCore"])
     ],
     targets: [
-        .target(name: "FaugusCore"),
+        .target(
+            name: "VorbisDecoder",
+            path: "Sources/VorbisDecoder",
+            sources: ["VorbisDecoder.c"],
+            publicHeadersPath: "include",
+            cSettings: [
+                .headerSearchPath("."),
+                .unsafeFlags(["-Wno-tautological-compare"]),
+            ]
+        ),
+        .target(name: "FaugusCore", dependencies: ["VorbisDecoder"]),
         .testTarget(
             name: "FaugusCoreTests",
             dependencies: ["FaugusCore"],

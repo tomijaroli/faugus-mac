@@ -15,7 +15,8 @@ It is not affiliated with or endorsed by the upstream project.
 
 ## Third-party components (added as the corresponding phases land)
 
-- stb_vorbis (public domain / MIT), Sean Barrett.
+- stb_vorbis (public domain / MIT), Sean Barrett. Vendored at
+  `Packages/FaugusCore/Sources/VorbisDecoder/stb_vorbis.c`.
 - Sparkle 2 (MIT-style), for updates.
 
 ## Downloaded at runtime, never bundled
