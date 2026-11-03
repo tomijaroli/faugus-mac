@@ -33,4 +33,4 @@
 --exclude upstream,build,.build,.swiftpm,DerivedData,dist,TestPrograms/build,FaugusForMac.xcodeproj
 
 # Rewrites test `!` into `try #require`, which cannot nest; left to the author.
---disable noForceUnwrapInTests
+--disable noForceUnwrapInTests,repeatedGuard
