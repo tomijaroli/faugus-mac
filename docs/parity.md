@@ -13,6 +13,8 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 | gettext + 70% completeness filter | `language_config.py` | `FaugusCore/I18n` | done |
 | Paths (XDG to Library) | `path_manager.py` | `FaugusCore/Paths` | done |
 | Runner Manager (Gcenx Wine) | Proton Manager | `RunnerManager` | done (P3.1: Staging/Devel/Stable tabs, newest-first releases with Latest marker, Download with progress / Cancel / Remove, installed-only runners kept, Rosetta box) |
+| Winecfg (Add Game dialog, Settings default prefix) | `on_button_winecfg_clicked`, `on_button_winecfg_default_clicked` | `RunnerMode`, `GameEditorView`, `SettingsView` | done (P3.2: `wine winecfg` through `--run winecfg --in-prefix`; creates the prefix and records it for Cancel; Settings asks to save pending changes first, runs in `<default-prefix>/default` with the default runner) |
+| Run (Settings default prefix) | `on_button_run_default_clicked` | `SettingsView` | done (P3.2) |
 | Graphics backend per game | n/a | `Graphics` | done (default/dxvk/wined3d/wined3d-vulkan; dxmt/d3dmetal only when a runner declares them) |
 | Prefix creation | umu-run | `Prefix` | done (verified on real Wine Staging 11.21) |
 | Runner mode (`--game`) | `runner.py` | `RunnerMode` | done (pre/post-launch hooks, `--logs`, Rosetta prompt; `--run <file>` with `--in-game <id>` or `--in-prefix <dir>`: no splash, no playtime, no hooks, untagged so it never touches a running game; `--splash`/`--donate` in P3+) |
@@ -47,7 +49,7 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 | Delete prefix | The prefix goes to the Trash, never `rm`. Upstream offers the checkbox even for a shared prefix (with a warning); here the warning is shown and the checkbox is disabled, so another game's prefix is never removed. |
 | Duplicate | As upstream the copy shares the original's prefix and keeps its playtime and category; the old Mac-only "(copy)" shortcut is gone in favour of upstream's title prompt. |
 | Add / Edit | "Specific Proton" is "Specific Runner". The Lossless, MangoHud, GameMode and Linux-runtime widgets do not exist. The SDL flag is stored (and kept for Linux), but Wine on macOS already uses SDL for controllers, so it changes nothing at launch. |
-| Settings | Header bar, Theme (Adwaita/GTK engine), GPU, MangoHud, GameMode, Wayland driver, WOW64 and the winetricks/winecfg buttons are not shown (Linux only, or arrive in P3). Default Runner lists installed runners. Color Scheme drives the macOS appearance. A language change applies immediately instead of after a restart. |
+| Settings | Header bar, Theme (Adwaita/GTK engine), GPU, MangoHud, GameMode, Wayland driver, WOW64 are not shown (Linux only); the Winetricks button arrives in P3.3. Default Runner lists installed runners. Color Scheme drives the macOS appearance. A language change applies immediately instead of after a restart. |
 | Main window controls | Zoom, sort, category, add, settings, kill, play and search live in the native toolbar instead of upstream's bottom bar and top bar. Kill all stops Faugus-managed games only. |
 | Context menu | Standard SwiftUI menu; upstream's gamepad-friendly popover arrives with P5. |
 | Run in the prefix | Upstream sets `FAUGUS_DISABLE_UPDATES` for a game's "Run file in the prefix". Here it skips only the runner update check; a runner that is not installed at all is still installed. A file run starts in the game's folder, shows no splash and never writes playtime. |

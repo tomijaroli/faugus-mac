@@ -261,6 +261,17 @@ final class AppModel {
         }
     }
 
+    /// The default prefix (`<default-prefix>/default`) that Settings' Winecfg, Winetricks and
+    /// Run work in, with the default runner.
+    var defaultPrefixPath: String {
+        let base = paths.expand(config?.string("default-prefix") ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        return (base.isEmpty ? paths.prefixesDir : base) + "/default"
+    }
+
+    func runInDefaultPrefix(file: String) async -> Bool {
+        await runInPrefix(file: file, prefix: defaultPrefixPath, runner: "Default", logID: "default")
+    }
+
     func stop(_ game: Game) {
         try? RunningGames(paths: paths).requestStop(gameID: game.gameID)
     }

@@ -19,6 +19,10 @@ struct SettingsView: View {
     @State private var confirmDiscard = false
     @State private var logsSize: Int64?
     @State private var prefixInvalid = false
+    @State private var pendingTool: PrefixTool?
+    @State private var toolsBusy = 0
+
+    enum PrefixTool { case winecfg, run }
 
     init(model: AppModel, dismiss: @escaping () -> Void) {
         self.model = model
@@ -67,6 +71,14 @@ struct SettingsView: View {
             RunnerManagerView(model: model) { showRunnerManager = false }
         }
         .confirmationDialog(
+            t("Do you want to save the changes?"),
+            isPresented: Binding(get: { pendingTool != nil }, set: { if !$0 { pendingTool = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button(t("Yes")) { finishPendingTool(save: true) }
+            Button(t("No"), role: .destructive) { finishPendingTool(save: false) }
+        }
+        .confirmationDialog(
             t("Do you want to save the changes?"), isPresented: $confirmDiscard, titleVisibility: .visible
         ) {
             Button(t("Yes")) { save() }
@@ -99,6 +111,15 @@ struct SettingsView: View {
                     ForEach(runnerChoices, id: \.self) { Text($0).tag($0) }
                 }
                 Button(t("Runner Manager")) { showRunnerManager = true }
+                HStack {
+                    Button("Winecfg") { startTool(.winecfg) }
+                        .accessibilityIdentifier("settings-winecfg")
+                    Button(t("Run")) { startTool(.run) }
+                        .help(t("Run a file in the prefix"))
+                        .accessibilityIdentifier("settings-run")
+                    if toolsBusy > 0 { ProgressView().controlSize(.small) }
+                }
+                .disabled(toolsBusy > 0)
             }
 
             Section(t("Miscellaneous")) {
@@ -327,6 +348,52 @@ struct SettingsView: View {
         } else {
             model.discardSettingsPreview()
             dismiss()
+        }
+    }
+
+    // MARK: Default prefix tools
+
+    /// Upstream's `check_modified`: unsaved changes are saved (or dropped) before the tool runs,
+    /// because the tool uses the saved default prefix and runner.
+    private func startTool(_ tool: PrefixTool) {
+        if modified { pendingTool = tool } else { launch(tool) }
+    }
+
+    private func finishPendingTool(save: Bool) {
+        guard let tool = pendingTool else { return }
+        pendingTool = nil
+        if save {
+            commitNewEnvar()
+            if cfg.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
+                prefixInvalid = true
+                return
+            }
+            model.saveSettings(cfg, envars: envars)
+            original = cfg
+            originalEnvars = envars
+        } else {
+            cfg = original
+            envars = originalEnvars
+        }
+        launch(tool)
+    }
+
+    private func launch(_ tool: PrefixTool) {
+        let t = model.translator
+        switch tool {
+        case .winecfg:
+            runInDefaultPrefix("winecfg")
+        case .run:
+            guard let file = FilePicker.choose(message: t("Select a file to run in the prefix")) else { return }
+            runInDefaultPrefix(file)
+        }
+    }
+
+    private func runInDefaultPrefix(_ file: String) {
+        toolsBusy += 1
+        Task {
+            _ = await model.runInDefaultPrefix(file: file)
+            toolsBusy -= 1
         }
     }
 

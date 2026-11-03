@@ -150,6 +150,29 @@ struct SupervisorTests {
         #expect(RunningGames(paths: paths).load().isEmpty)
     }
 
+    @Test func winecfgRunsInTheRequestedPrefixAndCreatesIt() async throws {
+        let paths = try setup(wineBody: """
+            echo "args: $@" > "$WINEPREFIX/ran-tool.txt"
+            echo "id: [$FAUGUSID]" >> "$WINEPREFIX/ran-tool.txt"
+            exit 0
+            """)
+        defer { TestSupport.cleanup(paths) }
+        var o = options()
+        o.runFile = "winecfg"
+        var adhoc = Game(gameID: "my-new-game", title: "my-new-game")
+        let prefix = paths.home + "/Faugus/my-new-game"
+        adhoc.prefix = prefix
+        adhoc.runner = "Default"
+        o.adhocGame = adhoc
+        let failure = await GameSupervisor(paths: paths, gameID: "my-new-game", options: o).run()
+        #expect(failure == nil)
+        let ran = try String(contentsOfFile: prefix + "/ran-tool.txt", encoding: .utf8)
+        #expect(ran.contains("args: winecfg"))
+        #expect(ran.contains("id: []"))
+        // The saved game list is untouched: the dialog's game does not exist yet.
+        #expect(try GamesStore(paths: paths).loadAll().allSatisfy { $0.gameID != "my-new-game" })
+    }
+
     @Test func runFileLeavesARunningGameAlone() async throws {
         let paths = try setup(wineBody: """
             case "$1" in

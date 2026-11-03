@@ -179,6 +179,9 @@ struct GameEditorView: View {
 
             HStack {
                 if state.kind == .windows {
+                    Button("Winecfg") { runWinecfg() }
+                        .disabled(runningFiles > 0)
+                        .accessibilityIdentifier("editor-winecfg")
                     Button(t("Run")) { runFileInPrefix() }
                         .help(t("Run a file in the prefix"))
                         .accessibilityIdentifier("editor-run")
@@ -585,6 +588,20 @@ struct GameEditorView: View {
         runningFiles += 1
         Task {
             _ = await model.runInPrefix(file: file, prefix: prefix, runner: runner, logID: logID)
+            runningFiles -= 1
+            recordCreatedPrefix(prefix, existedBefore: existed)
+        }
+    }
+
+    /// "Winecfg": Wine's configuration tool in the dialog's prefix and runner. The prefix is
+    /// created if it does not exist yet, and recorded so Cancel can offer to discard it.
+    private func runWinecfg() {
+        guard let prefix = prefixForRun() else { return }
+        let existed = FileManager.default.fileExists(atPath: prefix)
+        let (runner, logID) = (runnerForRun, logIDForRun)
+        runningFiles += 1
+        Task {
+            _ = await model.runInPrefix(file: "winecfg", prefix: prefix, runner: runner, logID: logID)
             runningFiles -= 1
             recordCreatedPrefix(prefix, existedBefore: existed)
         }
