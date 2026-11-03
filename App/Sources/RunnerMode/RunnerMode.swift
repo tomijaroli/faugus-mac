@@ -110,6 +110,9 @@ final class RunnerMode {
         }
         options.allowDownloads = true
         options.ensureRosetta = { await RunnerMode.askToInstallRosetta() }
+        options.discordIconProvider = { game in
+            await RunnerMode.discordIconURL(for: game, configuration: config)
+        }
 
         let supervisor = GameSupervisor(paths: paths, gameID: gameID, options: options) { event in
             Task { @MainActor in RunnerModeRelay.shared.mode?.handle(event) }
@@ -179,6 +182,16 @@ final class RunnerMode {
         guard accepted else { return false }
         do { try await Rosetta.install() } catch { return false }
         return await Rosetta.isInstalled()
+    }
+
+    /// SteamGridDB icon URL for the generic Discord activity (`_discord_find_icon`).
+    private static func discordIconURL(for game: Game, configuration: FaugusConfig?) async -> String? {
+        guard let configuration, let client = SteamGridDBSettings(configuration: configuration).makeClient()
+        else { return nil }
+        let steamGridID = Int(game.steamGridDBID)
+        let found = await client.candidates(gameName: game.title, limit: 1, gameID: steamGridID)
+        guard let icon = found.icons.first else { return nil }
+        return SteamGridDBClient.iconDownloadURL(for: icon)
     }
 
     private func showFailure(_ failure: SupervisorFailure) {

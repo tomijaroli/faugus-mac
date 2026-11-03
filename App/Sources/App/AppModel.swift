@@ -6,7 +6,7 @@ import Observation
 /// Shared state for the launcher UI: paths, config, translations and the games list.
 @MainActor
 @Observable
-final class AppModel {
+final class AppModel { // swiftlint:disable:this type_body_length
     let paths: FaugusPaths
     private(set) var config: FaugusConfig?
     var showSettings = false
@@ -32,6 +32,8 @@ final class AppModel {
     /// `winetricks list-all`, kept for the session: it takes a few seconds to produce.
     var winetricksCatalog: [WinetricksCategory]?
     var actionError: String?
+    /// `--shortcut <file>` or the Finder service, shown as a sheet on the running launcher.
+    var pendingShortcutFile: String?
 
     // Library state (search, sort, category, zoom and selection of the main window).
     var searchText = ""
@@ -381,6 +383,7 @@ final class AppModel {
         let prefix = paths.expand(game.prefix)
         let shared = all.contains { paths.expand($0.prefix) == prefix }
         GameEditing.removeOwnedFiles(of: game, paths: paths)
+        removeShortcuts(ofGameID: game.gameID)
         write(all, deleted: game.gameID)
         try? CustomOrderStore(paths: paths).remove(gameID: game.gameID)
         guard removePrefix, !shared, !prefix.isEmpty, FileManager.default.fileExists(atPath: prefix) else { return }

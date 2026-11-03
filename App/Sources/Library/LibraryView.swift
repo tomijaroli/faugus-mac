@@ -57,6 +57,18 @@ struct LibraryView: View {
         .sheet(item: $gameToDuplicate) { game in
             DuplicateGameView(model: model, game: game) { gameToDuplicate = nil }
         }
+        .sheet(isPresented: Binding(
+            get: { model.pendingShortcutFile != nil },
+            set: {
+                if !$0 {
+                    model.pendingShortcutFile = nil
+                }
+            }
+        )) {
+            if let file = model.pendingShortcutFile {
+                FileShortcutView(model: model, filePath: file) { model.pendingShortcutFile = nil }
+            }
+        }
         .navigationTitle("Faugus")
         .environment(\.layoutDirection, model.isRightToLeft ? .rightToLeft : .leftToRight)
         .onAppear { model.ensureSelection() }

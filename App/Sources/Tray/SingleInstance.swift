@@ -6,7 +6,7 @@ import Foundation
 /// notification to the running one and exits.
 enum SingleInstance {
     /// Returns `true` when another launcher is already running and was asked to present itself.
-    static func handOverToRunningInstance(file: String?) -> Bool {
+    static func handOverToRunningInstance(file: String? = nil, shortcut: String? = nil) -> Bool {
         // A custom home (QA runs, tests) is an independent launcher.
         guard ProcessInfo.processInfo.environment["FAUGUS_HOME"] == nil,
               let bundleIdentifier = Bundle.main.bundleIdentifier
@@ -15,8 +15,15 @@ enum SingleInstance {
         let otherInstances = NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier)
             .filter { $0.processIdentifier != ownProcessIdentifier && !$0.isTerminated }
         guard !otherInstances.isEmpty else { return false }
+        var userInfo: [String: String] = [:]
+        if let file {
+            userInfo["file"] = file
+        }
+        if let shortcut {
+            userInfo["shortcut"] = shortcut
+        }
         DistributedNotificationCenter.default().postNotificationName(
-            .faugusOpen, object: nil, userInfo: file.map { ["file": $0] }, deliverImmediately: true
+            .faugusOpen, object: nil, userInfo: userInfo.isEmpty ? nil : userInfo, deliverImmediately: true
         )
         // Give distnoted a moment to deliver before this process exits.
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.3))

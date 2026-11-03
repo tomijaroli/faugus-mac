@@ -42,6 +42,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        NSApp.servicesProvider = self
+        NSUpdateDynamicServices()
         configureTray()
         applyTraySettings()
         observeOtherInstances()
@@ -157,12 +159,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: Other instances
 
+    /// Finder Services: "Create Faugus Shortcut" on a selected file (`NSServices` in Info.plist).
+    @objc func createFaugusShortcut(
+        _ pasteboard: NSPasteboard, userData _: String, error _: AutoreleasingUnsafeMutablePointer<NSString?>
+    ) {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
+        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL]
+        guard let path = urls?.first?.path else { return }
+        Task { @MainActor in
+            model?.pendingShortcutFile = path
+            presentLauncher()
+        }
+    }
+
     /// A second launch posts `open`; the plan's other IPC verbs (`quit`, `refresh-menu`) are handled here too.
     private func observeOtherInstances() {
         let center = DistributedNotificationCenter.default()
-        notificationTokens.append(center.addObserver(forName: .faugusOpen, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.presentLauncher() }
-        })
+        notificationTokens
+            .append(center.addObserver(forName: .faugusOpen, object: nil, queue: .main) { [weak self] notification in
+                let shortcut = notification.userInfo?["shortcut"] as? String
+                MainActor.assumeIsolated {
+                    if let shortcut {
+                        self?.model?.pendingShortcutFile = shortcut
+                    }
+                    self?.presentLauncher()
+                }
+            })
         notificationTokens.append(center.addObserver(forName: .faugusQuit, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { NSApp.terminate(nil) }
         })

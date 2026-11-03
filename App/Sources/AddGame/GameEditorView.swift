@@ -33,6 +33,12 @@ struct GameEditorState: Identifiable {
     var addAppDelay = 0
     var addAppFirst = false
     var artwork = EditorArtworkDraft()
+    var desktopShortcut = false
+    var appMenuShortcut = false
+    /// SteamGridDB game id from a suggestion, an earlier save, or a fetch.
+    var steamGridDBID: Int?
+    /// Steam app id used for SteamGridDB's `steam` lookup (Steam type only).
+    var steamAppIDForGridDB: Int?
 
     @MainActor static func new(model: AppModel) -> GameEditorState {
         var state = GameEditorState()
@@ -72,6 +78,15 @@ struct GameEditorState: Identifiable {
         state.addAppPath = game.addApp
         state.addAppDelay = Int(game.addAppDelay) ?? 0
         state.addAppFirst = game.addAppFirst
+        if let identifier = Int(game.steamGridDBID) {
+            state.steamGridDBID = identifier
+        }
+        if game.runner == "Steam", let appID = Int(game.path) {
+            state.steamAppIDForGridDB = appID
+        }
+        let locations = model.shortcutLocations(of: game)
+        state.desktopShortcut = locations.contains(.desktop)
+        state.appMenuShortcut = locations.contains(.applicationsMenu)
         state.loadPresets(model: model)
         return state
     }
@@ -95,7 +110,7 @@ struct GameEditorView: View {
     @State private var invalid: Set<GameEditing.InvalidField> = []
     @State private var warning: String?
     @State private var warningDetail: String?
-    @State private var urlPrompt: ArtworkSlot?
+    @State var urlPrompt: ArtworkSlot?
     /// Prefixes created by "Run" / "Run an installer" in this dialog, offered for discard on Cancel.
     @State private var createdPrefixes: [String] = []
     @State private var discardPrompt = false
@@ -104,6 +119,14 @@ struct GameEditorView: View {
     @State private var steamUsers: [SteamLibrary.User] = []
     @State private var steamGames: [SteamLibrary.InstalledGame] = []
     @State private var steamInvalid = false
+    @State var pickerSlot: ArtworkSlot?
+    @State var artworkLoading: Set<ArtworkSlot> = []
+    @State var titleSuggestions: [(id: Int, name: String)] = []
+    @State var suggestionTask: Task<Void, Never>?
+    @State var artworkDebounceTask: Task<Void, Never>?
+    @State var suppressTitleSuggestions = false
+    @State var artworkFetchGeneration = 0
+    @State var lastArtworkTitle = ""
 
     init(model: AppModel, state: GameEditorState, dismiss: @escaping () -> Void) {
         self.model = model
@@ -117,7 +140,7 @@ struct GameEditorView: View {
                 .prefixesDirectory)
     }
 
-    private var suggestedID: String {
+    var suggestedID: String {
         GameID.unique(base: GameID.format(title: state.title), existing: model.existingIDs())
     }
 
@@ -183,6 +206,10 @@ struct GameEditorView: View {
                 .pickerStyle(.segmented).labelsHidden()
                 .padding(.horizontal, 20).padding(.top, 12)
                 .accessibilityIdentifier("editor-pages")
+            }
+
+            if showsBanner {
+                bannerPanel(translate).padding(.horizontal, 20).padding(.top, 12)
             }
 
             Group {
@@ -259,6 +286,20 @@ struct GameEditorView: View {
                 }
             }
         }
+        .sheet(item: $pickerSlot) { slot in
+            if let client = model.steamGridDBClient {
+                SteamGridDBPicker(
+                    translate: translate, slot: slot, initialTitle: state.title,
+                    steamGridDBID: state.steamGridDBID, steamAppID: state.steamAppIDForGridDB,
+                    client: client,
+                    onPick: { data in
+                        pickerSlot = nil
+                        applyImage(data, to: slot)
+                    },
+                    onCancel: { pickerSlot = nil }
+                )
+            }
+        }
         .task { prepareArtwork()
             loadSteamUsers()
         }
@@ -296,6 +337,9 @@ struct GameEditorView: View {
                 TextField(translate("Title"), text: $state.title)
                     .invalidMark(invalid.contains(.title))
                     .accessibilityIdentifier("editor-title")
+                if !titleSuggestions.isEmpty {
+                    suggestionList
+                }
                 HStack {
                     TextField(translate("Path"), text: $state.path)
                         .invalidMark(invalid.contains(.path))
@@ -359,22 +403,33 @@ struct GameEditorView: View {
                     ForEach(graphicsChoices, id: \.self) { Text(graphicsLabel($0)).tag($0) }
                 }
             }
+            Section(translate("Shortcut")) {
+                Toggle(translate("Desktop"), isOn: $state.desktopShortcut)
+                Toggle(translate("App Menu"), isOn: $state.appMenuShortcut)
+            }
             LabeledContent(translate("Icon")) {
-                ArtworkMenu(
-                    translate: translate, hasImage: state.artwork.icon != nil,
-                    loadFile: { loadFile(.icon) }, loadURL: { urlPrompt = .icon },
-                    remove: { state.artwork.clear(.icon) }
-                ) {
-                    TempImage(path: state.artwork.icon, size: CGSize(width: 50, height: 50)) {
-                        FaugusFallbackIcon()
+                artworkMenu(translate: translate, slot: .icon, hasImage: state.artwork.icon != nil) {
+                    ZStack {
+                        TempImage(path: state.artwork.icon, size: CGSize(width: 50, height: 50)) {
+                            FaugusFallbackIcon()
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        if artworkLoading.contains(.icon) {
+                            ProgressView().controlSize(.small)
+                        }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .accessibilityIdentifier("editor-icon")
             }
         }
         .formStyle(.grouped)
-        .onChange(of: state.title) { _, _ in invalid.remove(.title) }
+        .onChange(of: state.title) { _, _ in
+            invalid.remove(.title)
+            if !suppressTitleSuggestions {
+                scheduleTitleSuggestions()
+                scheduleArtworkForTitle()
+            }
+        }
         .onChange(of: state.path) { _, _ in invalid.remove(.path) }
         .onChange(of: state.prefix) { _, _ in invalid.remove(.prefix) }
         .onChange(of: state.customRunner) { _, custom in
@@ -466,12 +521,14 @@ struct GameEditorView: View {
         guard !appID.isEmpty, let game = steamChoices.first(where: { $0.appID == appID }) else { return }
         state.title = game.name
         state.path = appID
-        if let icon = model.steam.iconPath(appID: appID), let data = FileManager.default.contents(atPath: icon),
-           state.artwork.setIcon(data: data)
-        {
-            return
+        state.steamGridDBID = nil
+        state.steamAppIDForGridDB = Int(appID)
+        if let icon = model.steam.iconPath(appID: appID), let data = FileManager.default.contents(atPath: icon) {
+            _ = state.artwork.setIcon(data: data)
+        } else {
+            state.artwork.clear(.icon)
         }
-        state.artwork.clear(.icon)
+        fetchArtwork()
     }
 
     /// `default-runner` when it is installed, else the first listed runner.
@@ -573,22 +630,24 @@ struct GameEditorView: View {
 
     // MARK: Artwork
 
-    private var showsCover: Bool {
+    var showsCover: Bool {
         model.interfaceMode == .covers || model.interfaceMode == .carrousel
     }
 
     private func coverPanel(_ translate: Translator) -> some View {
-        ArtworkMenu(
-            translate: translate, hasImage: state.artwork.cover != nil,
-            loadFile: { loadFile(.cover) }, loadURL: { urlPrompt = .cover }, remove: { state.artwork.clear(.cover) }
-        ) {
-            TempImage(path: state.artwork.cover, size: CGSize(width: 200, height: 300), fill: true) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8).fill(.quaternary)
-                    Image(systemName: "plus").font(.largeTitle).foregroundStyle(.secondary)
+        artworkMenu(translate: translate, slot: .cover, hasImage: state.artwork.cover != nil) {
+            ZStack {
+                TempImage(path: state.artwork.cover, size: CGSize(width: 200, height: 300), fill: true) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8).fill(.quaternary)
+                        Image(systemName: "plus").font(.largeTitle).foregroundStyle(.secondary)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                if artworkLoading.contains(.cover) {
+                    ProgressView()
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .accessibilityIdentifier("editor-cover")
     }
@@ -607,12 +666,16 @@ struct GameEditorView: View {
         if !icon.isEmpty, let iconData = fileManager.contents(atPath: icon) {
             _ = state.artwork.setIcon(data: iconData)
         }
+        let banner = model.paths.bannersDirectory + "/" + game.gameID + ".png"
+        if let bannerData = fileManager.contents(atPath: banner) {
+            _ = state.artwork.setBanner(data: bannerData)
+        }
+        lastArtworkTitle = game.title
     }
 
-    private func loadFile(_ slot: ArtworkSlot) {
+    func loadFile(_ slot: ArtworkSlot) {
         let translate = model.translator
-        let message = slot == .cover ? translate("Select an image for the cover") :
-            translate("Select an image for the icon")
+        let message = translate(slot.filePrompt)
         guard let path = FilePicker.chooseImage(message: message) else { return }
         guard let data = FileManager.default.contents(atPath: path),
               ImageTools.isValid(data)
@@ -623,7 +686,7 @@ struct GameEditorView: View {
     }
 
     private func applyImage(_ data: Data, to slot: ArtworkSlot) {
-        let isApplied = slot == .cover ? state.artwork.setCover(data: data) : state.artwork.setIcon(data: data)
+        let isApplied = state.artwork.set(slot, data: data)
         if !isApplied {
             invalidImage()
         }
@@ -647,9 +710,10 @@ struct GameEditorView: View {
                 }
                 if let png = info.iconPNG {
                     _ = state.artwork.setIcon(data: png)
-                } else {
+                } else if !steamGridDBUsable {
                     state.artwork.clear(.icon)
                 }
+                fetchArtwork()
             }
         }
     }
@@ -835,6 +899,8 @@ struct GameEditorView: View {
             game.cover = GameArtwork.saveCover(temporaryPath: state.artwork.cover, gameID: id, paths: model.paths)
         }
         game.icon = GameArtwork.saveIcon(temporaryPath: state.artwork.icon, gameID: id, paths: model.paths)
+        GameArtwork.saveBanner(temporaryPath: state.artwork.banner, gameID: id, paths: model.paths)
+        game.steamGridDBID = state.steamGridDBID.map(String.init) ?? ""
 
         do {
             try? PresetsStore(paths: model.paths).save(state.presets.map(\.text))
@@ -846,6 +912,14 @@ struct GameEditorView: View {
             return
         }
         model.save(game)
+        var wanted = Set<ShortcutLocation>()
+        if state.desktopShortcut {
+            wanted.insert(.desktop)
+        }
+        if state.appMenuShortcut {
+            wanted.insert(.applicationsMenu)
+        }
+        model.applyShortcuts(for: game, wanted: wanted)
         model.selection = game.gameID
         dismiss()
     }

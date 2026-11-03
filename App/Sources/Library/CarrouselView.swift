@@ -65,6 +65,7 @@ struct CarrouselView: View {
             }
             .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: alignment)
         }
+        .background { BannerBackdrop(model: model, game: model.selectedGame) }
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(phases: [.down, .repeat]) { press in

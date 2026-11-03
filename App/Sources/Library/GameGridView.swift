@@ -87,6 +87,7 @@ struct GameGridView: View {
             .onAppear { viewport = geometry.size }
             .onChange(of: geometry.size) { _, newSize in viewport = newSize }
         }
+        .background { BannerBackdrop(model: model, game: model.selectedGame) }
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(phases: [.down, .repeat]) { press in handleKey(press) }

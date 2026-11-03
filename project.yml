@@ -53,6 +53,13 @@ targets:
         NSAppleEventsUsageDescription: Faugus uses Apple Events to shut down, restart or sleep the Mac from the power menu.
         NSHighResolutionCapable: true
         LSArchitecturePriority: [arm64]
+        NSServices:
+          - NSMenuItem:
+              default: Create Faugus Shortcut
+            NSMessage: createFaugusShortcut
+            NSPortName: Faugus
+            NSSendFileTypes:
+              - public.item
     settings:
       base:
         PRODUCT_NAME: Faugus for Mac

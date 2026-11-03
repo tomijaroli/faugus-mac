@@ -101,7 +101,7 @@ extension SteamGridDBClient {
     }
 
     /// An `.ico` is fetched through its thumbnail (a plain raster image).
-    static func iconDownloadURL(for candidate: SteamGridDBCandidate) -> String {
+    public static func iconDownloadURL(for candidate: SteamGridDBCandidate) -> String {
         let pathPart = candidate.url.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
             .first.map(String.init) ?? candidate.url
         return pathPart.lowercased().hasSuffix(".ico") ? candidate.thumb : candidate.url

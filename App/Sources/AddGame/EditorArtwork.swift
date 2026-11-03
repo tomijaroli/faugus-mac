@@ -4,9 +4,33 @@ import SwiftUI
 
 /// Which image the editor is changing.
 enum ArtworkSlot: Hashable, Identifiable {
-    case cover, icon
+    case cover, icon, banner
     var id: Self {
         self
+    }
+
+    var steamGridDBKey: String {
+        switch self {
+        case .cover: "grids"
+        case .icon: "icons"
+        case .banner: "heroes"
+        }
+    }
+
+    var pickerTitle: String {
+        switch self {
+        case .cover: "Choose a cover"
+        case .icon: "Choose an icon"
+        case .banner: "Choose a banner"
+        }
+    }
+
+    var filePrompt: String {
+        switch self {
+        case .cover: "Select an image for the cover"
+        case .icon: "Select an image for the icon"
+        case .banner: "Select an image for the banner"
+        }
     }
 }
 
@@ -17,6 +41,7 @@ struct EditorArtworkDraft {
     let folder = NSTemporaryDirectory() + "faugus-editor-\(UUID().uuidString)"
     private(set) var cover: String?
     private(set) var icon: String?
+    private(set) var banner: String?
     private var counter = 0
     var prepared = false
 
@@ -41,10 +66,34 @@ struct EditorArtworkDraft {
         return true
     }
 
+    mutating func setBanner(data: Data) -> Bool {
+        let path = nextPath("banner")
+        guard ImageTools.isValid(data), (try? data.write(to: URL(fileURLWithPath: path))) != nil else { return false }
+        banner = path
+        return true
+    }
+
+    mutating func set(_ slot: ArtworkSlot, data: Data) -> Bool {
+        switch slot {
+        case .cover: setCover(data: data)
+        case .icon: setIcon(data: data)
+        case .banner: setBanner(data: data)
+        }
+    }
+
+    func path(for slot: ArtworkSlot) -> String? {
+        switch slot {
+        case .cover: cover
+        case .icon: icon
+        case .banner: banner
+        }
+    }
+
     mutating func clear(_ slot: ArtworkSlot) {
         switch slot {
         case .cover: cover = nil
         case .icon: icon = nil
+        case .banner: banner = nil
         }
     }
 
@@ -53,27 +102,42 @@ struct EditorArtworkDraft {
     }
 }
 
-/// The popup upstream shows when an image is clicked (Refresh is for SteamGridDB, which this
-/// build does not have yet).
+/// The popup upstream shows when an image is clicked.
 struct ArtworkMenu<Label: View>: View {
     let translate: Translator
     let hasImage: Bool
+    var steamGridDBEnabled = false
+    var showsLoadURL = true
     let loadFile: () -> Void
-    let loadURL: () -> Void
+    var loadURL: (() -> Void)?
     let remove: () -> Void
+    var refresh: (() -> Void)?
+    var pickSteamGridDB: (() -> Void)?
     @ViewBuilder var label: () -> Label
 
     var body: some View {
-        Menu {
-            Button(translate("Load from file"), action: loadFile)
-            Button(translate("Load from URL"), action: loadURL)
-            Button(translate("Remove"), action: remove).disabled(!hasImage)
-        } label: {
-            label()
+        if steamGridDBEnabled, let pickSteamGridDB {
+            Button(action: pickSteamGridDB) { label() }
+                .buttonStyle(.plain)
+                .contextMenu { menuItems }
+        } else {
+            Menu { menuItems } label: { label() }
+                .menuStyle(.button)
+                .menuIndicator(.hidden)
+                .buttonStyle(.plain)
         }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder private var menuItems: some View {
+        if steamGridDBEnabled, let pickSteamGridDB {
+            Button("SteamGridDB", action: pickSteamGridDB)
+        }
+        Button(translate("Refresh"), action: refresh ?? {}).disabled(refresh == nil)
+        Button(translate("Load from file"), action: loadFile)
+        if showsLoadURL, let loadURL {
+            Button(translate("Load from URL"), action: loadURL)
+        }
+        Button(translate("Remove"), action: remove).disabled(!hasImage)
     }
 }
 

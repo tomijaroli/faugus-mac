@@ -146,7 +146,9 @@ Not affiliated."
 - **P1 Vertical slice:** Rosetta check/install, minimal Runner Manager (Wine Staging Latest),
   DXVK-macOS component, prefix creation, Add Game (Windows), runner mode with splash/logs/
   running state/Stop/playtime/last_played, List mode with context menu, Logs window.
-- **P2** library and settings. **P3** runtime and tools. **P4** macOS integration.
+- **P2** library and settings. **P3** runtime and tools.
+  **P4** macOS integration (tray, Discord RPC, SteamGridDB, Desktop/App Menu shortcuts; Steam
+  shortcuts and auto-create-shortcuts dropped — see `docs/parity.md`).
   **P5** gamepad and console. **P6** backup and Linux import. **P7** i18n and release.
 
 Port semver 0.x until parity; 1.0.0 at full 2.5.6 parity.

@@ -2,9 +2,9 @@ import AppKit
 import FaugusCore
 import SwiftUI
 
-/// Port of upstream's `Settings` dialog. Options whose feature has not landed yet (tray,
-/// autostart, Discord, gamepad, SteamGridDB, sounds, backup) are added with that feature, and
-/// the Linux-only ones are dropped (see `docs/parity.md`).
+/// Port of upstream's `Settings` dialog. Options whose feature has not landed yet (gamepad,
+/// sounds, backup) are added with that feature, and the Linux-only ones are dropped
+/// (see `docs/parity.md`).
 struct SettingsView: View { // swiftlint:disable:this type_body_length
     let model: AppModel
     let dismiss: () -> Void
