@@ -29,7 +29,8 @@ struct FaugusLauncherApp: App {
                 Button(model.translator("About")) {
                     NSApp.orderFrontStandardAboutPanel(options: [
                         .credits: NSAttributedString(
-                            string: "Unofficial macOS port of Faugus Launcher by Felix Ribeiro. Tracks upstream 2.5.6. Not affiliated."
+                            string: "Unofficial macOS port of Faugus Launcher by Felix Ribeiro. "
+                                + "Tracks upstream 2.5.6. Not affiliated."
                         )
                     ])
                 }

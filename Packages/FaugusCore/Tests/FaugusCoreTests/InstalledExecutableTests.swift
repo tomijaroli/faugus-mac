@@ -55,7 +55,7 @@ struct InstalledExecutableTests {
             _ = InstalledExecutable.targetPath(inLink: good.prefix(cut))
         }
         var corrupt = good
-        for i in 76 ..< corrupt.count where i % 5 == 0 {
+        for i in 76 ..< corrupt.count where i.isMultiple(of: 5) {
             corrupt[i] = 0xFF
         }
         _ = InstalledExecutable.targetPath(inLink: corrupt)

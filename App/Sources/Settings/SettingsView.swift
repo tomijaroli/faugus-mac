@@ -5,7 +5,7 @@ import SwiftUI
 /// Port of upstream's `Settings` dialog. Options whose feature has not landed yet (tray,
 /// autostart, Discord, gamepad, SteamGridDB, sounds, backup) are added with that feature, and
 /// the Linux-only ones are dropped (see `docs/parity.md`).
-struct SettingsView: View {
+struct SettingsView: View { // swiftlint:disable:this type_body_length
     let model: AppModel
     let dismiss: () -> Void
 
@@ -153,7 +153,8 @@ struct SettingsView: View {
                 Toggle(t("Splash window"), isOn: flag("splash-window-enabled"))
                     .help(
                         t(
-                            "Displays a splash window with information about the runner and other required components when launching a game"
+                            "Displays a splash window with information about the runner and other required "
+                                + "components when launching a game"
                         )
                     )
                 Toggle(t("Automatic updates"), isOn: flag("automatic-updates"))
@@ -196,6 +197,7 @@ struct SettingsView: View {
 
     // MARK: Interface
 
+    // swiftlint:disable:next function_body_length
     private func interface(_ t: Translator) -> some View {
         let sgdb = cfg.bool("steamgriddb-enabled")
         return Form {

@@ -259,12 +259,9 @@ struct SupervisorTests {
         #expect(failure == nil)
         #expect(Date().timeIntervalSince(t0) < 5)
         #expect(events.all.contains(.stopping))
-        let exited = events.all.compactMap {
-            e -> Int32? in if case let .exited(s, _) = e {
-                s
-            } else {
-                nil
-            }
+        let exited: [Int32] = events.all.compactMap { event in
+            guard case let .exited(status, _) = event else { return nil }
+            return status
         }
         #expect(exited.count == 1)
         #expect(!FileManager.default.fileExists(atPath: paths.stopFile(gameID: "fake-game")))

@@ -33,6 +33,8 @@ public struct POCatalog: Equatable, Sendable {
         try parse(String(contentsOf: url, encoding: .utf8))
     }
 
+    // A single-pass state machine over the file; splitting it would scatter the state.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     public static func parse(_ text: String) -> POCatalog {
         enum Field { case ctxt, id, idPlural, str(Int) }
 

@@ -124,6 +124,8 @@ public actor GameSupervisor {
         }
     }
 
+    // The launch sequence, step by step as numbered inside; one function keeps the order obvious.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func runInner() async throws -> SupervisorFailure? {
         if options.logs {
             log.truncate()

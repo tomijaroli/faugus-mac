@@ -77,7 +77,7 @@ public enum LaunchPlanner {
     /// Precedence of environment values, lowest to highest (same as upstream, where the global
     /// file is applied last):
     /// process env, Faugus computed, the game's `launch_arguments`, global `envar.json`.
-    public static func plan(
+    public static func plan( // swiftlint:disable:this function_parameter_count
         game: Game,
         config: FaugusConfig,
         runner: InstalledRunner,

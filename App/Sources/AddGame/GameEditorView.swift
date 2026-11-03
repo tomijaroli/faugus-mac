@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import AppKit
 import FaugusCore
 import SwiftUI
@@ -80,6 +81,7 @@ struct GameEditorState: Identifiable {
     }
 }
 
+// swiftlint:disable:next type_body_length
 struct GameEditorView: View {
     enum Page: Hashable { case general, settings }
     enum SettingsSection: Hashable { case tools, launchArguments, addApp }
@@ -603,7 +605,10 @@ struct GameEditorView: View {
         let message = slot == .cover ? t("Select an image for the cover") : t("Select an image for the icon")
         guard let path = FilePicker.chooseImage(message: message) else { return }
         guard let data = FileManager.default.contents(atPath: path),
-              ImageTools.isValid(data) else { return invalidImage() }
+              ImageTools.isValid(data)
+        else { invalidImage()
+            return
+        }
         applyImage(data, to: slot)
     }
 

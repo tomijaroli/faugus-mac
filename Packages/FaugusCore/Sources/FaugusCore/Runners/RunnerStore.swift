@@ -46,7 +46,7 @@ public struct RunnerStore: Sendable {
     public func resolve(_ identifier: String, defaultRunner: String) -> RunnerResolution {
         let id = identifier == "Default" ? defaultRunner : identifier
         for flavor in WineFlavor.allCases where id == flavor.latestIdentifier {
-            if let best = installed().filter({ $0.flavor == flavor }).first {
+            if let best = installed().first(where: { $0.flavor == flavor }) {
                 return .installed(best)
             }
             return .missingLatest(flavor)

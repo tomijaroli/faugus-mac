@@ -66,6 +66,7 @@ final class RunnerMode {
         }
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func start(
         gameID: String,
         logs: Bool,
@@ -168,7 +169,8 @@ final class RunnerMode {
             let alert = NSAlert()
             alert.messageText = "Rosetta 2 is required"
             alert.informativeText =
-                "Faugus runs Wine, which is built for Intel Macs, through Rosetta 2. Install it now? macOS will ask for your administrator password."
+                "Faugus runs Wine, which is built for Intel Macs, through Rosetta 2. Install it now? "
+                    + "macOS will ask for your administrator password."
             alert.addButton(withTitle: "Install Rosetta")
             alert.addButton(withTitle: "Cancel")
             NSApp.activate(ignoringOtherApps: true)

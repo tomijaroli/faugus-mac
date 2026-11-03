@@ -30,7 +30,7 @@ struct CategoryManagerView: View {
                         Text(name).tag(name)
                     }
                 }
-                if editing == "" {
+                if editing?.isEmpty == true {
                     TextField("", text: $newName)
                         .labelsHidden()
                         .focused($focus, equals: .new)

@@ -148,10 +148,9 @@ struct WinetricksView: View {
             }
             .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
-            .onChange(of: lines.count) {
-                _, n in if n > 0 {
-                    proxy.scrollTo(n - 1, anchor: .bottom)
-                }
+            .onChange(of: lines.count) { _, count in
+                guard count > 0 else { return }
+                proxy.scrollTo(count - 1, anchor: .bottom)
             }
             .accessibilityIdentifier("winetricks-log")
         }
