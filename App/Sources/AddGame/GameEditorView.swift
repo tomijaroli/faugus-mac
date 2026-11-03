@@ -97,6 +97,7 @@ struct GameEditorView: View {
     @State private var createdPrefixes: [String] = []
     @State private var discardPrompt = false
     @State private var runningFiles = 0
+    @State private var winetricksTarget: WinetricksTarget?
     @State private var steamUsers: [SteamLibrary.User] = []
     @State private var steamGames: [SteamLibrary.InstalledGame] = []
     @State private var steamInvalid = false
@@ -179,6 +180,10 @@ struct GameEditorView: View {
 
             HStack {
                 if state.kind == .windows {
+                    Button("Winetricks") { openWinetricks() }
+                        .disabled(runningFiles > 0 || originalIsRunning)
+                        .help(originalIsRunning ? t.format("%s is running", state.original?.title ?? "") : "")
+                        .accessibilityIdentifier("editor-winetricks")
                     Button("Winecfg") { runWinecfg() }
                         .disabled(runningFiles > 0)
                         .accessibilityIdentifier("editor-winecfg")
@@ -210,6 +215,15 @@ struct GameEditorView: View {
             Button(t("No"), role: .cancel) { dismiss() }
         } message: {
             Text(createdPrefixes.joined(separator: "\n"))
+        }
+        .sheet(item: $winetricksTarget) { target in
+            WinetricksView(
+                model: model, prefix: target.prefix, runnerName: runnerForRun, logName: logIDForRun,
+                subtitle: target.prefix
+            ) {
+                winetricksTarget = nil
+                recordCreatedPrefix(target.prefix, existedBefore: target.existedBefore)
+            }
         }
         .sheet(item: $urlPrompt) { slot in
             ImageURLPrompt(t: t, slot: slot) { data in
@@ -591,6 +605,20 @@ struct GameEditorView: View {
             runningFiles -= 1
             recordCreatedPrefix(prefix, existedBefore: existed)
         }
+    }
+
+    struct WinetricksTarget: Identifiable {
+        let id = UUID()
+        let prefix: String
+        let existedBefore: Bool
+    }
+
+    private var originalIsRunning: Bool { state.original.map { model.isRunning($0) } ?? false }
+
+    /// "Winetricks" in the dialog's prefix and runner (upstream disables it while the game runs).
+    private func openWinetricks() {
+        guard let prefix = prefixForRun() else { return }
+        winetricksTarget = WinetricksTarget(prefix: prefix, existedBefore: FileManager.default.fileExists(atPath: prefix))
     }
 
     /// "Winecfg": Wine's configuration tool in the dialog's prefix and runner. The prefix is

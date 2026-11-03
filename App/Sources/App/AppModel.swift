@@ -26,6 +26,8 @@ final class AppModel {
     private(set) var loadError: String?
     /// `gameid -> runner pid`, refreshed once per second and on `refresh-menu`.
     private(set) var running: [String: Int32] = [:]
+    /// `winetricks list-all`, kept for the session: it takes a few seconds to produce.
+    var winetricksCatalog: [WinetricksCategory]?
     var actionError: String?
 
     // Library state (search, sort, category, zoom and selection of the main window).

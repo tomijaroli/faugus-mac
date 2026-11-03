@@ -21,8 +21,9 @@ struct SettingsView: View {
     @State private var prefixInvalid = false
     @State private var pendingTool: PrefixTool?
     @State private var toolsBusy = 0
+    @State private var showWinetricks = false
 
-    enum PrefixTool { case winecfg, run }
+    enum PrefixTool { case winetricks, winecfg, run }
 
     init(model: AppModel, dismiss: @escaping () -> Void) {
         self.model = model
@@ -70,6 +71,12 @@ struct SettingsView: View {
         .sheet(isPresented: $showRunnerManager, onDismiss: { runners = model.installedRunners() }) {
             RunnerManagerView(model: model) { showRunnerManager = false }
         }
+        .sheet(isPresented: $showWinetricks) {
+            WinetricksView(
+                model: model, prefix: model.defaultPrefixPath, runnerName: "Default", logName: "default",
+                subtitle: model.defaultPrefixPath
+            ) { showWinetricks = false }
+        }
         .confirmationDialog(
             t("Do you want to save the changes?"),
             isPresented: Binding(get: { pendingTool != nil }, set: { if !$0 { pendingTool = nil } }),
@@ -112,6 +119,8 @@ struct SettingsView: View {
                 }
                 Button(t("Runner Manager")) { showRunnerManager = true }
                 HStack {
+                    Button("Winetricks") { startTool(.winetricks) }
+                        .accessibilityIdentifier("settings-winetricks")
                     Button("Winecfg") { startTool(.winecfg) }
                         .accessibilityIdentifier("settings-winecfg")
                     Button(t("Run")) { startTool(.run) }
@@ -381,6 +390,8 @@ struct SettingsView: View {
     private func launch(_ tool: PrefixTool) {
         let t = model.translator
         switch tool {
+        case .winetricks:
+            showWinetricks = true
         case .winecfg:
             runInDefaultPrefix("winecfg")
         case .run:
