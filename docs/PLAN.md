@@ -155,8 +155,8 @@ Port semver 0.x until parity; 1.0.0 at full 2.5.6 parity.
 
 Decided: bundle id `me.tomijaroli.faugus-mac`; GitHub owner `tomijaroli`; no paid Apple
 Developer account yet (ad-hoc signing).
-**Reminder for the user:** register a Discord application (free, Discord developer portal) before
-the Discord Rich Presence work in P4/P5; upstream's application id must not be reused.
+Discord application registered by the owner; its (public) id is `DiscordApplication.clientID`. For the
+Discord Rich Presence work in P4/P5 never reuse upstream's application id.
 Still open: owned test games; P1 flip rules (Staging to Devel, dxvk to
 wined3d-vulkan/wined3d); CrossOver bottle CLI; hosted-CI Metal; steamuser rename; UTIs for
 msi/lnk/bat/reg; Metal HUD under WineD3D.
