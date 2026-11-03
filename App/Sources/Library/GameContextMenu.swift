@@ -14,7 +14,7 @@ struct GameContextMenu: View {
         Button(running ? t("Stop") : t("Play with logs")) { model.play(game, withLogs: true) }
         Button(t("Edit")) { actions.edit(game) }
         Button(t("Delete")) { actions.delete(game) }
-        Button(t("Duplicate")) { model.duplicate(game) }
+        Button(t("Duplicate")) { actions.duplicate(game) }
         Button(game.hidden ? t("Remove from hidden") : t("Hide")) { model.toggleHidden(game) }
         categoryMenu(t)
         Divider()

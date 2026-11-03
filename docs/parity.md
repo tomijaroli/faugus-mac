@@ -19,7 +19,7 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 | Splash, logs, stop, playtime | `runner.py` | `Splash`, `Logs` | done (Stop about 3.4 s; logs window shows wine.log and faugus.log) |
 | List mode, context menu | `launcher.py` | `Library` | wip (P1: Play with logs, Edit, Delete, Duplicate, Hide, locations, Show logs; Category and Run file in P2) |
 | Grid / Covers / Carrousel | `launcher.py` | `Library` | done (P2.3: Grid and Covers with zoom, labels, orientation, max columns, position, overview panel, custom-order drag, background and widget colours; Carrousel with arrow keys, scroll wheel and click; startup window size; Ctrl+H hidden games; dominant colour and banner wait for artwork/SteamGridDB) |
-| Add / Edit / Duplicate / Delete | `launcher.py` | `AddGame` | wip (P1: Windows type; delete offers prefix to Trash; other types in P2) |
+| Add / Edit / Duplicate / Delete | `launcher.py` | `AddGame` | wip (P2.4a: Windows type with General and Settings pages, Specific Runner, Graphics, launch-arguments and presets editor, pre/post-launch, SDL/No Sleep/Discord RPC (stored), Additional Application bat, validation marks, "already exists", Duplicate and Delete dialogs with the shared-prefix warning; artwork, installer, Run file and Steam type follow in P2.4b-d; store-launcher types (Epic, GOG, ...) are not planned) |
 | Settings | `launcher.py` | `Settings` | wip (P2.2: General and Interface tabs, language, global env vars, clear logs, live preview with Cancel revert, Cmd+,; tray/autostart/Discord/gamepad/SteamGridDB/sounds/backup rows land with their features) |
 | Tray | `tray_sni.py` | `Tray` | todo |
 | Gamepad / console mode | `gamepad.py` | `Gamepad` | todo |
@@ -44,7 +44,9 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 | Stop | SIGTERM to the game's process group, `wineserver -k` started without waiting, force kill of every `FAUGUSID`-tagged process after a 3 s grace. Wine's own graceful `wineserver -k` takes about 10 s, so a Stop may lose registry writes made during the session. |
 | Process tagging | `FAUGUSID` and `WINEPREFIX` are placed last in `envp`; Wine overwrites the start of the argv/env block when it renames itself, and the scanner skips the resulting empty strings. |
 | Play | Toolbar Play and double-click run without logs; "Play with logs" is the context-menu item, as upstream. |
-| Delete prefix | The prefix goes to the Trash, never `rm`, and only when no other game uses it. |
+| Delete prefix | The prefix goes to the Trash, never `rm`. Upstream offers the checkbox even for a shared prefix (with a warning); here the warning is shown and the checkbox is disabled, so another game's prefix is never removed. |
+| Duplicate | As upstream the copy shares the original's prefix and keeps its playtime and category; the old Mac-only "(copy)" shortcut is gone in favour of upstream's title prompt. |
+| Add / Edit | "Specific Proton" is "Specific Runner". The Lossless, MangoHud, GameMode and Linux-runtime widgets do not exist. The SDL flag is stored (and kept for Linux), but Wine on macOS already uses SDL for controllers, so it changes nothing at launch. |
 | Settings | Header bar, Theme (Adwaita/GTK engine), GPU, MangoHud, GameMode, Wayland driver, WOW64 and the winetricks/winecfg buttons are not shown (Linux only, or arrive in P3). Default Runner lists installed runners. Color Scheme drives the macOS appearance. A language change applies immediately instead of after a restart. |
 | Main window controls | Zoom, sort, category, add, settings, kill, play and search live in the native toolbar instead of upstream's bottom bar and top bar. Kill all stops Faugus-managed games only. |
 | Context menu | Standard SwiftUI menu; upstream's gamepad-friendly popover arrives with P5. |

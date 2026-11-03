@@ -82,7 +82,6 @@ public struct Game: Equatable, Sendable, Identifiable {
     public var addApp: String { get { str("addapp") } set { set("addapp", newValue) } }
     public var addAppBat: String { get { str("addapp_bat") } set { set("addapp_bat", newValue) } }
     public var addAppDelay: String { get { str("addapp_delay") } set { set("addapp_delay", newValue) } }
-    public var addAppFirst: String { get { str("addapp_first") } set { set("addapp_first", newValue) } }
     public var cover: String { get { str("cover") } set { set("cover", newValue) } }
     public var icon: String { get { str("icon") } set { set("icon", newValue) } }
     public var steamGridDBID: String { get { str("steamgriddb_id") } set { set("steamgriddb_id", newValue) } }
@@ -101,6 +100,7 @@ public struct Game: Equatable, Sendable, Identifiable {
     public var sdlEnabled: Bool { get { flag("sdl_enabled") } set { raw["sdl_enabled"] = .bool(newValue) } }
     public var discordRPC: Bool { get { flag("discord_rpc") } set { raw["discord_rpc"] = .bool(newValue) } }
     public var disableUMU: Bool { get { flag("disable_umu") } set { raw["disable_umu"] = .bool(newValue) } }
+    public var addAppFirst: Bool { get { flag("addapp_first") } set { raw["addapp_first"] = .bool(newValue) } }
     public var addAppEnabled: Bool { get { flag("addapp_enabled") } set { raw["addapp_enabled"] = .bool(newValue) } }
     public var hidden: Bool { get { flag("hidden") } set { raw["hidden"] = .bool(newValue) } }
     public var noSleep: Bool { get { flag("no_sleep") } set { raw["no_sleep"] = .bool(newValue) } }

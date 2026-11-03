@@ -53,7 +53,7 @@ public struct Translator: Sendable {
                 out.append("}"); i = template.index(after: next); continue
             } else if c == "%", next < template.endIndex {
                 if template[next] == "%" { out.append("%"); i = template.index(after: next); continue }
-                if template[next] == "s" {
+                if template[next] == "s" || template[next] == "d" {
                     if auto < args.count { out += args[auto] }
                     auto += 1
                     i = template.index(after: next); continue

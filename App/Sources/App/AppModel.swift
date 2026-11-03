@@ -237,45 +237,46 @@ final class AppModel {
         write(all, deleted: nil)
     }
 
-    /// Removes the game entry. With `removePrefix` the prefix goes to the Trash (never `rm`),
-    /// and only when no other game uses it.
+    /// `_on_confirm_delete_response`: stops the game if it runs, removes its artwork and add-app
+    /// bat, drops it from the custom order and writes games.json. With `removePrefix` the prefix
+    /// goes to the Trash (never `rm`), and only when no other game still uses it.
     func delete(_ game: Game, removePrefix: Bool) {
+        if isRunning(game) { stop(game) }
         let all = ((try? GamesStore(paths: paths).loadAll()) ?? []).filter { $0.gameID != game.gameID }
-        write(all, deleted: game.gameID)
-        try? CustomOrderStore(paths: paths).remove(gameID: game.gameID)
-        guard removePrefix else { return }
         let prefix = paths.expand(game.prefix)
         let shared = all.contains { paths.expand($0.prefix) == prefix }
-        if !shared, !prefix.isEmpty, FileManager.default.fileExists(atPath: prefix) {
-            do {
-                try FileManager.default.trashItem(at: URL(fileURLWithPath: prefix), resultingItemURL: nil)
-            } catch {
-                actionError = "\(translator("Failed to remove prefix")): \(error.localizedDescription)"
-            }
+        GameEditing.removeOwnedFiles(of: game, paths: paths)
+        write(all, deleted: game.gameID)
+        try? CustomOrderStore(paths: paths).remove(gameID: game.gameID)
+        guard removePrefix, !shared, !prefix.isEmpty, FileManager.default.fileExists(atPath: prefix) else { return }
+        do {
+            try FileManager.default.trashItem(at: URL(fileURLWithPath: prefix), resultingItemURL: nil)
+        } catch {
+            actionError = "\(translator("Failed to remove prefix")): \(error.localizedDescription)"
         }
     }
 
     /// Other games sharing this game's prefix (upstream warns before deleting).
     func gamesSharingPrefix(with game: Game) -> Int {
-        let prefix = paths.expand(game.prefix)
-        return games.filter { $0.gameID != game.gameID && paths.expand($0.prefix) == prefix }.count
+        GameEditing.otherGamesUsingPrefix(of: game, in: games, paths: paths)
     }
 
-    func duplicate(_ game: Game) {
-        let ids = existingIDs()
-        let newTitle = game.title + " (copy)"
-        var copy = game
-        let newID = GameID.unique(base: GameID.format(title: newTitle), existing: ids)
-        copy.gameID = newID
-        copy.title = newTitle
-        // A game with its own prefix under the default prefix folder gets a fresh one.
-        let base = paths.expand(config?.string("default-prefix", default: paths.prefixesDir) ?? paths.prefixesDir)
-        if (paths.expand(game.prefix) as NSString).deletingLastPathComponent == base {
-            copy.prefix = base + "/" + newID
+    /// Duplicates under a new title (`DuplicateDialog`). Returns the failure to show, if any.
+    @discardableResult
+    func duplicate(_ game: Game, as title: String) -> GameEditing.DuplicateError? {
+        let all = (try? GamesStore(paths: paths).loadAll()) ?? games
+        do {
+            let copy = try GameEditing.duplicate(game, newTitle: title, existing: all, paths: paths)
+            save(copy)
+            selection = copy.gameID
+            searchText = ""
+            return nil
+        } catch let e as GameEditing.DuplicateError {
+            return e
+        } catch {
+            actionError = "\(error)"
+            return nil
         }
-        copy.playtime = 0
-        copy.lastPlayed = ""
-        save(copy)
     }
 
     func toggleHidden(_ game: Game) {

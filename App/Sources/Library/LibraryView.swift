@@ -7,12 +7,14 @@ struct LibraryView: View {
     @Bindable var model: AppModel
     @State private var editor: GameEditorState?
     @State private var gameToDelete: Game?
+    @State private var gameToDuplicate: Game?
     @State private var showCategories = false
 
     private var actions: GameActions {
         GameActions(
             edit: { editor = .edit($0, model: model) },
-            delete: { gameToDelete = $0 })
+            delete: { gameToDelete = $0 },
+            duplicate: { gameToDuplicate = $0 })
     }
 
     var body: some View {
@@ -48,18 +50,11 @@ struct LibraryView: View {
         .sheet(isPresented: $showCategories) {
             CategoryManagerView(model: model) { showCategories = false }
         }
-        .confirmationDialog(
-            gameToDelete.map { t.format("Delete %s", $0.title) } ?? "",
-            isPresented: Binding(get: { gameToDelete != nil }, set: { if !$0 { gameToDelete = nil } }),
-            presenting: gameToDelete
-        ) { game in
-            Button(t("Delete"), role: .destructive) { model.delete(game, removePrefix: false) }
-            if FileManager.default.fileExists(atPath: model.paths.expand(game.prefix)) {
-                Button(t("Also remove the prefix:"), role: .destructive) { model.delete(game, removePrefix: true) }
-            }
-            Button(t("Cancel"), role: .cancel) {}
-        } message: { game in
-            Text(t.format("Are you sure you want to delete %s?", game.title))
+        .sheet(item: $gameToDelete) { game in
+            DeleteGameView(model: model, game: game) { gameToDelete = nil }
+        }
+        .sheet(item: $gameToDuplicate) { game in
+            DuplicateGameView(model: model, game: game) { gameToDuplicate = nil }
         }
         .navigationTitle("Faugus")
         .environment(\.layoutDirection, model.isRightToLeft ? .rightToLeft : .leftToRight)

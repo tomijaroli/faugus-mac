@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct GameActions {
     var edit: (Game) -> Void
     var delete: (Game) -> Void
+    var duplicate: (Game) -> Void
 }
 
 /// Grid and Covers modes (`add_item_list`, `apply_flowbox_layout`, `arrange_main_content`).
