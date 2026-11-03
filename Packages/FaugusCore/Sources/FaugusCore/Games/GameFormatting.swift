@@ -57,4 +57,15 @@ public enum GameFormatting {
         let years = days / 365
         return years == 1 ? t("A year ago") : n("{} years ago", years)
     }
+
+    /// `format_playing_for`: the length of the running session.
+    public static func playingFor(start: Date, now: Date = Date(), _ t: Translator) -> String {
+        let seconds = Int(max(0, now.timeIntervalSince(start)))
+        return playtime(seconds: seconds, t) ?? t("Less than a minute")
+    }
+
+    /// The overview panel's category line: names sorted case-insensitively.
+    public static func categoryLine(_ names: [String]) -> String {
+        names.sorted { $0.lowercased() < $1.lowercased() }.joined(separator: ", ")
+    }
 }

@@ -23,6 +23,17 @@ public enum ProcessScanner {
         }
     }
 
+    /// When `pid` was started (replaces psutil's `create_time`).
+    public static func startDate(of pid: pid_t) -> Date? {
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        guard sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0) == 0, size > 0, info.kp_proc.p_pid == pid
+        else { return nil }
+        let t = info.kp_proc.p_starttime
+        return Date(timeIntervalSince1970: TimeInterval(t.tv_sec) + TimeInterval(t.tv_usec) / 1_000_000)
+    }
+
     /// The environment of `pid`, if readable (same user, not hardened-protected).
     public static func environment(of pid: pid_t) -> [String: String]? {
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]

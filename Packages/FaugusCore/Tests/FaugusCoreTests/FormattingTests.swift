@@ -44,3 +44,23 @@ struct FormattingTests {
         #expect(GameFormatting.lastPlayed(iso: "garbage", now: now, t) == nil)
     }
 }
+
+@Suite("Session formatting")
+struct SessionFormattingTests {
+    @Test func playingForAndCategoryLine() {
+        let now = Date()
+        #expect(GameFormatting.playingFor(start: now.addingTimeInterval(-20), now: now, .identity) == "Less than a minute")
+        #expect(GameFormatting.playingFor(start: now.addingTimeInterval(-3700), now: now, .identity) == "1 hour 1 minute")
+        #expect(GameFormatting.playingFor(start: now.addingTimeInterval(60), now: now, .identity) == "Less than a minute")
+        #expect(GameFormatting.categoryLine(["zeta", "Alpha", "beta"]) == "Alpha, beta, zeta")
+        #expect(GameFormatting.categoryLine([]) == "")
+    }
+
+    @Test func processStartDateIsKnownForOurselvesAndNilForDeadPIDs() {
+        let started = ProcessScanner.startDate(of: getpid())
+        #expect(started != nil)
+        #expect(started! <= Date())
+        #expect(started! > Date().addingTimeInterval(-86400 * 365))
+        #expect(ProcessScanner.startDate(of: 99_999_999) == nil)
+    }
+}

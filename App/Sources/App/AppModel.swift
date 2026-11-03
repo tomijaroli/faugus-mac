@@ -12,7 +12,13 @@ final class AppModel {
     var showSettings = false
     /// The unsaved Settings draft. Interface options preview live and revert on Cancel.
     var previewConfig: FaugusConfig? {
-        didSet { applyAppearance() }
+        didSet {
+            applyAppearance()
+            // `show-hidden` changes the games list, everything else is read live.
+            let old = (oldValue ?? config)?.bool("show-hidden")
+            let new = (previewConfig ?? config)?.bool("show-hidden")
+            if old != new { reloadGames() }
+        }
     }
     private(set) var games: [Game] = []
     private(set) var translator: Translator = .identity
@@ -20,7 +26,20 @@ final class AppModel {
     private(set) var loadError: String?
     /// `gameid -> runner pid`, refreshed once per second and on `refresh-menu`.
     private(set) var running: [String: Int32] = [:]
-    private(set) var actionError: String?
+    var actionError: String?
+
+    // Library state (search, sort, category, zoom and selection of the main window).
+    var searchText = ""
+    var sortMode: SortMode = .alpha { didSet { if sortMode != oldValue { persistInterfaceState() } } }
+    var category: CategorySelection = .all { didSet { if category != oldValue { persistInterfaceState() } } }
+    /// Cover zoom in percent, 50 to 100 in steps of 10.
+    var coverSize = 100 { didSet { if coverSize != oldValue { persistInterfaceState() } } }
+    var selection: String?
+    var customOrder: [String: Int] = [:]
+    var categoryNames: [String] = []
+    @ObservationIgnored var dragSourceID: String?
+    @ObservationIgnored var playSessions: [String: (start: Date?, baseline: Int)] = [:]
+    @ObservationIgnored private var restoredInterfaceState = false
 
     /// What the library draws with: the Settings draft while the dialog is open.
     var activeConfig: FaugusConfig? { previewConfig ?? config }
@@ -46,12 +65,48 @@ final class AppModel {
             // `FAUGUS_LANG` is a QA override that never touches config.json.
             languageCode = ProcessInfo.processInfo.environment["FAUGUS_LANG"] ?? cfg.string("language", default: "en_US")
             translator = Self.languageCatalogs()?.translator(for: languageCode) ?? .identity
-            games = try GamesStore(paths: paths).load(showHidden: cfg.bool("show-hidden"))
+            games = try GamesStore(paths: paths).load(showHidden: (previewConfig ?? cfg).bool("show-hidden"))
             running = RunningGames(paths: paths).load()
+            customOrder = CustomOrderStore(paths: paths).load()
+            categoryNames = CategoryStore(paths: paths).load()
+            restoreInterfaceState(cfg)
             loadError = nil
             applyAppearance()
         } catch {
             loadError = "\(error)"
+        }
+    }
+
+    private func reloadGames() {
+        let show = activeConfig?.bool("show-hidden") ?? false
+        if let loaded = try? GamesStore(paths: paths).load(showHidden: show) { games = loaded }
+    }
+
+    /// Applies `sort`, `category` and `cover-size` from `config.json` once per launch.
+    private func restoreInterfaceState(_ cfg: FaugusConfig) {
+        guard !restoredInterfaceState else { return }
+        restoredInterfaceState = true
+        sortMode = SortMode(configValue: cfg.string("sort", default: "alpha"))
+        category = CategorySelection(configValue: cfg.string("category", default: "all"))
+        let size = cfg.int("cover-size", default: 100)
+        coverSize = min(100, max(50, size))
+    }
+
+    /// Edits and saves `config.json` (used for interface state saved outside Settings).
+    func updateConfig(_ body: (inout FaugusConfig) -> Void) {
+        guard var cfg = config else { return }
+        body(&cfg)
+        guard cfg != config else { return }
+        do { try cfg.save() } catch { actionError = "\(error)"; return }
+        config = cfg
+    }
+
+    private func persistInterfaceState() {
+        guard restoredInterfaceState else { return }
+        updateConfig {
+            $0.setValue("sort", sortMode.rawValue)
+            $0.setValue("category", category.configValue)
+            $0.setValue("cover-size", String(coverSize))
         }
     }
 
@@ -187,6 +242,7 @@ final class AppModel {
     func delete(_ game: Game, removePrefix: Bool) {
         let all = ((try? GamesStore(paths: paths).loadAll()) ?? []).filter { $0.gameID != game.gameID }
         write(all, deleted: game.gameID)
+        try? CustomOrderStore(paths: paths).remove(gameID: game.gameID)
         guard removePrefix else { return }
         let prefix = paths.expand(game.prefix)
         let shared = all.contains { paths.expand($0.prefix) == prefix }

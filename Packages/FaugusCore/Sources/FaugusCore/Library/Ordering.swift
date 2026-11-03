@@ -19,7 +19,7 @@ public enum SortMode: String, CaseIterable, Sendable {
 }
 
 /// The category filter. `config.json` stores `all`, `uncategorized` or the category name.
-public enum CategorySelection: Equatable, Sendable {
+public enum CategorySelection: Hashable, Sendable {
     case all
     case uncategorized
     case named(String)
