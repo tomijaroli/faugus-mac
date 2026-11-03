@@ -120,9 +120,19 @@ Linux-native entries "Needs attention", replace Proton native d3d DLLs with buil
 
 ## 7. Packaging
 
-"Faugus for Mac", executable `Faugus`, Developer ID signed, hardened runtime, notarized and
-stapled DMG, entitlement `com.apple.security.automation.apple-events`, not sandboxed. Sparkle 2.
-Homebrew cask in the owner's tap (arm64, macOS >= Sonoma, `depends_on formula: "cabextract"`,
+"Faugus for Mac", executable `Faugus`, bundle id `me.tomijaroli.faugus-mac`, entitlement
+`com.apple.security.automation.apple-events`, not sandboxed. Sparkle 2 (EdDSA update keys; no
+Apple account needed).
+
+**Signing decision (2026-11-03):** no paid Apple Developer account for now. Builds are ad-hoc
+signed and not notarized, so users must approve the app once (right-click Open, or System
+Settings > Privacy & Security > Open Anyway on recent macOS). Consequence: macOS may re-ask for
+permissions after an update, and the Homebrew cask will also trigger the Gatekeeper prompt.
+Revisit (Developer ID, hardened runtime, notarized and stapled DMG) when the project is shared
+beyond friends.
+
+Homebrew cask in the owner's tap (`tomijaroli/homebrew-faugus-mac`, repo
+https://github.com/tomijaroli/faugus-mac) (arm64, macOS >= Sonoma, `depends_on formula: "cabextract"`,
 binary `faugus-launcher`, `auto_updates true`, zap never touches `~/Faugus`; no
 `requires_rosetta` caveat).
 
@@ -143,7 +153,10 @@ Port semver 0.x until parity; 1.0.0 at full 2.5.6 parity.
 
 ## 9. Open items (do not block P0/P1)
 
-Apple Developer team / signing identity / bundle-id prefix; GitHub owner for repo and tap;
-Discord application id; owned test games; P1 flip rules (Staging to Devel, dxvk to
+Decided: bundle id `me.tomijaroli.faugus-mac`; GitHub owner `tomijaroli`; no paid Apple
+Developer account yet (ad-hoc signing).
+**Reminder for the user:** register a Discord application (free, Discord developer portal) before
+the Discord Rich Presence work in P4/P5; upstream's application id must not be reused.
+Still open: owned test games; P1 flip rules (Staging to Devel, dxvk to
 wined3d-vulkan/wined3d); CrossOver bottle CLI; hosted-CI Metal; steamuser rename; UTIs for
 msi/lnk/bat/reg; Metal HUD under WineD3D.

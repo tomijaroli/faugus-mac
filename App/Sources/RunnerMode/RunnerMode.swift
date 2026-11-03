@@ -135,7 +135,7 @@ final class RunnerMode {
 
 extension Notification.Name {
     /// `refresh-menu` from the plan's IPC table.
-    static let faugusRefreshMenu = Notification.Name("me.tomijaroli.FaugusForMac.refresh-menu")
+    static let faugusRefreshMenu = Notification.Name("me.tomijaroli.faugus-mac.refresh-menu")
 }
 
 @MainActor

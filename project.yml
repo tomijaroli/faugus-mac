@@ -1,8 +1,7 @@
 name: FaugusForMac
 
 options:
-  # PROVISIONAL: replace with the owner's reverse-DNS prefix before the first release (plan section 7).
-  # Must never be io.github.Faugus.faugus-launcher.
+  # Bundle id: me.tomijaroli.faugus-mac (decided 2026-11-03). Must never be io.github.Faugus.faugus-launcher.
   bundleIdPrefix: me.tomijaroli
   deploymentTarget:
     macOS: "14.0"
@@ -58,7 +57,7 @@ targets:
       base:
         PRODUCT_NAME: Faugus for Mac
         EXECUTABLE_NAME: Faugus
-        PRODUCT_BUNDLE_IDENTIFIER: me.tomijaroli.FaugusForMac
+        PRODUCT_BUNDLE_IDENTIFIER: me.tomijaroli.faugus-mac
         GENERATE_INFOPLIST_FILE: NO
         COMBINE_HIDPI_IMAGES: YES
     postBuildScripts:

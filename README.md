@@ -6,6 +6,8 @@ Unofficial macOS (Apple Silicon) port of [Faugus Launcher](https://github.com/Fa
 Games run through Wine (Gcenx macOS builds, x86_64 under Rosetta 2) with DXVK-macOS
 or WineD3D. See `docs/PLAN.md` for the full plan and `docs/parity.md` for status.
 
+Repository: https://github.com/tomijaroli/faugus-mac
+
 ## Build
 
 ```sh
