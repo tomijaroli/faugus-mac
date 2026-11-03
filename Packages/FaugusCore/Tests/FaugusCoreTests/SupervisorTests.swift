@@ -236,4 +236,36 @@ struct SupervisorTests {
         #expect(await ProcessSpawner.waitForExit(pid: pid) == 128 + Int32(SIGKILL))
         #expect(ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: id).isEmpty)
     }
+
+    /// Wine renames itself by overwriting the argv block, leaving empty strings before the
+    /// environment. The scanner must read past them (regression: orphaned winedevice.exe).
+    @Test func scannerReadsPastARewrittenProcessTitle() async throws {
+        let id = "retitle-" + UUID().uuidString
+        let dir = NSTemporaryDirectory() + "faugus-retitle-" + UUID().uuidString
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        let src = dir + "/retitle.c"
+        try """
+            #include <string.h>
+            #include <unistd.h>
+            int main(int argc, char **argv) {
+                size_t n = strlen(argv[0]);
+                memset(argv[0], 0, n);
+                strcpy(argv[0], "C:\\\\windows\\\\x.exe");
+                sleep(30);
+                return 0;
+            }
+            """.write(toFile: src, atomically: true, encoding: .utf8)
+        let exe = dir + "/retitle"
+        let cc = try await ProcessRunner.run("/usr/bin/clang", ["-o", exe, src])
+        #expect(cc.succeeded, "clang: \(cc.stderr)")
+        _ = try await ProcessRunner.run("/usr/bin/codesign", ["--force", "-s", "-", exe])
+
+        var env = ProcessInfo.processInfo.environment
+        env["FAUGUSID"] = id
+        let pid = try ProcessSpawner.spawn(argv: [exe], options: .init(environment: env))
+        defer { kill(pid, SIGKILL); var s: Int32 = 0; waitpid(pid, &s, 0) }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: id) == [pid])
+    }
 }

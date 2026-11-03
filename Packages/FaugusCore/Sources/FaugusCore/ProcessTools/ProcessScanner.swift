@@ -47,7 +47,9 @@ public enum ProcessScanner {
         while i < buffer.count {
             var j = i
             while j < buffer.count, buffer[j] != 0 { j += 1 }
-            if j == i { break }
+            // Wine rewrites its process title over the start of the argv/env block, which can
+            // leave empty strings in the middle: skip them rather than stopping.
+            if j == i { i += 1; continue }
             let entry = String(decoding: buffer[i..<j], as: UTF8.self)
             if let eq = entry.firstIndex(of: "=") {
                 env[String(entry[..<eq])] = String(entry[entry.index(after: eq)...])

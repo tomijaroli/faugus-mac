@@ -40,7 +40,7 @@ final class RunnerMode {
             splash.model.status = translator("Loading...")
             splash.show(
                 iconPath: game?.icon,
-                fallbackIconPath: Bundle.main.resourceURL?.appendingPathComponent("assets/faugus-launcher.png").path)
+                fallbackIconPath: Bundle.main.resourceURL?.appendingPathComponent("assets/faugus-launcher-raster.png").path)
             splashShownAt = Date()
             startWindowWatcher()
         }

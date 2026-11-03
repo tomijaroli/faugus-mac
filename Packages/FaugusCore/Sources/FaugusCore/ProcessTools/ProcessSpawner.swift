@@ -37,6 +37,17 @@ public enum ProcessSpawner {
         return nil
     }
 
+    /// Keys placed last in `envp`. Wine rewrites its own process title over the start of the
+    /// argv/environment block (winedevice.exe and friends), which would erase `FAUGUSID`; the
+    /// tag must survive so Stop can find every process of a game.
+    static let trailingKeys = ["WINEPREFIX", "FAUGUSID"]
+
+    static func orderedEnvironment(_ env: [String: String]) -> [String] {
+        let head = env.keys.filter { !trailingKeys.contains($0) }.sorted()
+        let tail = trailingKeys.filter { env[$0] != nil }
+        return (head + tail).map { "\($0)=\(env[$0] ?? "")" }
+    }
+
     public static func spawn(argv: [String], options: Options) throws -> pid_t {
         guard let first = argv.first,
             let exe = resolveExecutable(first, path: options.environment["PATH"])
@@ -66,7 +77,7 @@ public enum ProcessSpawner {
         posix_spawnattr_setflags(&attr, Int16(flags))
 
         let cArgs = argv.map { strdup($0) } + [nil]
-        let cEnv = options.environment.map { strdup("\($0.key)=\($0.value)") } + [nil]
+        let cEnv = orderedEnvironment(options.environment).map { strdup($0) } + [nil]
         defer {
             cArgs.forEach { free($0) }
             cEnv.forEach { free($0) }
