@@ -26,6 +26,7 @@ struct WindowConfigurator: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             guard let window, !applied else { return }
             applied = true
+            MainActor.assumeIsolated { AppDelegate.shared?.adopt(window) }
             DispatchQueue.main.async { [weak self, weak window] in
                 guard let self, let window else { return }
                 apply(to: window)

@@ -2,7 +2,14 @@ import FaugusCore
 import SwiftUI
 
 struct FaugusLauncherApp: App {
-    @State private var model = AppModel()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @State private var model: AppModel
+
+    init() {
+        let model = AppModel()
+        _model = State(initialValue: model)
+        MainActor.assumeIsolated { AppDelegate.sharedModel = model }
+    }
 
     var body: some Scene {
         WindowGroup("Faugus", id: "main") {

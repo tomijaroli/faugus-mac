@@ -219,6 +219,7 @@ final class AppModel {
         }
         previewConfig = nil
         reload()
+        AppDelegate.shared?.applyTraySettings()
     }
 
     func discardSettingsPreview() {
@@ -267,6 +268,9 @@ final class AppModel {
             )
             actionError = nil
             updateLastPlayedOrdering(game)
+            if config?.bool("auto-close-on-launch") == true {
+                AppDelegate.shared?.closeAfterLaunch()
+            }
         } catch {
             actionError = "\(error)"
         }

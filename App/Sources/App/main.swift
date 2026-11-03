@@ -5,7 +5,10 @@ import Foundation
 let launchMode = LaunchMode.parse(Array(CommandLine.arguments.dropFirst()))
 
 switch launchMode {
-case .launcher:
+case let .launcher(_, _, file):
+    if SingleInstance.handOverToRunningInstance(file: file) {
+        exit(0)
+    }
     FaugusLauncherApp.main()
 case let .runGame(gameID, logs, preLaunch, postLaunch):
     RunnerMode.run(gameID: gameID, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch)

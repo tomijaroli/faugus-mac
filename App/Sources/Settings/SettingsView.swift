@@ -19,6 +19,7 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     @State private var confirmDiscard = false
     @State private var logsSize: Int64?
     @State private var prefixInvalid = false
+    @State private var steamGridDBKeyInvalid = false
     @State private var pendingTool: PrefixTool?
     @State private var toolsBusy = 0
     @State private var showWinetricks = false
@@ -163,6 +164,16 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
                             "Checks for and updates the runner and other required components when launching a game"
                         )
                     )
+                Toggle(translate("Autostart"), isOn: flag("autostart-enabled"))
+                    .help(translate("Automatically starts the application with the system"))
+                Toggle(translate("System tray icon"), isOn: flag("system-tray"))
+                    .help(translate("Displays the application icon in the system tray"))
+                Toggle(translate("Minimized startup"), isOn: flag("minimized-startup-enabled"))
+                    .disabled(!configuration.bool("system-tray"))
+                    .help(translate("Starts the application minimized to the system tray"))
+                Toggle(translate("Monochrome icon"), isOn: flag("mono-icon"))
+                    .disabled(!configuration.bool("system-tray"))
+                    .help(translate("Displays a monochrome application icon in the system tray"))
                 Toggle(translate("Categories"), isOn: flag("categories-enabled"))
                     .help(translate("Displays a button to manage game categories"))
                 Toggle(translate("Sort"), isOn: flag("sort-enabled"))
@@ -173,6 +184,8 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
                     .help(translate("May fix gamepad issues with some games"))
                 Toggle(translate("No Sleep"), isOn: flag("no-sleep-enabled"))
                     .help(translate("Prevents the system from suspending while gaming"))
+                Toggle("Discord RPC", isOn: flag("discord-rpc-enabled"))
+                    .help(translate("Shows the running game as your Discord activity"))
             }
 
             Section(translate("Global Environment Variables")) {
@@ -211,6 +224,34 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
             Section {
                 Picker(translate("Interface Mode"), selection: text("interface-mode")) {
                     ForEach(InterfaceMode.allCases, id: \.rawValue) { Text(translate($0.label)).tag($0.rawValue) }
+                }
+            }
+
+            Section {
+                Toggle("SteamGridDB", isOn: flag("steamgriddb-enabled"))
+                    .help(translate("Automatically fetches game icons, covers, and banners from SteamGridDB"))
+                HStack {
+                    TextField("", text: text("steamgriddb-api-key"), prompt: Text(translate("API Key")))
+                        .labelsHidden()
+                        .disabled(!steamGridDBEnabled)
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(
+                            Color.red,
+                            lineWidth: steamGridDBKeyInvalid ? 1.5 : 0
+                        ))
+                        .onChange(of: configuration.string("steamgriddb-api-key")) { _, newKey in
+                            if !newKey.trimmingCharacters(in: .whitespaces).isEmpty {
+                                steamGridDBKeyInvalid = false
+                            }
+                        }
+                    Button {
+                        if let url = URL(string: "https://www.steamgriddb.com/profile/preferences/api") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .help(translate("Get an API key"))
+                    .disabled(!steamGridDBEnabled)
                 }
             }
 
@@ -449,10 +490,7 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         pendingTool = nil
         if save {
             commitNewEnvironmentVariable()
-            if configuration.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
-                prefixInvalid = true
-                return
-            }
+            guard validateConfiguration() else { return }
             model.saveSettings(configuration, environmentVariables: environmentVariables)
             original = configuration
             originalEnvironmentVariables = environmentVariables
@@ -484,12 +522,25 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         }
     }
 
-    private func save() {
-        commitNewEnvironmentVariable()
+    /// Upstream's `validate_fields` for Settings: a prefix location, and an API key when SteamGridDB is on.
+    private func validateConfiguration() -> Bool {
+        var valid = true
         if configuration.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
             prefixInvalid = true
-            return
+            valid = false
         }
+        if configuration.bool("steamgriddb-enabled"),
+           configuration.string("steamgriddb-api-key").trimmingCharacters(in: .whitespaces).isEmpty
+        {
+            steamGridDBKeyInvalid = true
+            valid = false
+        }
+        return valid
+    }
+
+    private func save() {
+        commitNewEnvironmentVariable()
+        guard validateConfiguration() else { return }
         model.saveSettings(configuration, environmentVariables: environmentVariables)
         dismiss()
     }
