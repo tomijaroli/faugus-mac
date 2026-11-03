@@ -38,135 +38,135 @@ public struct FaugusPaths: Equatable, Sendable {
         h("Library", "Application Support", "Faugus")
     }
 
-    public var configDir: String {
+    public var configDirectory: String {
         appSupport + "/config"
     }
 
-    public var dataDir: String {
+    public var dataDirectory: String {
         appSupport + "/data"
     }
 
-    public var stateDir: String {
+    public var stateDirectory: String {
         appSupport + "/state"
     }
 
-    public var runnersDir: String {
+    public var runnersDirectory: String {
         appSupport + "/runners"
     }
 
-    public var componentsDir: String {
+    public var componentsDirectory: String {
         appSupport + "/components"
     }
 
     public var dxvkMacOSDir: String {
-        componentsDir + "/dxvk-macos"
+        componentsDirectory + "/dxvk-macos"
     }
 
-    public var winetricksDir: String {
-        componentsDir + "/winetricks"
+    public var winetricksDirectory: String {
+        componentsDirectory + "/winetricks"
     }
 
-    public var cachesDir: String {
+    public var cachesDirectory: String {
         h("Library", "Caches", "Faugus")
     }
 
-    public var tempDir: String {
-        cachesDir + "/tmp"
+    public var tempDirectory: String {
+        cachesDirectory + "/tmp"
     }
 
-    public var logsDir: String {
+    public var logsDirectory: String {
         h("Library", "Logs", "Faugus")
     }
 
     /// `PREFIXES_DIR`: default parent of per-game prefixes (kept at `~/Faugus` like upstream).
-    public var prefixesDir: String {
+    public var prefixesDirectory: String {
         h("Faugus")
     }
 
     public var defaultPrefix: String {
-        prefixesDir + "/default"
+        prefixesDirectory + "/default"
     }
 
-    public var userApplicationsShortcutsDir: String {
+    public var userApplicationsShortcutsDirectory: String {
         h("Applications", "Faugus")
     }
 
-    public var desktopDir: String {
+    public var desktopDirectory: String {
         h("Desktop")
     }
 
     // MARK: Config dir files
 
     public var configFile: String {
-        configDir + "/config.json"
+        configDirectory + "/config.json"
     }
 
-    public var envarFile: String {
-        configDir + "/envar.json"
+    public var environmentVariablesFile: String {
+        configDirectory + "/environmentVariable.json"
     }
 
     // MARK: Data dir files and folders
 
     public var gamesJSON: String {
-        dataDir + "/games.json"
+        dataDirectory + "/games.json"
     }
 
     public var presetsFile: String {
-        dataDir + "/presets.json"
+        dataDirectory + "/presets.json"
     }
 
     public var categoriesFile: String {
-        dataDir + "/categories.json"
+        dataDirectory + "/categories.json"
     }
 
     public var customOrderFile: String {
-        dataDir + "/custom-order.json"
+        dataDirectory + "/custom-order.json"
     }
 
-    public var coversDir: String {
-        dataDir + "/covers"
+    public var coversDirectory: String {
+        dataDirectory + "/covers"
     }
 
-    public var bannersDir: String {
-        dataDir + "/banners"
+    public var bannersDirectory: String {
+        dataDirectory + "/banners"
     }
 
-    public var iconsDir: String {
-        dataDir + "/icons"
+    public var iconsDirectory: String {
+        dataDirectory + "/icons"
     }
 
-    public var shortcutIconsDir: String {
-        dataDir + "/icons-nolauncher"
+    public var shortcutIconsDirectory: String {
+        dataDirectory + "/icons-nolauncher"
     }
 
-    public var gamesBackupDir: String {
-        dataDir + "/games-backup"
+    public var gamesBackupDirectory: String {
+        dataDirectory + "/games-backup"
     }
 
     // MARK: State dir files
 
     public var latestGamesFile: String {
-        stateDir + "/latest-games.json"
+        stateDirectory + "/latest-games.json"
     }
 
     public var recentRunFilesFile: String {
-        stateDir + "/recent-run-files.json"
+        stateDirectory + "/recent-run-files.json"
     }
 
     public var runningGamesFile: String {
-        stateDir + "/running-games.json"
+        stateDirectory + "/running-games.json"
     }
 
     public var fileChooserFoldersFile: String {
-        stateDir + "/filechooser_folders.json"
+        stateDirectory + "/filechooser_folders.json"
     }
 
     public func stopFile(gameID: String) -> String {
-        stateDir + "/stop-" + gameID
+        stateDirectory + "/stop-" + gameID
     }
 
-    public func gameLogsDir(gameID: String) -> String {
-        logsDir + "/" + gameID
+    public func gameLogsDirectory(gameID: String) -> String {
+        logsDirectory + "/" + gameID
     }
 
     // MARK: Helpers
@@ -226,7 +226,7 @@ public struct FaugusPaths: Equatable, Sendable {
 
     public func ensureDirectories() throws {
         let fm = FileManager.default
-        for dir in [configDir, dataDir, stateDir, runnersDir, componentsDir, tempDir, logsDir] {
+        for dir in [configDirectory, dataDirectory, stateDirectory, runnersDirectory, componentsDirectory, tempDirectory, logsDirectory] {
             try fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
         }
     }

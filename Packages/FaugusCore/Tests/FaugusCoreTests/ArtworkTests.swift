@@ -202,13 +202,13 @@ struct ArtworkTests {
         try FakePE.pngIcon(size: 64).write(to: URL(fileURLWithPath: src))
 
         let cover = GameArtwork.saveCover(temp: src, gameID: "g", paths: paths)
-        #expect(cover == "\(paths.coversDir)/g.png")
+        #expect(cover == "\(paths.coversDirectory)/g.png")
         let cData = try #require(FileManager.default.contents(atPath: cover))
         let c = try #require(ImageTools.decode(cData))
         #expect(c.width == 460 && c.height == 690)
 
         GameArtwork.saveBanner(temp: src, gameID: "g", paths: paths)
-        let bData = try #require(FileManager.default.contents(atPath: "\(paths.bannersDir)/g.png"))
+        let bData = try #require(FileManager.default.contents(atPath: "\(paths.bannersDirectory)/g.png"))
         let b = try #require(ImageTools.decode(bData))
         #expect(b.width == 1920 && b.height == 620)
 
@@ -216,7 +216,7 @@ struct ArtworkTests {
         #expect(GameArtwork.saveCover(temp: nil, gameID: "g", paths: paths) == "")
         #expect(!FileManager.default.fileExists(atPath: cover))
         GameArtwork.saveBanner(temp: nil, gameID: "g", paths: paths)
-        #expect(FileManager.default.fileExists(atPath: "\(paths.bannersDir)/g.png"))
+        #expect(FileManager.default.fileExists(atPath: "\(paths.bannersDirectory)/g.png"))
     }
 
     @Test func iconIsInstalledAndRemoved() throws {
@@ -225,10 +225,10 @@ struct ArtworkTests {
         let paths = FaugusPaths(home: home)
         let src = home + "/icon.png"
         try FakePE.pngIcon(size: 256).write(to: URL(fileURLWithPath: src))
-        #expect(GameArtwork.saveIcon(temp: src, gameID: "g", paths: paths) == "\(paths.iconsDir)/g.png")
+        #expect(GameArtwork.saveIcon(temp: src, gameID: "g", paths: paths) == "\(paths.iconsDirectory)/g.png")
         // Keeping the same icon when the dialog did not touch it needs the temp copy again.
         #expect(GameArtwork.saveIcon(temp: nil, gameID: "g", paths: paths) == "")
-        #expect(!FileManager.default.fileExists(atPath: "\(paths.iconsDir)/g.png"))
+        #expect(!FileManager.default.fileExists(atPath: "\(paths.iconsDirectory)/g.png"))
     }
 
     @Test func urlValidationMatchesUpstreamRules() {

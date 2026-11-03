@@ -1,21 +1,21 @@
 import Foundation
 
-/// `envar.json`: the global environment variables, a JSON list of `KEY=VALUE` lines.
-public struct EnvarStore: Sendable {
+/// `environmentVariable.json`: the global environment variables, a JSON list of `KEY=VALUE` lines.
+public struct EnvironmentVariableStore: Sendable {
     public let paths: FaugusPaths
     public init(paths: FaugusPaths) {
         self.paths = paths
     }
 
     public func load() -> [String] {
-        guard case let .array(a) = JSONFile.load(paths.envarFile, default: .array([])) else { return [] }
+        guard case let .array(a) = JSONFile.load(paths.environmentVariablesFile, default: .array([])) else { return [] }
         return a.compactMap(\.stringValue)
     }
 
     /// `update_envar_file`: blank lines are dropped.
     public func save(_ lines: [String]) throws {
         let kept = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-        try JSONFile.save(.array(kept.map { .string($0) }), to: paths.envarFile)
+        try JSONFile.save(.array(kept.map { .string($0) }), to: paths.environmentVariablesFile)
     }
 }
 
@@ -91,8 +91,8 @@ public enum LogsMaintenance {
     /// Size of every regular file below `dir`, or `nil` when the directory does not exist.
     public static func size(of dir: String) -> Int64? {
         let fm = FileManager.default
-        var isDir: ObjCBool = false
-        guard fm.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue,
+        var isDirectory: ObjCBool = false
+        guard fm.fileExists(atPath: dir, isDirectory: &isDirectory), isDirectory.boolValue,
               let walker = fm.enumerator(atPath: dir)
         else { return nil }
         var total: Int64 = 0
@@ -109,9 +109,9 @@ public enum LogsMaintenance {
     /// that is running keeps a place to write.
     public static func clear(paths: FaugusPaths) throws {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: paths.logsDir) else { return }
-        for name in try fm.contentsOfDirectory(atPath: paths.logsDir) {
-            try fm.removeItem(atPath: paths.logsDir + "/" + name)
+        guard fm.fileExists(atPath: paths.logsDirectory) else { return }
+        for name in try fm.contentsOfDirectory(atPath: paths.logsDirectory) {
+            try fm.removeItem(atPath: paths.logsDirectory + "/" + name)
         }
     }
 }

@@ -6,8 +6,8 @@ import Testing
 struct WinetricksTests {
     private func runner(_ paths: FaugusPaths) -> InstalledRunner {
         InstalledRunner(
-            name: "Wine-Staging-11.21", directory: paths.runnersDir + "/Wine-Staging-11.21",
-            wineRoot: paths.runnersDir + "/Wine-Staging-11.21", flavor: .staging, version: "11.21",
+            name: "Wine-Staging-11.21", directory: paths.runnersDirectory + "/Wine-Staging-11.21",
+            wineRoot: paths.runnersDirectory + "/Wine-Staging-11.21", flavor: .staging, version: "11.21",
             capabilities: .init()
         )
     }
@@ -57,12 +57,12 @@ struct WinetricksTests {
         #expect(inv.environment["WINEPREFIX"] == "/p/game")
         #expect(inv.environment["WINE"] == r.wineBinary)
         #expect(inv.environment["WINESERVER"] == r.wineserverBinary)
-        #expect(inv.environment["W_CACHE"] == paths.winetricksDir + "/cache")
+        #expect(inv.environment["W_CACHE"] == paths.winetricksDirectory + "/cache")
         #expect(inv.environment["WINETRICKS_LATEST_VERSION_CHECK"] == "disabled")
         let path = inv.environment["PATH"] ?? ""
         #expect(path.hasPrefix(r.wineRoot + "/bin:"))
         #expect(path.contains("/opt/homebrew/bin"))
-        #expect(inv.logFile == paths.logsDir + "/my-game/winetricks.log")
+        #expect(inv.logFile == paths.logsDirectory + "/my-game/winetricks.log")
         // Nothing of the runner is written: the script, cache and log live elsewhere.
         #expect(!inv.logFile.hasPrefix(r.directory) && !inv.environment["W_CACHE", default: ""].hasPrefix(r.directory))
     }
@@ -141,7 +141,7 @@ struct WinetricksTests {
         let lines = LogTail(path: inv.logFile).poll(flush: true)
         #expect(lines.contains("args: -q corefonts"))
         #expect(lines.contains("prefix: \(prefix)"))
-        #expect(lines.contains("cache: \(paths.winetricksDir)/cache"))
+        #expect(lines.contains("cache: \(paths.winetricksDirectory)/cache"))
         #expect(Winetricks.installedVerbs(prefix: prefix) == ["corefonts"])
     }
 }

@@ -44,8 +44,8 @@ public struct DXVKComponent: Sendable {
             return
         }
         let fm = FileManager.default
-        try fm.createDirectory(atPath: paths.tempDir, withIntermediateDirectories: true)
-        let archive = URL(fileURLWithPath: paths.tempDir).appendingPathComponent(DXVKComponent.assetName + ".part")
+        try fm.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
+        let archive = URL(fileURLWithPath: paths.tempDirectory).appendingPathComponent(DXVKComponent.assetName + ".part")
         defer { try? fm.removeItem(at: archive) }
 
         let downloader = Downloader(destination: archive) { done, total in

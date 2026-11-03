@@ -42,9 +42,9 @@ struct RealWineIntegrationTests {
     private func makeRig(programs _: String) throws -> Rig {
         let paths = try TestSupport.makeTempHome()
         let name = "Wine-Staging-11.21"
-        try FileManager.default.createDirectory(atPath: paths.runnersDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: paths.runnersDirectory, withIntermediateDirectories: true)
         try FileManager.default.createSymbolicLink(
-            atPath: paths.runnersDir + "/" + name, withDestinationPath: runnerSource!
+            atPath: paths.runnersDirectory + "/" + name, withDestinationPath: runnerSource!
         )
         var cfg = try FaugusConfig.load(paths: paths, language: "en_US")
         cfg.setValue("default-runner", name)
@@ -79,7 +79,7 @@ struct RealWineIntegrationTests {
     }
 
     private func wineLog(_ paths: FaugusPaths, _ id: String) -> String {
-        read(paths.gameLogsDir(gameID: id) + "/wine.log")
+        read(paths.gameLogsDirectory(gameID: id) + "/wine.log")
     }
 
     @Test func runnerIsDetectedAndNeverModified() async throws {
@@ -193,7 +193,7 @@ struct RealWineIntegrationTests {
         let failure = await task.value
         let elapsed = Date().timeIntervalSince(t0)
         print("stop took \(elapsed)s")
-        print(read(rig.paths.gameLogsDir(gameID: "spawner") + "/faugus.log").split(separator: "\n")
+        print(read(rig.paths.gameLogsDirectory(gameID: "spawner") + "/faugus.log").split(separator: "\n")
             .filter { $0.contains("stop +") }.joined(separator: "\n"))
         #expect(failure == nil)
         #expect(elapsed < 5.0)

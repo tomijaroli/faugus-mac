@@ -43,7 +43,7 @@ struct LaunchPlanTests {
         #expect(env(plan, "MVK_CONFIG_RESUME_LOST_DEVICE") == "1")
         #expect(env(plan, "DXVK_ASYNC") == nil)
         #expect(env(plan, "PATH")!.hasPrefix(fakeRunner().wineRoot + "/bin:/usr/bin"))
-        #expect(plan.logDirectory == paths.logsDir + "/celeste")
+        #expect(plan.logDirectory == paths.logsDirectory + "/celeste")
     }
 
     @Test func launchSpecByExtension() {
@@ -73,7 +73,7 @@ struct LaunchPlanTests {
 
         #expect(plan.argv == ["caffeinate", "-i", fakeRunner().wineBinary, "/g/w3.exe", "-windowed", "--res=1920 1080"])
         #expect(env(plan, "FOO") == "1")
-        // Global envar.json wins over the game's launch_arguments, like upstream.
+        // Global environmentVariable.json wins over the game's launch_arguments, like upstream.
         #expect(env(plan, "BAR") == "global")
         #expect(env(plan, "WINEDEBUG") == "err+all")
         // User override for d3d11 replaces Faugus's; Faugus's d3d10core stays.
@@ -96,9 +96,9 @@ struct LaunchPlanTests {
             baseEnvironment: [:]
         )
         #expect(env(plan, "WINEDEBUG") == LaunchPlanner.logsWineDebug)
-        #expect(env(plan, "DXVK_LOG_PATH") == paths.logsDir + "/x")
+        #expect(env(plan, "DXVK_LOG_PATH") == paths.logsDirectory + "/x")
         #expect(env(plan, "WINEDLLOVERRIDES") == "winemenubuilder.exe=d;d3d11,d3d10core=b")
-        #expect(plan.prefix == paths.prefixesDir + "/default")
+        #expect(plan.prefix == paths.prefixesDirectory + "/default")
     }
 
     @Test func addAppBatReplacesPath() throws {
@@ -156,7 +156,7 @@ struct LaunchPlanTests {
     @Test func globalEnvironmentFile() throws {
         let paths = FaugusPaths(home: NSTemporaryDirectory() + "faugus-env-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(atPath: paths.home) }
-        try JSONFile.save(["A=1", "  B = two words ", "bad line", "", "C="], to: paths.envarFile)
+        try JSONFile.save(["A=1", "  B = two words ", "bad line", "", "C="], to: paths.environmentVariablesFile)
         let env = LaunchPlanner.loadGlobalEnvironment(paths: paths)
         #expect(env.map { "\($0.0)|\($0.1)" } == ["A|1", "B|two words", "C|"])
     }

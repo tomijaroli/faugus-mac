@@ -4,15 +4,15 @@ import Testing
 
 @Suite("Settings support", .serialized)
 struct SettingsSupportTests {
-    @Test func envarFileDropsBlankLinesAndKeepsOrder() throws {
+    @Test func environmentVariablesFileDropsBlankLinesAndKeepsOrder() throws {
         let paths = try TestSupport.makeTempHome()
         defer { TestSupport.cleanup(paths) }
-        let store = EnvarStore(paths: paths)
+        let store = EnvironmentVariableStore(paths: paths)
         #expect(store.load().isEmpty)
         try store.save(["A=1", "", "  ", "B=two words"])
         #expect(store.load() == ["A=1", "B=two words"])
         // The launch plan reads the same file.
-        #expect(JSONFile.load(paths.envarFile) == .array(["A=1", "B=two words"]))
+        #expect(JSONFile.load(paths.environmentVariablesFile) == .array(["A=1", "B=two words"]))
     }
 
     @Test func colorsParseAndFormatLikeGdk() {
@@ -42,18 +42,18 @@ struct SettingsSupportTests {
     @Test func clearingLogsEmptiesTheFolderButKeepsIt() throws {
         let paths = try TestSupport.makeTempHome()
         defer { TestSupport.cleanup(paths) }
-        #expect(LogsMaintenance.size(of: paths.logsDir) == nil || LogsMaintenance.size(of: paths.logsDir) == 0)
+        #expect(LogsMaintenance.size(of: paths.logsDirectory) == nil || LogsMaintenance.size(of: paths.logsDirectory) == 0)
         try FileManager.default.createDirectory(
-            atPath: paths.gameLogsDir(gameID: "g"),
+            atPath: paths.gameLogsDirectory(gameID: "g"),
             withIntermediateDirectories: true
         )
-        try Data(count: 2048).write(to: URL(fileURLWithPath: paths.gameLogsDir(gameID: "g") + "/wine.log"))
-        try Data(count: 100).write(to: URL(fileURLWithPath: paths.logsDir + "/faugus.log"))
-        #expect(LogsMaintenance.size(of: paths.logsDir) == 2148)
+        try Data(count: 2048).write(to: URL(fileURLWithPath: paths.gameLogsDirectory(gameID: "g") + "/wine.log"))
+        try Data(count: 100).write(to: URL(fileURLWithPath: paths.logsDirectory + "/faugus.log"))
+        #expect(LogsMaintenance.size(of: paths.logsDirectory) == 2148)
         try LogsMaintenance.clear(paths: paths)
-        #expect(LogsMaintenance.size(of: paths.logsDir) == 0)
-        var isDir: ObjCBool = false
-        #expect(FileManager.default.fileExists(atPath: paths.logsDir, isDirectory: &isDir) && isDir.boolValue)
+        #expect(LogsMaintenance.size(of: paths.logsDirectory) == 0)
+        var isDirectory: ObjCBool = false
+        #expect(FileManager.default.fileExists(atPath: paths.logsDirectory, isDirectory: &isDirectory) && isDirectory.boolValue)
     }
 }
 

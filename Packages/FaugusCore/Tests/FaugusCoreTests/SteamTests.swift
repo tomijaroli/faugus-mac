@@ -183,7 +183,7 @@ struct SteamTests {
         #expect(steam.installFolder(appID: "nope") == nil)
     }
 
-    @Test func installDirCannotEscapeTheLibrary() throws {
+    @Test func installDirectoryCannotEscapeTheLibrary() throws {
         let paths = try TestSupport.makeTempHome()
         defer { TestSupport.cleanup(paths) }
         let steam = try makeSteam(paths)
@@ -259,7 +259,7 @@ struct SteamTests {
         #expect(saved.playtime == 0)
         #expect(RunningGames(paths: paths).load().isEmpty)
         // No Wine, no prefix, no log directory.
-        #expect(!FileManager.default.fileExists(atPath: paths.gameLogsDir(gameID: "celeste")))
+        #expect(!FileManager.default.fileExists(atPath: paths.gameLogsDirectory(gameID: "celeste")))
         #expect(!FileManager.default.fileExists(atPath: paths.home + "/Faugus"))
     }
 

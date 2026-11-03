@@ -113,7 +113,7 @@ struct GamesTests {
     @Test func corruptFileIsNeverOverwritten() throws {
         let paths = try TestSupport.makeTempHome()
         defer { TestSupport.cleanup(paths) }
-        try FileManager.default.createDirectory(atPath: paths.dataDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: paths.dataDirectory, withIntermediateDirectories: true)
         try Data("[{oops".utf8).write(to: URL(fileURLWithPath: paths.gamesJSON))
         let store = GamesStore(paths: paths)
         #expect(throws: GamesStoreError.self) { try store.loadAll() }
@@ -130,7 +130,7 @@ struct GamesTests {
         try store.save(games: [Game(gameID: "a", title: "A")])
         #expect(try store.loadAll().map(\.gameID) == ["a"])
         // No backup when there was nothing to back up.
-        #expect(!FileManager.default.fileExists(atPath: paths.gamesBackupDir))
+        #expect(!FileManager.default.fileExists(atPath: paths.gamesBackupDirectory))
     }
 
     @Test func backupsAreRotatedToTwenty() throws {
@@ -142,7 +142,7 @@ struct GamesTests {
         for i in 0 ..< 25 {
             try store.save(games: [Game(gameID: "a", title: "A\(i)")], now: start.addingTimeInterval(Double(i)))
         }
-        let files = try FileManager.default.contentsOfDirectory(atPath: paths.gamesBackupDir).sorted()
+        let files = try FileManager.default.contentsOfDirectory(atPath: paths.gamesBackupDirectory).sorted()
         #expect(files.count == 20)
         #expect(files.allSatisfy { $0.hasPrefix("games-data-") && $0.hasSuffix(".json") })
         // The newest 20 are kept.

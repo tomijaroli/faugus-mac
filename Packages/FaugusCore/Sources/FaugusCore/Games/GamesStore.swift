@@ -61,23 +61,23 @@ public struct GamesStore: Sendable {
     public func backup(now: Date = Date()) throws -> String? {
         let fm = FileManager.default
         guard fm.fileExists(atPath: paths.gamesJSON) else { return nil }
-        try fm.createDirectory(atPath: paths.gamesBackupDir, withIntermediateDirectories: true)
+        try fm.createDirectory(atPath: paths.gamesBackupDirectory, withIntermediateDirectories: true)
 
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let dest = paths.gamesBackupDir + "/games-data-\(f.string(from: now)).json"
+        let dest = paths.gamesBackupDirectory + "/games-data-\(f.string(from: now)).json"
         if fm.fileExists(atPath: dest) {
             try fm.removeItem(atPath: dest)
         }
         try fm.copyItem(atPath: paths.gamesJSON, toPath: dest)
 
-        var backups = try fm.contentsOfDirectory(atPath: paths.gamesBackupDir)
+        var backups = try fm.contentsOfDirectory(atPath: paths.gamesBackupDirectory)
             .filter { $0.hasPrefix("games-data-") && $0.hasSuffix(".json") }
             .sorted()
         while backups.count > GamesStore.backupKeepCount {
             let oldest = backups.removeFirst()
-            try? fm.removeItem(atPath: paths.gamesBackupDir + "/" + oldest)
+            try? fm.removeItem(atPath: paths.gamesBackupDirectory + "/" + oldest)
         }
         return dest
     }

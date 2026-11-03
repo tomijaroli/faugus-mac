@@ -245,7 +245,7 @@ struct WinetricksView: View {
                 let inv = WinetricksInvocation.listAll(prefix: prefix, runner: runner, paths: model.paths)
                 let result = try await ProcessRunner.run(
                     inv.argv[0], Array(inv.argv.dropFirst()), environment: inv.environment,
-                    currentDirectory: model.paths.tempDir
+                    currentDirectory: model.paths.tempDirectory
                 )
                 let parsed = Winetricks.parseList(result.stdout)
                 guard result.succeeded, !parsed.isEmpty else {

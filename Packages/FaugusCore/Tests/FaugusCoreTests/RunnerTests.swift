@@ -133,7 +133,7 @@ struct RunnerTests {
         #expect(runner.capabilities == RunnerCapabilities(vulkan: true, sdl: true, gstreamer: true))
         #expect(FileManager.default.fileExists(atPath: runner.directory + "/.faugus-install.json"))
         // No staging leftovers.
-        let entries = try FileManager.default.contentsOfDirectory(atPath: paths.runnersDir)
+        let entries = try FileManager.default.contentsOfDirectory(atPath: paths.runnersDirectory)
         #expect(entries == ["Wine-Staging-11.21"])
     }
 
@@ -165,7 +165,7 @@ struct RunnerTests {
         await #expect(throws: RunnerError.self) {
             try await RunnerInstaller(paths: paths).installArchive(at: tar, directoryName: "Wine-Staging-1")
         }
-        let leftovers = (try? FileManager.default.contentsOfDirectory(atPath: paths.runnersDir)) ?? []
+        let leftovers = (try? FileManager.default.contentsOfDirectory(atPath: paths.runnersDirectory)) ?? []
         #expect(leftovers.isEmpty)
     }
 

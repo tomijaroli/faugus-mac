@@ -17,8 +17,8 @@ enum FilePicker {
         panel.treatsFilePackagesAsDirectories = true
         if let startIn, !startIn.isEmpty {
             var dir = (startIn as NSString).expandingTildeInPath
-            var isDir: ObjCBool = false
-            if !(FileManager.default.fileExists(atPath: dir, isDirectory: &isDir) && isDir.boolValue) {
+            var isDirectory: ObjCBool = false
+            if !(FileManager.default.fileExists(atPath: dir, isDirectory: &isDirectory) && isDirectory.boolValue) {
                 dir = (dir as NSString).deletingLastPathComponent
             }
             if FileManager.default.fileExists(atPath: dir) {

@@ -93,7 +93,7 @@ public actor GameSupervisor {
         self.gameID = gameID
         self.options = options
         self.sink = sink
-        log = FaugusLog(path: paths.gameLogsDir(gameID: gameID) + "/faugus.log")
+        log = FaugusLog(path: paths.gameLogsDirectory(gameID: gameID) + "/faugus.log")
         running = RunningGames(paths: paths)
     }
 
@@ -199,10 +199,10 @@ public actor GameSupervisor {
         if isFileRun {
             // Not the game: untagged, and started from the game's folder like upstream.
             plan.environment.removeValue(forKey: "FAUGUSID")
-            let gameDir = (paths.expand(game.path) as NSString).deletingLastPathComponent
-            var isDir: ObjCBool = false
-            if FileManager.default.fileExists(atPath: gameDir, isDirectory: &isDir), isDir.boolValue {
-                plan.workingDirectory = gameDir
+            let gameDirectory = (paths.expand(game.path) as NSString).deletingLastPathComponent
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: gameDirectory, isDirectory: &isDirectory), isDirectory.boolValue {
+                plan.workingDirectory = gameDirectory
             }
         }
 

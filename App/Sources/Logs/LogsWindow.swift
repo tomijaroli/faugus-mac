@@ -13,7 +13,7 @@ enum LogsWindowController {
             existing.makeKeyAndOrderFront(nil)
             return
         }
-        let dir = model.paths.gameLogsDir(gameID: game.gameID)
+        let dir = model.paths.gameLogsDirectory(gameID: game.gameID)
         let view = LogsView(
             title: model.translator.format("%s Logs", game.title),
             directory: dir,

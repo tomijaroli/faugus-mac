@@ -166,7 +166,7 @@ public enum GameEditing {
 
     /// Files that belong to a game and go away with it (`remove_cover_icon`, the add-app bat).
     public static func artworkFiles(for gameID: String, paths: FaugusPaths) -> [String] {
-        [paths.coversDir, paths.iconsDir, paths.bannersDir].map { "\($0)/\(gameID).png" }
+        [paths.coversDirectory, paths.iconsDirectory, paths.bannersDirectory].map { "\($0)/\(gameID).png" }
     }
 
     /// Removes the artwork and the generated bat. Never touches the prefix or the game itself.
@@ -223,18 +223,18 @@ public enum GameEditing {
         copy.title = title
 
         let oldIcon = paths.expand(game.icon)
-        let newIcon = "\(paths.iconsDir)/\(id).png"
+        let newIcon = "\(paths.iconsDirectory)/\(id).png"
         if !oldIcon.isEmpty, fm.fileExists(atPath: oldIcon) {
-            try? fm.createDirectory(atPath: paths.iconsDir, withIntermediateDirectories: true)
+            try? fm.createDirectory(atPath: paths.iconsDirectory, withIntermediateDirectories: true)
             try? fm.removeItem(atPath: newIcon)
             try? fm.copyItem(atPath: oldIcon, toPath: newIcon)
         }
         copy.icon = newIcon
 
         let oldCover = paths.expand(game.cover)
-        let newCover = "\(paths.coversDir)/\(id).png"
+        let newCover = "\(paths.coversDirectory)/\(id).png"
         if !oldCover.isEmpty, fm.fileExists(atPath: oldCover) {
-            try? fm.createDirectory(atPath: paths.coversDir, withIntermediateDirectories: true)
+            try? fm.createDirectory(atPath: paths.coversDirectory, withIntermediateDirectories: true)
             try? fm.removeItem(atPath: newCover)
             try? fm.copyItem(atPath: oldCover, toPath: newCover)
             copy.cover = newCover
@@ -242,10 +242,10 @@ public enum GameEditing {
             copy.cover = ""
         }
 
-        let oldBanner = "\(paths.bannersDir)/\(game.gameID).png"
+        let oldBanner = "\(paths.bannersDirectory)/\(game.gameID).png"
         if fm.fileExists(atPath: oldBanner) {
-            try? fm.createDirectory(atPath: paths.bannersDir, withIntermediateDirectories: true)
-            let newBanner = "\(paths.bannersDir)/\(id).png"
+            try? fm.createDirectory(atPath: paths.bannersDirectory, withIntermediateDirectories: true)
+            let newBanner = "\(paths.bannersDirectory)/\(id).png"
             try? fm.removeItem(atPath: newBanner)
             try? fm.copyItem(atPath: oldBanner, toPath: newBanner)
         }

@@ -15,10 +15,10 @@ public struct RunnerInstaller: Sendable {
         progress: @escaping @Sendable (Double) -> Void = { _ in }
     ) async throws -> InstalledRunner {
         let fm = FileManager.default
-        try fm.createDirectory(atPath: paths.runnersDir, withIntermediateDirectories: true)
-        try fm.createDirectory(atPath: paths.tempDir, withIntermediateDirectories: true)
+        try fm.createDirectory(atPath: paths.runnersDirectory, withIntermediateDirectories: true)
+        try fm.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
 
-        let archive = URL(fileURLWithPath: paths.tempDir).appendingPathComponent(remote.assetName + ".part")
+        let archive = URL(fileURLWithPath: paths.tempDirectory).appendingPathComponent(remote.assetName + ".part")
         defer { try? fm.removeItem(at: archive) }
 
         let downloader = Downloader(destination: archive) { done, total in
@@ -50,8 +50,8 @@ public struct RunnerInstaller: Sendable {
         progress: @Sendable (Double) -> Void = { _ in }
     ) async throws -> InstalledRunner {
         let fm = FileManager.default
-        let staging = paths.runnersDir + "/.staging-" + UUID().uuidString.lowercased()
-        let final = paths.runnersDir + "/" + directoryName
+        let staging = paths.runnersDirectory + "/.staging-" + UUID().uuidString.lowercased()
+        let final = paths.runnersDirectory + "/" + directoryName
         try fm.createDirectory(atPath: staging, withIntermediateDirectories: true)
         var succeeded = false
         defer {
@@ -100,6 +100,6 @@ public struct RunnerInstaller: Sendable {
 
     public func uninstall(name: String) throws {
         guard !name.contains("/"), !name.hasPrefix(".") else { return }
-        try FileManager.default.removeItem(atPath: paths.runnersDir + "/" + name)
+        try FileManager.default.removeItem(atPath: paths.runnersDirectory + "/" + name)
     }
 }

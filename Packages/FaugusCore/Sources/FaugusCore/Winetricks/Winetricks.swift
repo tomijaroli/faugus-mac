@@ -125,7 +125,7 @@ public struct WinetricksInvocation: Sendable {
         let argv = ["/bin/sh", component.scriptPath] + arguments
         return WinetricksInvocation(
             argv: argv, environment: env, workingDirectory: prefix,
-            logFile: paths.gameLogsDir(gameID: logName) + "/winetricks.log"
+            logFile: paths.gameLogsDirectory(gameID: logName) + "/winetricks.log"
         )
     }
 }

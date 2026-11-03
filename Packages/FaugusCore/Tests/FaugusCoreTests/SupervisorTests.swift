@@ -23,7 +23,7 @@ final class EventLog: @unchecked Sendable {
 struct SupervisorTests {
     /// Creates `runners/Wine-Staging-0.0/bin/{wine,wineserver}` as shell scripts.
     private func installFakeRunner(_ paths: FaugusPaths, wineBody: String) throws {
-        let bin = paths.runnersDir + "/Wine-Staging-0.0/bin"
+        let bin = paths.runnersDirectory + "/Wine-Staging-0.0/bin"
         try FileManager.default.createDirectory(atPath: bin, withIntermediateDirectories: true)
         let wine = """
         #!/bin/sh
@@ -123,9 +123,9 @@ struct SupervisorTests {
         #expect(cfg.int("playtime") >= 2)
 
         #expect(RunningGames(paths: paths).load().isEmpty)
-        #expect(FileManager.default.fileExists(atPath: paths.gameLogsDir(gameID: "fake-game") + "/faugus.log"))
+        #expect(FileManager.default.fileExists(atPath: paths.gameLogsDirectory(gameID: "fake-game") + "/faugus.log"))
         // Logs off: no wine.log.
-        #expect(!FileManager.default.fileExists(atPath: paths.gameLogsDir(gameID: "fake-game") + "/wine.log"))
+        #expect(!FileManager.default.fileExists(atPath: paths.gameLogsDirectory(gameID: "fake-game") + "/wine.log"))
     }
 
     @Test func runFileUsesThePrefixButIsNotTheGame() async throws {
@@ -141,7 +141,7 @@ struct SupervisorTests {
         defer { TestSupport.cleanup(paths) }
         var o = options()
         o.runFile = paths.home + "/Downloads/setup.msi"
-        o.baseEnvironment["FAUGUS_TEST_STATE"] = paths.stateDir
+        o.baseEnvironment["FAUGUS_TEST_STATE"] = paths.stateDirectory
         let sup = GameSupervisor(paths: paths, gameID: "fake-game", options: o)
         let failure = await sup.run()
         #expect(failure == nil)
@@ -278,7 +278,7 @@ struct SupervisorTests {
         o.logs = true
         let failure = await GameSupervisor(paths: paths, gameID: "fake-game", options: o).run()
         #expect(failure == nil)
-        let wineLog = try String(contentsOfFile: paths.gameLogsDir(gameID: "fake-game") + "/wine.log", encoding: .utf8)
+        let wineLog = try String(contentsOfFile: paths.gameLogsDirectory(gameID: "fake-game") + "/wine.log", encoding: .utf8)
         #expect(wineLog.contains("WINEDEBUG=" + LaunchPlanner.logsWineDebug))
         #expect(wineLog.contains("to-stderr"))
     }

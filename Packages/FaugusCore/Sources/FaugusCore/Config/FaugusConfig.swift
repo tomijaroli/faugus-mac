@@ -16,7 +16,7 @@ public struct FaugusConfig: Equatable, Sendable {
         let on: JSONValue = "True"
         let off: JSONValue = "False"
         o["auto-close-on-launch"] = off
-        o["default-prefix"] = .string(paths.prefixesDir)
+        o["default-prefix"] = .string(paths.prefixesDirectory)
         o["mangohud"] = off
         o["gamemode"] = off
         o["discord-rpc-enabled"] = off

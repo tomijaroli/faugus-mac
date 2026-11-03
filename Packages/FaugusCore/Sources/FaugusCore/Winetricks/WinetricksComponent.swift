@@ -15,7 +15,7 @@ public struct WinetricksComponent: Sendable {
     }
 
     public var directory: String {
-        paths.winetricksDir + "/" + Self.version
+        paths.winetricksDirectory + "/" + Self.version
     }
 
     public var scriptPath: String {
@@ -24,7 +24,7 @@ public struct WinetricksComponent: Sendable {
 
     /// Downloads (`W_CACHE`): shared by every prefix, so a verb is fetched once.
     public var cacheDirectory: String {
-        paths.winetricksDir + "/cache"
+        paths.winetricksDirectory + "/cache"
     }
 
     public var isInstalled: Bool {
@@ -36,8 +36,8 @@ public struct WinetricksComponent: Sendable {
             return
         }
         let fm = FileManager.default
-        try fm.createDirectory(atPath: paths.tempDir, withIntermediateDirectories: true)
-        let part = URL(fileURLWithPath: paths.tempDir).appendingPathComponent("winetricks-\(Self.version).part")
+        try fm.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
+        let part = URL(fileURLWithPath: paths.tempDirectory).appendingPathComponent("winetricks-\(Self.version).part")
         defer { try? fm.removeItem(at: part) }
         let downloader = Downloader(destination: part) { done, total in
             if total > 0 {

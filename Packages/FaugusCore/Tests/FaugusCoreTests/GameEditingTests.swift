@@ -46,29 +46,29 @@ struct GameEditingTests {
     @Test func duplicateCopiesFilesAndGetsNewID() throws {
         let paths = tempPaths()
         let fm = FileManager.default
-        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir] {
+        for d in [paths.iconsDirectory, paths.coversDirectory, paths.bannersDirectory] {
             try fm.createDirectory(
                 atPath: d,
                 withIntermediateDirectories: true
             )
         }
-        try Data([1]).write(to: URL(fileURLWithPath: "\(paths.iconsDir)/hello.png"))
-        try Data([2]).write(to: URL(fileURLWithPath: "\(paths.coversDir)/hello.png"))
-        try Data([3]).write(to: URL(fileURLWithPath: "\(paths.bannersDir)/hello.png"))
+        try Data([1]).write(to: URL(fileURLWithPath: "\(paths.iconsDirectory)/hello.png"))
+        try Data([2]).write(to: URL(fileURLWithPath: "\(paths.coversDirectory)/hello.png"))
+        try Data([3]).write(to: URL(fileURLWithPath: "\(paths.bannersDirectory)/hello.png"))
         var g = Game(gameID: "hello", title: "Hello")
-        g.icon = "\(paths.iconsDir)/hello.png"
-        g.cover = "\(paths.coversDir)/hello.png"
+        g.icon = "\(paths.iconsDirectory)/hello.png"
+        g.cover = "\(paths.coversDirectory)/hello.png"
         g.playtime = 77
         let dup = try GameEditing.duplicate(g, newTitle: "  Hello 2 ", existing: [g], paths: paths)
         #expect(dup.gameID == "hello-2")
         #expect(dup.title == "Hello 2")
         #expect(dup.playtime == 77)
-        #expect(fm.contents(atPath: "\(paths.iconsDir)/hello-2.png") == Data([1]))
-        #expect(fm.contents(atPath: "\(paths.coversDir)/hello-2.png") == Data([2]))
-        #expect(fm.contents(atPath: "\(paths.bannersDir)/hello-2.png") == Data([3]))
-        #expect(dup.cover == "\(paths.coversDir)/hello-2.png")
+        #expect(fm.contents(atPath: "\(paths.iconsDirectory)/hello-2.png") == Data([1]))
+        #expect(fm.contents(atPath: "\(paths.coversDirectory)/hello-2.png") == Data([2]))
+        #expect(fm.contents(atPath: "\(paths.bannersDirectory)/hello-2.png") == Data([3]))
+        #expect(dup.cover == "\(paths.coversDirectory)/hello-2.png")
         // The original keeps its files.
-        #expect(fm.fileExists(atPath: "\(paths.iconsDir)/hello.png"))
+        #expect(fm.fileExists(atPath: "\(paths.iconsDirectory)/hello.png"))
     }
 
     @Test func duplicateRejectsBadTitles() throws {
@@ -85,21 +85,21 @@ struct GameEditingTests {
     @Test func deleteRemovesOnlyOwnedFiles() throws {
         let paths = tempPaths()
         let fm = FileManager.default
-        let gameDir = paths.dataDir + "/g"
-        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir, gameDir] {
+        let gameDirectory = paths.dataDirectory + "/g"
+        for d in [paths.iconsDirectory, paths.coversDirectory, paths.bannersDirectory, gameDirectory] {
             try fm.createDirectory(
                 atPath: d,
                 withIntermediateDirectories: true
             )
         }
-        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir] {
+        for d in [paths.iconsDirectory, paths.coversDirectory, paths.bannersDirectory] {
             try Data([1]).write(to: URL(fileURLWithPath: "\(d)/hello.png"))
         }
-        try Data([1]).write(to: URL(fileURLWithPath: "\(gameDir)/faugus-hello.bat"))
-        try Data([1]).write(to: URL(fileURLWithPath: "\(gameDir)/game.exe"))
+        try Data([1]).write(to: URL(fileURLWithPath: "\(gameDirectory)/faugus-hello.bat"))
+        try Data([1]).write(to: URL(fileURLWithPath: "\(gameDirectory)/game.exe"))
         var g = Game(gameID: "hello", title: "Hello")
-        g.addAppBat = "\(gameDir)/faugus-hello.bat"
-        g.path = "\(gameDir)/game.exe"
+        g.addAppBat = "\(gameDirectory)/faugus-hello.bat"
+        g.path = "\(gameDirectory)/game.exe"
         GameEditing.removeOwnedFiles(of: g, paths: paths)
         for f in GameEditing.artworkFiles(for: "hello", paths: paths) {
             #expect(!fm.fileExists(atPath: f))
@@ -108,10 +108,10 @@ struct GameEditingTests {
         #expect(fm.fileExists(atPath: g.path))
 
         // A bat that is not Faugus's own is left alone.
-        try Data([1]).write(to: URL(fileURLWithPath: "\(gameDir)/mine.bat"))
-        g.addAppBat = "\(gameDir)/mine.bat"
+        try Data([1]).write(to: URL(fileURLWithPath: "\(gameDirectory)/mine.bat"))
+        g.addAppBat = "\(gameDirectory)/mine.bat"
         GameEditing.removeOwnedFiles(of: g, paths: paths)
-        #expect(fm.fileExists(atPath: "\(gameDir)/mine.bat"))
+        #expect(fm.fileExists(atPath: "\(gameDirectory)/mine.bat"))
     }
 
     @Test func prefixSharingAndRemovalOffer() {

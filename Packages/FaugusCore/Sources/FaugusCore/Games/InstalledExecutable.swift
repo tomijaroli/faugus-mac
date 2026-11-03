@@ -142,8 +142,8 @@ public enum InstalledExecutable {
     /// (Windows paths do not care about case, APFS volumes may).
     public static func resolveCaseInsensitive(_ path: String) -> String? {
         let fm = FileManager.default
-        var isDir: ObjCBool = false
-        if fm.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue {
+        var isDirectory: ObjCBool = false
+        if fm.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue {
             // On a case-insensitive volume the lookup succeeds with any spelling; report the real one.
             let url = URL(fileURLWithPath: path)
             return (try? url.resourceValues(forKeys: [.canonicalPathKey]))?.canonicalPath ?? path
@@ -153,7 +153,7 @@ public enum InstalledExecutable {
         guard let entries = try? fm.contentsOfDirectory(atPath: dir) else { return nil }
         for entry in entries where entry.lowercased() == name {
             let full = dir + "/" + entry
-            if fm.fileExists(atPath: full, isDirectory: &isDir), !isDir.boolValue {
+            if fm.fileExists(atPath: full, isDirectory: &isDirectory), !isDirectory.boolValue {
                 return full
             }
         }

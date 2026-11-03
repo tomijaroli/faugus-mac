@@ -2,23 +2,23 @@ import Foundation
 
 /// Port of the language scanning in `language_config.py`.
 ///
-/// `localeDir` holds one directory per language, each with `<domain>.po` (upstream layout:
+/// `localeDirectory` holds one directory per language, each with `<domain>.po` (upstream layout:
 /// `languages/de/faugus-launcher.po`).
 public struct LanguageCatalogs: Sendable {
     public static let minTranslationPercent = 70.0
     public static let upstreamDomain = "faugus-launcher"
     public static let macDomain = "faugus-mac"
 
-    public let localeDir: URL
+    public let localeDirectory: URL
 
-    public init(localeDir: URL) {
-        self.localeDir = localeDir
+    public init(localeDirectory: URL) {
+        self.localeDirectory = localeDirectory
     }
 
     public func poURL(language: String, domain: String) -> URL? {
         let candidates = [
-            localeDir.appendingPathComponent(language).appendingPathComponent("\(domain).po"),
-            localeDir.appendingPathComponent(language).appendingPathComponent("LC_MESSAGES")
+            localeDirectory.appendingPathComponent(language).appendingPathComponent("\(domain).po"),
+            localeDirectory.appendingPathComponent(language).appendingPathComponent("LC_MESSAGES")
                 .appendingPathComponent("\(domain).po"),
         ]
         return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
@@ -32,7 +32,7 @@ public struct LanguageCatalogs: Sendable {
     /// `scan_translation_completions`: percentage of the best-translated language's entry
     /// count, per language.
     public func completions(domain: String = LanguageCatalogs.upstreamDomain) -> [String: Double] {
-        guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: localeDir.path) else {
+        guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: localeDirectory.path) else {
             return [:]
         }
         var counts: [String: Int] = [:]

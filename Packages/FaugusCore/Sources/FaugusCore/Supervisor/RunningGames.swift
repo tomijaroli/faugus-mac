@@ -50,7 +50,7 @@ public struct RunningGames: Sendable {
     // MARK: Stop requests
 
     public func requestStop(gameID: String) throws {
-        try FileManager.default.createDirectory(atPath: paths.stateDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: paths.stateDirectory, withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: paths.stopFile(gameID: gameID), contents: Data())
     }
 

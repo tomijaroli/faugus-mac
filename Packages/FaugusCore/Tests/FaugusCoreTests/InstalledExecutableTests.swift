@@ -94,12 +94,12 @@ struct InstalledExecutableTests {
         let prefix = paths.home + "/pfx"
         let desktop = prefix + "/drive_c/users/crossover/Desktop"
         let menu = prefix + "/drive_c/ProgramData/Microsoft/Windows/Start Menu/Programs/Foo"
-        let gameDir = prefix + "/drive_c/Program Files/Foo"
-        for d in [desktop, menu, gameDir] {
+        let gameDirectory = prefix + "/drive_c/Program Files/Foo"
+        for d in [desktop, menu, gameDirectory] {
             try fm.createDirectory(atPath: d, withIntermediateDirectories: true)
         }
-        try Data("MZ".utf8).write(to: URL(fileURLWithPath: gameDir + "/Foo.EXE"))
-        try Data("MZ".utf8).write(to: URL(fileURLWithPath: gameDir + "/unins000.exe"))
+        try Data("MZ".utf8).write(to: URL(fileURLWithPath: gameDirectory + "/Foo.EXE"))
+        try Data("MZ".utf8).write(to: URL(fileURLWithPath: gameDirectory + "/unins000.exe"))
 
         // A shortcut that was already there before the installer ran.
         let old = desktop + "/Old.lnk"

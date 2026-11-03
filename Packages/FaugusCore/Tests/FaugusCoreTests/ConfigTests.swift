@@ -91,7 +91,7 @@ struct ConfigTests {
     @Test func invalidConfigFileFallsBackToDefaults() throws {
         let paths = try TestSupport.makeTempHome()
         defer { TestSupport.cleanup(paths) }
-        try FileManager.default.createDirectory(atPath: paths.configDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: paths.configDirectory, withIntermediateDirectories: true)
         try Data("{broken".utf8).write(to: URL(fileURLWithPath: paths.configFile))
         let cfg = try FaugusConfig.load(paths: paths, language: "en_US")
         #expect(cfg.string("interface-mode") == "List")
@@ -105,8 +105,8 @@ struct PathsTests {
         #expect(p.configFile == "/Users/u/Library/Application Support/Faugus/config/config.json")
         #expect(p.gamesJSON == "/Users/u/Library/Application Support/Faugus/data/games.json")
         #expect(p.runningGamesFile == "/Users/u/Library/Application Support/Faugus/state/running-games.json")
-        #expect(p.gameLogsDir(gameID: "x") == "/Users/u/Library/Logs/Faugus/x")
-        #expect(p.prefixesDir == "/Users/u/Faugus")
+        #expect(p.gameLogsDirectory(gameID: "x") == "/Users/u/Library/Logs/Faugus/x")
+        #expect(p.prefixesDirectory == "/Users/u/Faugus")
         #expect(p.defaultPrefix == "/Users/u/Faugus/default")
         #expect(p.stopFile(gameID: "x") == "/Users/u/Library/Application Support/Faugus/state/stop-x")
     }

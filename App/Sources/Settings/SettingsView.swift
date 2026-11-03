@@ -10,10 +10,10 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     let dismiss: () -> Void
 
     @State private var cfg: FaugusConfig
-    @State private var envars: [String]
-    @State private var newEnvar = ""
+    @State private var environmentVariables: [String]
+    @State private var newEnvironmentVariable = ""
     @State private var original: FaugusConfig
-    @State private var originalEnvars: [String]
+    @State private var originalEnvironmentVariables: [String]
     @State private var runners: [InstalledRunner] = []
     @State private var showRunnerManager = false
     @State private var confirmDiscard = false
@@ -29,15 +29,15 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         self.model = model
         self.dismiss = dismiss
         let c = model.config!
-        let e = EnvarStore(paths: model.paths).load()
+        let e = EnvironmentVariableStore(paths: model.paths).load()
         _cfg = State(initialValue: c)
         _original = State(initialValue: c)
-        _envars = State(initialValue: e)
-        _originalEnvars = State(initialValue: e)
+        _environmentVariables = State(initialValue: e)
+        _originalEnvironmentVariables = State(initialValue: e)
     }
 
     private var modified: Bool {
-        cfg != original || envars != originalEnvars
+        cfg != original || environmentVariables != originalEnvironmentVariables
     }
 
     private var mode: InterfaceMode {
@@ -172,16 +172,16 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
             }
 
             Section(t("Global Environment Variables")) {
-                ForEach(envars.indices, id: \.self) { i in
+                ForEach(environmentVariables.indices, id: \.self) { i in
                     HStack {
-                        TextField("", text: $envars[i]).labelsHidden().font(.body.monospaced())
-                        Button { envars.remove(at: i) } label: { Image(systemName: "minus.circle") }
+                        TextField("", text: $environmentVariables[i]).labelsHidden().font(.body.monospaced())
+                        Button { environmentVariables.remove(at: i) } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless)
                     }
                 }
-                TextField("", text: $newEnvar, prompt: Text("KEY=VALUE"))
+                TextField("", text: $newEnvironmentVariable, prompt: Text("KEY=VALUE"))
                     .labelsHidden().font(.body.monospaced())
-                    .onSubmit { commitNewEnvar() }
+                    .onSubmit { commitNewEnvironmentVariable() }
             }
 
             Section {
@@ -389,12 +389,12 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         return t("Clear Logs (%s)").replacingOccurrences(of: "%s", with: LogsMaintenance.formatSize(size))
     }
 
-    private func commitNewEnvar() {
-        let line = newEnvar.trimmingCharacters(in: .whitespaces)
+    private func commitNewEnvironmentVariable() {
+        let line = newEnvironmentVariable.trimmingCharacters(in: .whitespaces)
         if !line.isEmpty {
-            envars.append(line)
+            environmentVariables.append(line)
         }
-        newEnvar = ""
+        newEnvironmentVariable = ""
     }
 
     private func choosePrefixFolder(_ t: Translator) {
@@ -434,17 +434,17 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         guard let tool = pendingTool else { return }
         pendingTool = nil
         if save {
-            commitNewEnvar()
+            commitNewEnvironmentVariable()
             if cfg.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
                 prefixInvalid = true
                 return
             }
-            model.saveSettings(cfg, envars: envars)
+            model.saveSettings(cfg, environmentVariables: environmentVariables)
             original = cfg
-            originalEnvars = envars
+            originalEnvironmentVariables = environmentVariables
         } else {
             cfg = original
-            envars = originalEnvars
+            environmentVariables = originalEnvironmentVariables
         }
         launch(tool)
     }
@@ -471,12 +471,12 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     }
 
     private func save() {
-        commitNewEnvar()
+        commitNewEnvironmentVariable()
         if cfg.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
             prefixInvalid = true
             return
         }
-        model.saveSettings(cfg, envars: envars)
+        model.saveSettings(cfg, environmentVariables: environmentVariables)
         dismiss()
     }
 }

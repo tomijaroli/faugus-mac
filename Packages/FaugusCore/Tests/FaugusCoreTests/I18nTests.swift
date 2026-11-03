@@ -91,11 +91,11 @@ struct I18nTests {
     // MARK: Against the real upstream catalogs
 
     private var catalogs: LanguageCatalogs {
-        LanguageCatalogs(localeDir: TestSupport.upstreamLanguagesDir)
+        LanguageCatalogs(localeDirectory: TestSupport.upstreamLanguagesDirectory)
     }
 
     @Test func upstreamHasTwentySevenLanguages() throws {
-        let dirs = try FileManager.default.contentsOfDirectory(atPath: TestSupport.upstreamLanguagesDir.path)
+        let dirs = try FileManager.default.contentsOfDirectory(atPath: TestSupport.upstreamLanguagesDirectory.path)
             .filter { catalogs.poURL(language: $0, domain: "faugus-launcher") != nil }
         #expect(dirs.count == 27)
     }

@@ -16,7 +16,7 @@ public struct RunnerStore: Sendable {
 
     public func installed() -> [InstalledRunner] {
         let fm = FileManager.default
-        guard let names = try? fm.contentsOfDirectory(atPath: paths.runnersDir) else { return [] }
+        guard let names = try? fm.contentsOfDirectory(atPath: paths.runnersDirectory) else { return [] }
         return names.filter { !$0.hasPrefix(".") }
             .compactMap { find(name: $0) }
             .sorted { lhs, rhs in
@@ -29,9 +29,9 @@ public struct RunnerStore: Sendable {
 
     public func find(name: String) -> InstalledRunner? {
         guard !name.contains("/"), !name.hasPrefix(".") else { return nil }
-        let dir = paths.runnersDir + "/" + name
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue,
+        let dir = paths.runnersDirectory + "/" + name
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dir, isDirectory: &isDirectory), isDirectory.boolValue,
               let root = RunnerStore.locateWineRoot(in: dir)
         else { return nil }
         let (flavor, version) = RunnerStore.parseName(name)

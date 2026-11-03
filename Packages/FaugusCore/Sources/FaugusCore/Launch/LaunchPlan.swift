@@ -72,11 +72,11 @@ public struct LaunchPlan: Sendable {
 public enum LaunchPlanner {
     public static let logsWineDebug = "+timestamp,+pid,+tid,+seh,+debugstr,+loaddll"
 
-    /// Port of `build_launch_command` + `extract_env_from_message` + the `envar.json` merge.
+    /// Port of `build_launch_command` + `extract_env_from_message` + the `environmentVariable.json` merge.
     ///
     /// Precedence of environment values, lowest to highest (same as upstream, where the global
     /// file is applied last):
-    /// process env, Faugus computed, the game's `launch_arguments`, global `envar.json`.
+    /// process env, Faugus computed, the game's `launch_arguments`, global `environmentVariable.json`.
     public static func plan( // swiftlint:disable:this function_parameter_count
         game: Game,
         config: FaugusConfig,
@@ -91,7 +91,7 @@ public enum LaunchPlanner {
             .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
         var prefix = paths.expand(game.prefix)
         if prefix.isEmpty {
-            prefix = (defaultPrefix.isEmpty ? paths.prefixesDir : defaultPrefix) + "/default"
+            prefix = (defaultPrefix.isEmpty ? paths.prefixesDirectory : defaultPrefix) + "/default"
         }
 
         var exePath = paths.expand(game.path)
@@ -114,14 +114,14 @@ public enum LaunchPlanner {
 
         // Faugus computed layer.
         var env = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: baseEnvironment)
-        let logDir = paths.gameLogsDir(gameID: game.gameID.isEmpty ? "default" : game.gameID)
+        let logDirectory = paths.gameLogsDirectory(gameID: game.gameID.isEmpty ? "default" : game.gameID)
         if !game.gameID.isEmpty {
             env["FAUGUSID"] = game.gameID
         }
         env["WINEDEBUG"] = logs ? logsWineDebug : "-all"
         if logs {
             env["DXVK_LOG_LEVEL"] = "info"
-            env["DXVK_LOG_PATH"] = logDir
+            env["DXVK_LOG_PATH"] = logDirectory
             env["MVK_CONFIG_LOG_LEVEL"] = "2"
         }
         for (k, v) in graphics.environment {
@@ -147,21 +147,21 @@ public enum LaunchPlanner {
 
         let argv = wrapper + LaunchSpec.command(forPath: exePath, wine: runner.wineBinary) + gameWords
 
-        let workDir = (exePath as NSString).deletingLastPathComponent
-        var isDir: ObjCBool = false
-        let cwd = FileManager.default.fileExists(atPath: workDir, isDirectory: &isDir) && isDir.boolValue
-            ? workDir : prefix
+        let workDirectory = (exePath as NSString).deletingLastPathComponent
+        var isDirectory: ObjCBool = false
+        let cwd = FileManager.default.fileExists(atPath: workDirectory, isDirectory: &isDirectory) && isDirectory.boolValue
+            ? workDirectory : prefix
 
         return LaunchPlan(
             argv: argv, environment: env, workingDirectory: cwd, prefix: prefix, gameID: game.gameID,
             graphics: graphics, splashIcon: game.icon.isEmpty ? nil : game.icon,
-            noSleep: game.noSleep, discordRPC: game.discordRPC, logsEnabled: logs, logDirectory: logDir
+            noSleep: game.noSleep, discordRPC: game.discordRPC, logsEnabled: logs, logDirectory: logDirectory
         )
     }
 
-    /// `load_env_from_file`: `envar.json` is a JSON list of `KEY=VALUE` lines.
+    /// `load_env_from_file`: `environmentVariable.json` is a JSON list of `KEY=VALUE` lines.
     public static func loadGlobalEnvironment(paths: FaugusPaths) -> [(String, String)] {
-        let json = JSONFile.load(paths.envarFile, default: .array([]))
+        let json = JSONFile.load(paths.environmentVariablesFile, default: .array([]))
         var out: [(String, String)] = []
         for line in (json.arrayValue ?? []).compactMap(\.stringValue) {
             let t = line.trimmingCharacters(in: .whitespaces)

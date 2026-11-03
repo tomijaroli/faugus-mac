@@ -20,7 +20,7 @@ enum TestSupport {
             .deletingLastPathComponent() // repo root
     }
 
-    static var upstreamLanguagesDir: URL {
+    static var upstreamLanguagesDirectory: URL {
         repoRoot.appendingPathComponent("upstream/languages")
     }
 

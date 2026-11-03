@@ -113,7 +113,7 @@ struct GameEditorView: View {
 
     private var defaultPrefixBase: String {
         model.paths
-            .expand(model.config?.string("default-prefix", default: model.paths.prefixesDir) ?? model.paths.prefixesDir)
+            .expand(model.config?.string("default-prefix", default: model.paths.prefixesDirectory) ?? model.paths.prefixesDirectory)
     }
 
     private var suggestedID: String {
@@ -667,8 +667,8 @@ struct GameEditorView: View {
     /// Upstream records every prefix a run created, to offer discarding it on Cancel. A prefix
     /// that already existed is never recorded, so Cancel can never delete someone's old prefix.
     private func recordCreatedPrefix(_ prefix: String, existedBefore: Bool) {
-        var isDir: ObjCBool = false
-        guard !existedBefore, FileManager.default.fileExists(atPath: prefix, isDirectory: &isDir), isDir.boolValue,
+        var isDirectory: ObjCBool = false
+        guard !existedBefore, FileManager.default.fileExists(atPath: prefix, isDirectory: &isDirectory), isDirectory.boolValue,
               !createdPrefixes.contains(prefix)
         else { return }
         createdPrefixes.append(prefix)

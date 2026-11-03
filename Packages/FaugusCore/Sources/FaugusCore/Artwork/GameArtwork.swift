@@ -42,7 +42,7 @@ public enum GameArtwork {
     /// Stores the chosen cover as `covers/<id>.png` (460x690). Returns the stored path, or `""`
     /// when there is no cover.
     public static func saveCover(temp: String?, gameID: String, paths: FaugusPaths) -> String {
-        let dest = "\(paths.coversDir)/\(gameID).png"
+        let dest = "\(paths.coversDirectory)/\(gameID).png"
         guard let temp, FileManager.default.fileExists(atPath: temp) else {
             try? FileManager.default.removeItem(atPath: dest)
             return ""
@@ -55,7 +55,7 @@ public enum GameArtwork {
     public static func saveBanner(temp: String?, gameID: String, paths: FaugusPaths) {
         guard let temp, FileManager.default.fileExists(atPath: temp) else { return }
         installResized(
-            temp: temp, dest: "\(paths.bannersDir)/\(gameID).png", width: bannerSize.width, height: bannerSize.height
+            temp: temp, dest: "\(paths.bannersDirectory)/\(gameID).png", width: bannerSize.width, height: bannerSize.height
         )
     }
 
@@ -63,10 +63,10 @@ public enum GameArtwork {
     /// path when the file exists, else `""`.
     public static func saveIcon(temp: String?, gameID: String, paths: FaugusPaths) -> String {
         let fm = FileManager.default
-        let dest = "\(paths.iconsDir)/\(gameID).png"
-        try? fm.removeItem(atPath: "\(paths.iconsDir)/\(gameID).ico")
+        let dest = "\(paths.iconsDirectory)/\(gameID).png"
+        try? fm.removeItem(atPath: "\(paths.iconsDirectory)/\(gameID).ico")
         if let temp, fm.fileExists(atPath: temp) {
-            try? fm.createDirectory(atPath: paths.iconsDir, withIntermediateDirectories: true)
+            try? fm.createDirectory(atPath: paths.iconsDirectory, withIntermediateDirectories: true)
             try? fm.removeItem(atPath: dest)
             do { try fm.copyItem(atPath: temp, toPath: dest) } catch { return fm.fileExists(atPath: dest) ? dest : "" }
         } else if temp == nil {

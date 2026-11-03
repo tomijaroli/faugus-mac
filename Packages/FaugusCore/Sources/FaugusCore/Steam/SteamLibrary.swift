@@ -43,8 +43,8 @@ public struct SteamLibrary: Sendable {
     }
 
     public var exists: Bool {
-        var isDir: ObjCBool = false
-        return FileManager.default.fileExists(atPath: root, isDirectory: &isDir) && isDir.boolValue
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: root, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 
     /// Whether Steam looks installed: its data folder or the app bundle exists.
@@ -66,9 +66,9 @@ public struct SteamLibrary: Sendable {
     public func accountIDs() -> [String] {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: userdata) else { return [] }
         return names.filter { name in
-            var isDir: ObjCBool = false
+            var isDirectory: ObjCBool = false
             return name != "0" && !name.isEmpty && name.allSatisfy(\.isASCII) && name.allSatisfy(\.isNumber)
-                && FileManager.default.fileExists(atPath: userdata + "/" + name, isDirectory: &isDir) && isDir.boolValue
+                && FileManager.default.fileExists(atPath: userdata + "/" + name, isDirectory: &isDirectory) && isDirectory.boolValue
         }.sorted()
     }
 
@@ -169,8 +169,8 @@ public struct SteamLibrary: Sendable {
             guard let dir = state["installdir"]?.string, !dir.isEmpty, !dir.contains("/"),
                   dir != ".." else { return nil }
             let full = lib + "/steamapps/common/" + dir
-            var isDir: ObjCBool = false
-            return FileManager.default.fileExists(atPath: full, isDirectory: &isDir) && isDir.boolValue ? full : nil
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: full, isDirectory: &isDirectory) && isDirectory.boolValue ? full : nil
         }
         return nil
     }

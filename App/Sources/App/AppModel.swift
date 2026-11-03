@@ -181,12 +181,12 @@ final class AppModel {
     /// `Contents/Resources/languages`, or `FAUGUS_LANGUAGES_DIR` when running unbundled.
     static func languageCatalogs() -> LanguageCatalogs? {
         if let override = ProcessInfo.processInfo.environment["FAUGUS_LANGUAGES_DIR"] {
-            return LanguageCatalogs(localeDir: URL(fileURLWithPath: override))
+            return LanguageCatalogs(localeDirectory: URL(fileURLWithPath: override))
         }
         guard let dir = Bundle.main.resourceURL?.appendingPathComponent("languages"),
               FileManager.default.fileExists(atPath: dir.path)
         else { return nil }
-        return LanguageCatalogs(localeDir: dir)
+        return LanguageCatalogs(localeDirectory: dir)
     }
 
     // MARK: Settings
@@ -208,11 +208,11 @@ final class AppModel {
         return ConfigColor(cfg.accentColor())
     }
 
-    /// Settings "Ok": writes `config.json` and `envar.json`.
-    func saveSettings(_ cfg: FaugusConfig, envars: [String]) {
+    /// Settings "Ok": writes `config.json` and `environmentVariable.json`.
+    func saveSettings(_ cfg: FaugusConfig, environmentVariables: [String]) {
         do {
             try cfg.save()
-            try EnvarStore(paths: paths).save(envars)
+            try EnvironmentVariableStore(paths: paths).save(environmentVariables)
             actionError = nil
         } catch {
             actionError = "\(error)"
@@ -226,7 +226,7 @@ final class AppModel {
     }
 
     func logsSize() -> Int64? {
-        LogsMaintenance.size(of: paths.logsDir)
+        LogsMaintenance.size(of: paths.logsDirectory)
     }
 
     func clearLogs() {
@@ -251,10 +251,10 @@ final class AppModel {
         if withLogs {
             argv.append("--logs")
         }
-        let gameDir = (paths.expand(game.path) as NSString).deletingLastPathComponent
-        var isDir: ObjCBool = false
-        let cwd = FileManager.default.fileExists(atPath: gameDir, isDirectory: &isDir) && isDir
-            .boolValue ? gameDir : nil
+        let gameDirectory = (paths.expand(game.path) as NSString).deletingLastPathComponent
+        var isDirectory: ObjCBool = false
+        let cwd = FileManager.default.fileExists(atPath: gameDirectory, isDirectory: &isDirectory) && isDirectory
+            .boolValue ? gameDirectory : nil
         do {
             _ = try ProcessSpawner.spawn(
                 argv: argv,
@@ -333,7 +333,7 @@ final class AppModel {
     var defaultPrefixPath: String {
         let base = paths.expand(config?.string("default-prefix") ?? "")
             .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        return (base.isEmpty ? paths.prefixesDir : base) + "/default"
+        return (base.isEmpty ? paths.prefixesDirectory : base) + "/default"
     }
 
     func runInDefaultPrefix(file: String) async -> Bool {
@@ -439,8 +439,8 @@ final class AppModel {
     func prefixLocation(_ game: Game) -> String? {
         guard game.runner != "Steam" else { return nil }
         let prefix = paths.expand(game.prefix)
-        var isDir: ObjCBool = false
-        return FileManager.default.fileExists(atPath: prefix, isDirectory: &isDir) && isDir.boolValue ? prefix : nil
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: prefix, isDirectory: &isDirectory) && isDirectory.boolValue ? prefix : nil
     }
 
     func revealGameLocation(_ game: Game) {
@@ -491,7 +491,7 @@ final class AppModel {
     }
 
     func hasLogs(_ game: Game) -> Bool {
-        FileManager.default.fileExists(atPath: paths.gameLogsDir(gameID: game.gameID) + "/wine.log")
+        FileManager.default.fileExists(atPath: paths.gameLogsDirectory(gameID: game.gameID) + "/wine.log")
     }
 
     // MARK: Runners
