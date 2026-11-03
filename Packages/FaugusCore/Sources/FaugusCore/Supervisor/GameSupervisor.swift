@@ -67,6 +67,16 @@ public struct SupervisorOptions: Sendable {
     public var steamSplashDuration: Duration = .seconds(5)
     public var feed: @Sendable () async throws -> [RemoteRunner] = { try await GcenxFeed.fetchAll() }
 
+    /// Icon URL for the generic Discord activity of a game (SteamGridDB); `nil` for none.
+    public var discordIconProvider: @Sendable (Game) async -> String? = { _ in nil }
+
+    /// Creates the Discord Rich Presence session of a game with `discordRPC` on. Replaceable so
+    /// tests never talk to Discord.
+    public var makeDiscordPresence: @Sendable (FaugusPaths, Game, @escaping DiscordIconProvider)
+        -> any DiscordPresenceControlling = { paths, game, iconProvider in
+            DiscordPresenceSession.live(paths: paths, game: game, iconProvider: iconProvider)
+        }
+
     public init() {}
 }
 
@@ -270,6 +280,12 @@ public actor GameSupervisor {
         let sleepAssertion = plan.noSleep && !isFileRun ? SleepInhibitor(reason: "Game is running") : nil
         defer { sleepAssertion?.release() }
 
+        // Rich Presence follows the game process; never for "run a file in the prefix".
+        let discordPresence: (any DiscordPresenceControlling)? = plan.discordRPC && !isFileRun
+            ? options.makeDiscordPresence(paths, game) { [options] in await options.discordIconProvider(game) }
+            : nil
+        await discordPresence?.start()
+
         Task { [weak self] in
             let status = await ProcessSpawner.waitForExit(pid: pid)
             await self?.gameProcessExited(status)
@@ -291,6 +307,7 @@ public actor GameSupervisor {
 
             if gameExit != nil, !serverStarted {
                 serverStarted = true
+                await discordPresence?.stop()
                 waitForWineserver(runner: runner, environment: plan.environment)
             }
 
@@ -301,6 +318,7 @@ public actor GameSupervisor {
         }
 
         // 10. Cleanup (mirrors on_process_exit)
+        await discordPresence?.stop()
         if !isFileRun {
             ProcessScanner.killByFaugusID(gameID)
             let postLaunchCommand = options.postLaunch ?? game.postLaunch
