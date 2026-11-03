@@ -65,6 +65,7 @@ struct LibraryView: View {
         .environment(\.layoutDirection, model.isRightToLeft ? .rightToLeft : .leftToRight)
         .onAppear { model.ensureSelection() }
         .onChange(of: model.visibleGames.map(\.gameID)) { _, _ in model.ensureSelection() }
+        .background(WindowConfigurator(model: model))
         .accessibilityIdentifier("library")
     }
 
@@ -78,8 +79,10 @@ struct LibraryView: View {
             GameListView(model: model, games: games, appearance: appearance, actions: actions)
         case .grid:
             GameGridView(model: model, games: games, appearance: appearance, mode: .grid, actions: actions)
-        case .covers, .carrousel:
+        case .covers:
             GameGridView(model: model, games: games, appearance: appearance, mode: .covers, actions: actions)
+        case .carrousel:
+            CarrouselView(model: model, games: games, appearance: appearance, actions: actions)
         }
     }
 

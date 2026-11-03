@@ -18,7 +18,7 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 | Runner mode (`--game`) | `runner.py` | `RunnerMode` | done (pre/post-launch hooks, `--logs`, Rosetta prompt; `--run`/`--splash`/`--donate` in P3+) |
 | Splash, logs, stop, playtime | `runner.py` | `Splash`, `Logs` | done (Stop about 3.4 s; logs window shows wine.log and faugus.log) |
 | List mode, context menu | `launcher.py` | `Library` | wip (P1: Play with logs, Edit, Delete, Duplicate, Hide, locations, Show logs; Category and Run file in P2) |
-| Grid / Covers / Carrousel | `launcher.py` | `Library` | wip (P2.3: Grid and Covers with zoom, labels, orientation, max columns, position, overview panel, custom-order drag, background and widget colours; Carrousel next) |
+| Grid / Covers / Carrousel | `launcher.py` | `Library` | done (P2.3: Grid and Covers with zoom, labels, orientation, max columns, position, overview panel, custom-order drag, background and widget colours; Carrousel with arrow keys, scroll wheel and click; startup window size; Ctrl+H hidden games; dominant colour and banner wait for artwork/SteamGridDB) |
 | Add / Edit / Duplicate / Delete | `launcher.py` | `AddGame` | wip (P1: Windows type; delete offers prefix to Trash; other types in P2) |
 | Settings | `launcher.py` | `Settings` | wip (P2.2: General and Interface tabs, language, global env vars, clear logs, live preview with Cancel revert, Cmd+,; tray/autostart/Discord/gamepad/SteamGridDB/sounds/backup rows land with their features) |
 | Tray | `tray_sni.py` | `Tray` | todo |

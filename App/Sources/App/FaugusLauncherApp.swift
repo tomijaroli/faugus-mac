@@ -14,6 +14,13 @@ struct FaugusLauncherApp: App {
         }
         .defaultSize(width: 1280, height: 720)
         .commands {
+            CommandGroup(after: .toolbar) {
+                Button(model.translator("Hidden games")) {
+                    model.updateConfig { $0.setValue("show-hidden", bool: !$0.bool("show-hidden")) }
+                    model.reload()
+                }
+                .keyboardShortcut("h", modifiers: .control)
+            }
             CommandGroup(replacing: .appSettings) {
                 Button(model.translator("Settings") + "…") { model.showSettings = true }
                     .keyboardShortcut(",", modifiers: .command)
