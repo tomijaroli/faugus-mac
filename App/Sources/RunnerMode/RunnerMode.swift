@@ -13,28 +13,42 @@ final class RunnerMode {
     private var gameID = ""
     private var splashShownAt = Date()
 
-    static func run(gameID: String, logs: Bool, preLaunch: String, postLaunch: String) -> Never {
+    static func run(gameID: String, logs: Bool, preLaunch: String, postLaunch: String, runFile: String? = nil, adhocGame: Game? = nil) -> Never {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         let mode = RunnerMode()
         Task { @MainActor in
-            await mode.start(gameID: gameID, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch)
+            await mode.start(gameID: gameID, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch, runFile: runFile, adhocGame: adhocGame)
             exit(0)
         }
         app.run()
         exit(0)
     }
 
-    private func start(gameID: String, logs: Bool, preLaunch: String, postLaunch: String) async {
+    /// `--run <file>` in a saved game's prefix, or in a prefix from the Add Game dialog.
+    static func run(target: RunFileTarget, logs: Bool, preLaunch: String, postLaunch: String, runFile: String) -> Never {
+        switch target {
+        case .game(let id):
+            run(gameID: id, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch, runFile: runFile)
+        case .prefix(let path, let runner, let logID):
+            var game = Game(gameID: logID.isEmpty ? "installer" : logID, title: logID.isEmpty ? "installer" : logID)
+            game.prefix = path
+            game.runner = runner
+            run(gameID: game.gameID, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch, runFile: runFile, adhocGame: game)
+        }
+    }
+
+    private func start(gameID: String, logs: Bool, preLaunch: String, postLaunch: String, runFile: String?, adhocGame: Game?) async {
         self.gameID = gameID
         let config = try? FaugusConfig.load(paths: paths)
         let language =
             ProcessInfo.processInfo.environment["FAUGUS_LANG"]
             ?? config?.string("language", default: "en_US") ?? "en_US"
         translator = AppModel.languageCatalogs()?.translator(for: language) ?? .identity
-        let splashEnabled = config?.bool("splash-window-enabled") ?? true
+        // Running a file in the prefix shows no splash (upstream), only errors.
+        let splashEnabled = runFile == nil && (config?.bool("splash-window-enabled") ?? true)
 
-        let game = (try? GamesStore(paths: paths).loadAll())?.first { $0.gameID == gameID }
+        let game = adhocGame ?? (try? GamesStore(paths: paths).loadAll())?.first { $0.gameID == gameID }
         if splashEnabled {
             splash.model.title = game?.title ?? gameID
             splash.model.status = translator("Loading...")
@@ -47,6 +61,8 @@ final class RunnerMode {
 
         var options = SupervisorOptions()
         options.logs = logs
+        options.runFile = runFile
+        options.adhocGame = adhocGame
         if !preLaunch.isEmpty { options.preLaunch = preLaunch }
         if !postLaunch.isEmpty { options.postLaunch = postLaunch }
         options.allowDownloads = true
@@ -61,6 +77,7 @@ final class RunnerMode {
         windowTimer?.invalidate()
         splash.close()
         if let failure { showFailure(failure) }
+        if runFile != nil { return }
         DistributedNotificationCenter.default().postNotificationName(
             .faugusRefreshMenu, object: nil, userInfo: nil, deliverImmediately: true)
     }

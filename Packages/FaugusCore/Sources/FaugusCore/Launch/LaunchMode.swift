@@ -10,14 +10,23 @@ import Foundation
 /// | `faugus-launcher [--hide] [--console]`  | no verb (+ `--hide`, `--console`)           |
 /// | `faugus-launcher <file>`                | one positional file                         |
 /// | `faugus.runner --game <id> [--logs]`    | `--game <id> [--logs]`                      |
-/// | `faugus.runner <command>`               | `--run <file>`                              |
+/// | `faugus.runner <command>`               | `--run <file> --in-game <id>`, or           |
+/// |                                         | `--run <file> --in-prefix <dir> [--runner]` |
 /// | `faugus.runner --splash/--donate/...`   | same flags                                  |
 /// | `faugus.backup_daemon --daemon`         | `--daemon [--once]`                         |
 /// | `faugus.shortcut <file>`                | `--shortcut <file>`                         |
+/// Where `--run <file>` runs the file.
+public enum RunFileTarget: Equatable, Sendable {
+    /// The prefix, runner and environment of a saved game.
+    case game(id: String)
+    /// A prefix from the Add Game dialog, before the game exists (installer, "Run" button).
+    case prefix(path: String, runner: String, logID: String)
+}
+
 public enum LaunchMode: Equatable, Sendable {
     case launcher(hidden: Bool, console: Bool, file: String?)
     case runGame(id: String, logs: Bool, preLaunch: String, postLaunch: String)
-    case runFile(path: String, logs: Bool, preLaunch: String, postLaunch: String)
+    case runFile(path: String, target: RunFileTarget, logs: Bool, preLaunch: String, postLaunch: String)
     case splash(image: String)
     case donate
     case dialog(message: String, detail: String)
@@ -33,7 +42,7 @@ public enum LaunchMode: Equatable, Sendable {
         var positionals: [String] = []
 
         let valueOptions: Set<String> = [
-            "--game", "--run", "--pre-launch", "--post-launch", "--splash", "--dialog",
+            "--game", "--run", "--in-game", "--in-prefix", "--runner", "--log-id", "--pre-launch", "--post-launch", "--splash", "--dialog",
             "--dialog-detail", "--shortcut",
         ]
         let flagOptions: Set<String> = [
@@ -82,7 +91,15 @@ public enum LaunchMode: Equatable, Sendable {
             return .runGame(id: id, logs: logs, preLaunch: pre, postLaunch: post)
         }
         if let path = options["--run"] {
-            return .runFile(path: path, logs: logs, preLaunch: pre, postLaunch: post)
+            if let game = options["--in-game"], !game.isEmpty {
+                return .runFile(path: path, target: .game(id: game), logs: logs, preLaunch: pre, postLaunch: post)
+            }
+            if let prefix = options["--in-prefix"], !prefix.isEmpty {
+                let target = RunFileTarget.prefix(
+                    path: prefix, runner: options["--runner"] ?? "", logID: options["--log-id"] ?? "")
+                return .runFile(path: path, target: target, logs: logs, preLaunch: pre, postLaunch: post)
+            }
+            return .invalid("--run requires --in-game <id> or --in-prefix <dir>")
         }
 
         // Launcher: `main()` removes --hide/--console/--ui-child, then exactly one positional

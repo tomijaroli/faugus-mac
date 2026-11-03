@@ -38,6 +38,11 @@ public enum SupervisorFailure: Equatable, Sendable, CustomStringConvertible {
 
 public struct SupervisorOptions: Sendable {
     public var logs = false
+    /// `--run <file>`: run this file in the game's prefix (installer, `.reg`, helper tool)
+    /// instead of the game. No playtime, no running state, no hooks, no `FAUGUSID` tag.
+    public var runFile: String?
+    /// With `runFile`: run in this prefix/runner instead of a saved game's (Add Game dialog).
+    public var adhocGame: Game?
     public var preLaunch: String?
     public var postLaunch: String?
     /// Called when Rosetta is missing; return `true` once it is installed.
@@ -112,10 +117,18 @@ public actor GameSupervisor {
         let config = try FaugusConfig.load(paths: paths)
 
         // 1. Game
-        let games = try GamesStore(paths: paths).loadAll()
-        guard let game = games.first(where: { $0.gameID == gameID }) else { return .gameNotFound(gameID) }
+        let game: Game
+        if let adhoc = options.adhocGame, options.runFile != nil {
+            game = adhoc
+        } else {
+            let games = try GamesStore(paths: paths).loadAll()
+            guard let found = games.first(where: { $0.gameID == gameID }) else { return .gameNotFound(gameID) }
+            game = found
+        }
+        let isFileRun = options.runFile != nil
         emit(.preparing(title: game.title))
-        log.write("starting \(game.title) (\(gameID))")
+        log.write(isFileRun ? "running \(options.runFile ?? "") in the prefix of \(game.title) (\(gameID))"
+            : "starting \(game.title) (\(gameID))")
 
         // 2. Rosetta
         emit(.checkingRosetta)
@@ -146,14 +159,29 @@ public actor GameSupervisor {
         for note in graphics.notes { log.write(note) }
 
         // 5. Plan (also gives us the prefix path)
-        let plan: LaunchPlan
+        var planned = game
+        if let file = options.runFile {
+            planned.path = file
+            planned.gameArguments = ""
+            planned.addAppEnabled = false
+        }
+        var plan: LaunchPlan
         do {
             plan = try LaunchPlanner.plan(
-                game: game, config: config, runner: runner, paths: paths, logs: options.logs,
+                game: planned, config: config, runner: runner, paths: paths, logs: options.logs,
                 graphics: graphics, globalEnvironment: LaunchPlanner.loadGlobalEnvironment(paths: paths),
                 baseEnvironment: options.baseEnvironment)
         } catch {
             return .launchFailed("\(error)")
+        }
+        if isFileRun {
+            // Not the game: untagged, and started from the game's folder like upstream.
+            plan.environment.removeValue(forKey: "FAUGUSID")
+            let gameDir = (paths.expand(game.path) as NSString).deletingLastPathComponent
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: gameDir, isDirectory: &isDir), isDir.boolValue {
+                plan.workingDirectory = gameDir
+            }
         }
 
         // 6. Prefix
@@ -171,7 +199,7 @@ public actor GameSupervisor {
 
         // 7. Pre-launch hook (fire and forget, like upstream)
         let pre = options.preLaunch ?? game.preLaunch
-        if !pre.isEmpty { spawnHook(pre, env: plan.environment) }
+        if !isFileRun, !pre.isEmpty { spawnHook(pre, env: plan.environment) }
 
         // 8. Spawn
         log.writeSection("ENVIRONMENT", plan.environment.filter { Self.interestingKeys.contains($0.key) || $0.key.hasPrefix("DXVK") || $0.key.hasPrefix("MVK") || $0.key.hasPrefix("WINE") }
@@ -181,7 +209,7 @@ public actor GameSupervisor {
 
         let gameBaseline = PlaytimeStore(paths: paths).gamePlaytime(gameID: gameID)
         let totalBaseline = config.int("playtime")
-        _ = try? running.consumeStopRequest(gameID: gameID)
+        if !isFileRun { _ = try? running.consumeStopRequest(gameID: gameID) }
 
         let pid: pid_t
         do {
@@ -195,10 +223,10 @@ public actor GameSupervisor {
         }
         gamePID = pid
         startedAt = Date()
-        try? running.mark(gameID: gameID, pid: getpid())
+        if !isFileRun { try? running.mark(gameID: gameID, pid: getpid()) }
         emit(.running(pid: pid))
 
-        let sleepAssertion = plan.noSleep ? SleepInhibitor(reason: "Game is running") : nil
+        let sleepAssertion = plan.noSleep && !isFileRun ? SleepInhibitor(reason: "Game is running") : nil
         defer { sleepAssertion?.release() }
 
         Task { [weak self] in
@@ -212,7 +240,7 @@ public actor GameSupervisor {
         while !serverWaitDone {
             try? await Task.sleep(for: options.pollInterval)
 
-            if !stopRequested, running.consumeStopRequest(gameID: gameID) {
+            if !isFileRun, !stopRequested, running.consumeStopRequest(gameID: gameID) {
                 stopRequested = true
                 emit(.stopping)
                 Task { [weak self] in await self?.terminate(runner: runner, prefix: plan.prefix, env: plan.environment) }
@@ -223,23 +251,25 @@ public actor GameSupervisor {
                 waitForWineserver(runner: runner, env: plan.environment)
             }
 
-            if Date().timeIntervalSince(lastSave) >= options.playtimeSaveInterval {
+            if !isFileRun, Date().timeIntervalSince(lastSave) >= options.playtimeSaveInterval {
                 lastSave = Date()
                 saveProgress(gameBaseline: gameBaseline, totalBaseline: totalBaseline)
             }
         }
 
         // 10. Cleanup (mirrors on_process_exit)
-        ProcessScanner.killByFaugusID(gameID)
-        let post = options.postLaunch ?? game.postLaunch
-        if !post.isEmpty {
-            var env = plan.environment
-            env.removeValue(forKey: "FAUGUSID")
-            spawnHook(post, env: env)
+        if !isFileRun {
+            ProcessScanner.killByFaugusID(gameID)
+            let post = options.postLaunch ?? game.postLaunch
+            if !post.isEmpty {
+                var env = plan.environment
+                env.removeValue(forKey: "FAUGUSID")
+                spawnHook(post, env: env)
+            }
+            saveProgress(gameBaseline: gameBaseline, totalBaseline: totalBaseline)
+            try? running.unmark(gameID: gameID)
+            running.clearStopRequest(gameID: gameID)
         }
-        saveProgress(gameBaseline: gameBaseline, totalBaseline: totalBaseline)
-        try? running.unmark(gameID: gameID)
-        running.clearStopRequest(gameID: gameID)
         let seconds = max(0, Int(Date().timeIntervalSince(startedAt)))
         emit(.exited(status: gameExit ?? -1, playtimeSeconds: seconds))
         return nil
@@ -257,13 +287,16 @@ public actor GameSupervisor {
         var resolution = store.resolve(wanted, defaultRunner: defaultRunner)
 
         let isLatest = WineFlavor.allCases.contains { $0.latestIdentifier == identifier }
-        let allowed = options.allowDownloads && ProcessInfo.processInfo.environment["FAUGUS_DISABLE_UPDATES"] == nil
+        // FAUGUS_DISABLE_UPDATES (set when running a file in a game's prefix) skips the update
+        // check only; a runner that is missing altogether is still installed.
+        let allowed = options.allowDownloads
+        let updatesAllowed = allowed && ProcessInfo.processInfo.environment["FAUGUS_DISABLE_UPDATES"] == nil
         let wantsUpdateCheck = isLatest && options.checkForRunnerUpdates && config.bool("automatic-updates")
 
         var needInstall: RemoteRunner?
         switch resolution {
         case .installed(let r):
-            if wantsUpdateCheck, allowed, let flavor = r.flavor,
+            if wantsUpdateCheck, updatesAllowed, let flavor = r.flavor,
                 let remotes = try? await options.feed(),
                 let latest = GcenxFeed.latest(flavor, in: remotes),
                 VersionKey(latest.version) > VersionKey(r.version ?? "")

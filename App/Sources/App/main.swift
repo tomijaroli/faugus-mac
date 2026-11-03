@@ -9,6 +9,8 @@ case .launcher:
     FaugusLauncherApp.main()
 case .runGame(let id, let logs, let pre, let post):
     RunnerMode.run(gameID: id, logs: logs, preLaunch: pre, postLaunch: post)
+case .runFile(let path, let target, let logs, let pre, let post):
+    RunnerMode.run(target: target, logs: logs, preLaunch: pre, postLaunch: post, runFile: path)
 case .invalid(let message):
     FileHandle.standardError.write(Data("Faugus: \(message)\n".utf8))
     exit(2)

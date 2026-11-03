@@ -212,6 +212,53 @@ final class AppModel {
         }
     }
 
+    // MARK: Run a file in the prefix
+
+    func recentRunFiles(for game: Game) -> [String] {
+        RecentRunFiles(paths: paths).files(gameID: game.gameID)
+    }
+
+    func clearRecentRunFiles(for game: Game) {
+        try? RecentRunFiles(paths: paths).clear(gameID: game.gameID)
+    }
+
+    /// Spawns `Faugus --run <file> --in-game <id>` (upstream `run_file_in_prefix`).
+    func runFile(_ file: String, in game: Game, withLogs: Bool = false) {
+        guard let exe = Bundle.main.executablePath ?? CommandLine.arguments.first else { return }
+        var argv = [exe, "--run", file, "--in-game", game.gameID]
+        if withLogs { argv.append("--logs") }
+        do {
+            var env = ProcessInfo.processInfo.environment
+            env["FAUGUS_DISABLE_UPDATES"] = "1"
+            _ = try ProcessSpawner.spawn(argv: argv, options: .init(workingDirectory: nil, environment: env, newSession: true))
+            try? RecentRunFiles(paths: paths).record(gameID: game.gameID, file: file)
+                actionError = nil
+        } catch {
+            actionError = "\(error)"
+        }
+    }
+
+    /// The Add Game dialog's "Run" and "Run an installer": runs `file` in a prefix that may not
+    /// belong to a saved game yet, and returns once it has exited.
+    func runInPrefix(file: String, prefix: String, runner: String, logID: String) async -> Bool {
+        guard let exe = Bundle.main.executablePath ?? CommandLine.arguments.first else { return false }
+        let argv = [exe, "--run", file, "--in-prefix", prefix, "--runner", runner, "--log-id", logID]
+        do {
+            let pid = try ProcessSpawner.spawn(
+                argv: argv,
+                options: .init(workingDirectory: nil, environment: ProcessInfo.processInfo.environment, newSession: true))
+            actionError = nil
+            await Task.detached {
+                var status: Int32 = 0
+                while waitpid(pid, &status, 0) < 0 && errno == EINTR {}
+            }.value
+            return true
+        } catch {
+            actionError = "\(error)"
+            return false
+        }
+    }
+
     func stop(_ game: Game) {
         try? RunningGames(paths: paths).requestStop(gameID: game.gameID)
     }

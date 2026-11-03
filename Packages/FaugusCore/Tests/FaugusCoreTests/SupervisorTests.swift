@@ -120,6 +120,63 @@ struct SupervisorTests {
         #expect(!FileManager.default.fileExists(atPath: paths.gameLogsDir(gameID: "fake-game") + "/wine.log"))
     }
 
+    @Test func runFileUsesThePrefixButIsNotTheGame() async throws {
+        let paths = try setup(wineBody: """
+            echo "args: $@" > "$WINEPREFIX/ran-file.txt"
+            echo "id: [$FAUGUSID]" >> "$WINEPREFIX/ran-file.txt"
+            echo "pwd: $(pwd)" >> "$WINEPREFIX/ran-file.txt"
+            echo "running: $(ls "$FAUGUS_TEST_STATE" 2>/dev/null)" >> "$WINEPREFIX/ran-file.txt"
+            exit 0
+            """) { [home = NSTemporaryDirectory()] in $0.preLaunch = "touch '\(home)faugus-hook-marker-runfile'"; $0.postLaunch = $0.preLaunch }
+        defer { TestSupport.cleanup(paths) }
+        var o = options()
+        o.runFile = paths.home + "/Downloads/setup.msi"
+        o.baseEnvironment["FAUGUS_TEST_STATE"] = paths.stateDir
+        let sup = GameSupervisor(paths: paths, gameID: "fake-game", options: o)
+        let failure = await sup.run()
+        #expect(failure == nil)
+
+        let prefix = paths.home + "/Faugus/fake-game"
+        let ran = try String(contentsOfFile: prefix + "/ran-file.txt", encoding: .utf8)
+        #expect(ran.contains("msiexec /i") && ran.contains("setup.msi"))
+        #expect(ran.contains("id: []"))
+        #expect(ran.contains("/Games"))  // the game's folder
+        // No hooks, no playtime, no running state.
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(!FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "faugus-hook-marker-runfile"))
+        let game = try GamesStore(paths: paths).loadAll().first!
+        #expect(game.playtime == 0)
+        #expect(game.lastPlayed.isEmpty)
+        #expect(RunningGames(paths: paths).load().isEmpty)
+    }
+
+    @Test func runFileLeavesARunningGameAlone() async throws {
+        let paths = try setup(wineBody: """
+            case "$1" in
+              regedit) exit 0 ;;
+              *) sleep 5 ;;
+            esac
+            """)
+        defer { TestSupport.cleanup(paths) }
+        let game = GameSupervisor(paths: paths, gameID: "fake-game", options: options())
+        let gameTask = Task { await game.run() }
+        var seen = false
+        for _ in 0..<40 {
+            try await Task.sleep(for: .milliseconds(100))
+            if RunningGames(paths: paths).isRunning("fake-game") { seen = true; break }
+        }
+        #expect(seen)
+
+        var o = options()
+        o.runFile = paths.home + "/tweak.reg"
+        let other = GameSupervisor(paths: paths, gameID: "fake-game", options: o)
+        _ = await other.run()
+        // The file run finished; the game is still marked running and not killed.
+        #expect(RunningGames(paths: paths).isRunning("fake-game"))
+        try RunningGames(paths: paths).requestStop(gameID: "fake-game")
+        _ = await gameTask.value
+    }
+
     @Test func runningStateIsVisibleWhileRunning() async throws {
         let paths = try setup(wineBody: "echo out; sleep 3")
         defer { TestSupport.cleanup(paths) }

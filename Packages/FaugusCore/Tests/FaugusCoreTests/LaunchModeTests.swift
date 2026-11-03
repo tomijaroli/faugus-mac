@@ -28,8 +28,16 @@ struct LaunchModeTests {
 
     @Test func runFile() {
         #expect(
-            LaunchMode.parse(["--run", "/tmp/x.exe", "--logs"])
-                == .runFile(path: "/tmp/x.exe", logs: true, preLaunch: "", postLaunch: ""))
+            LaunchMode.parse(["--run", "/tmp/x.exe", "--in-game", "celeste", "--logs"])
+                == .runFile(path: "/tmp/x.exe", target: .game(id: "celeste"), logs: true, preLaunch: "", postLaunch: ""))
+        #expect(
+            LaunchMode.parse(["--run", "/tmp/x.exe", "--in-prefix", "/tmp/p", "--runner", "GE", "--log-id", "my-game"])
+                == .runFile(
+                    path: "/tmp/x.exe", target: .prefix(path: "/tmp/p", runner: "GE", logID: "my-game"),
+                    logs: false, preLaunch: "", postLaunch: ""))
+        #expect(
+            LaunchMode.parse(["--run", "/tmp/x.exe"])
+                == .invalid("--run requires --in-game <id> or --in-prefix <dir>"))
     }
 
     @Test func helperWindows() {

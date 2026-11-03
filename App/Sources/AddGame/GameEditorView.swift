@@ -82,6 +82,10 @@ struct GameEditorView: View {
     @State private var warning: String?
     @State private var warningDetail: String?
     @State private var urlPrompt: ArtworkSlot?
+    /// Prefixes created by "Run" / "Run an installer" in this dialog, offered for discard on Cancel.
+    @State private var createdPrefixes: [String] = []
+    @State private var discardPrompt = false
+    @State private var runningFiles = 0
 
     init(model: AppModel, state: GameEditorState, dismiss: @escaping () -> Void) {
         self.model = model
@@ -158,8 +162,12 @@ struct GameEditorView: View {
             .frame(minHeight: 360)
 
             HStack {
+                Button(t("Run")) { runFileInPrefix() }
+                    .help(t("Run a file in the prefix"))
+                    .accessibilityIdentifier("editor-run")
+                if runningFiles > 0 { ProgressView().controlSize(.small) }
                 Spacer()
-                Button(t("Cancel"), role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(t("Cancel"), role: .cancel) { cancel() }.keyboardShortcut(.cancelAction)
                 Button(t("Confirm")) { confirm() }
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("editor-confirm")
@@ -172,6 +180,15 @@ struct GameEditorView: View {
             Button(t("Ok")) {}
         } message: {
             Text(warningDetail ?? "")
+        }
+        .alert(
+            createdPrefixes.count > 1 ? t("Do you want to discard these prefixes?") : t("Do you want to discard this prefix?"),
+            isPresented: $discardPrompt
+        ) {
+            Button(t("Yes"), role: .destructive) { discardCreatedPrefixes(); dismiss() }
+            Button(t("No"), role: .cancel) { dismiss() }
+        } message: {
+            Text(createdPrefixes.joined(separator: "\n"))
         }
         .sheet(item: $urlPrompt) { slot in
             ImageURLPrompt(t: t, slot: slot) { data in
@@ -202,14 +219,22 @@ struct GameEditorView: View {
                     .invalidMark(invalid.contains(.path))
                     .help(t("Path to the game executable"))
                     .accessibilityIdentifier("editor-path")
-                SearchButton {
-                    let dir = state.path.isEmpty ? nil : (model.paths.expand(state.path) as NSString).deletingLastPathComponent
-                    if let p = FilePicker.choose(message: t("Select the game executable"), startIn: dir) {
-                        fillFromExecutable(p)
-                        state.path = p
+                Menu {
+                    Button(t("Select an executable")) {
+                        let dir = state.path.isEmpty ? nil : (model.paths.expand(state.path) as NSString).deletingLastPathComponent
+                        if let p = FilePicker.choose(message: t("Select the game executable"), startIn: dir) {
+                            fillFromExecutable(p)
+                            state.path = p
+                        }
                     }
+                    Button(t("Run an installer")) { runInstaller() }
+                } label: {
+                    Image(systemName: "magnifyingglass")
                 }
+                .menuIndicator(.hidden)
+                .fixedSize()
                 .help(t("Select the game executable"))
+                .accessibilityIdentifier("editor-path-menu")
             }
             HStack {
                 TextField(t("Prefix"), text: Binding(
@@ -402,8 +427,8 @@ struct GameEditorView: View {
 
     /// `fill_from_executable`: an empty title takes the executable's product name (or file
     /// name), and the executable's main icon replaces the icon.
-    private func fillFromExecutable(_ path: String) {
-        let hadTitle = !state.title.trimmingCharacters(in: .whitespaces).isEmpty
+    private func fillFromExecutable(_ path: String, fillTitle: Bool = true) {
+        let hadTitle = !fillTitle || !state.title.trimmingCharacters(in: .whitespaces).isEmpty
         Task.detached {
             let info = GameArtwork.inspect(executable: path)
             await MainActor.run {
@@ -411,6 +436,88 @@ struct GameEditorView: View {
                 if let png = info.iconPNG { _ = state.artwork.setIcon(data: png) } else { state.artwork.clear(.icon) }
             }
         }
+    }
+
+    // MARK: Run in the prefix
+
+    /// The prefix the dialog would save, or nil (with a red mark) when there is none.
+    private func prefixForRun() -> String? {
+        let prefix = model.paths.expand(GameEditing.normalizedPath(effectivePrefix))
+        if GameEditing.invalidFields(title: "x", path: "x", prefix: prefix).contains(.prefix) {
+            invalid.insert(.prefix)
+            return nil
+        }
+        return prefix
+    }
+
+    private var runnerForRun: String { state.customRunner ? state.runner : "Default" }
+    private var logIDForRun: String { GameID.format(title: state.title) }
+
+    /// Upstream records every prefix a run created, to offer discarding it on Cancel. A prefix
+    /// that already existed is never recorded, so Cancel can never delete someone's old prefix.
+    private func recordCreatedPrefix(_ prefix: String, existedBefore: Bool) {
+        var isDir: ObjCBool = false
+        guard !existedBefore, FileManager.default.fileExists(atPath: prefix, isDirectory: &isDir), isDir.boolValue,
+            !createdPrefixes.contains(prefix)
+        else { return }
+        createdPrefixes.append(prefix)
+    }
+
+    /// "Run": any file (installer, `.reg`, tool) in the prefix.
+    private func runFileInPrefix() {
+        let t = model.translator
+        guard let prefix = prefixForRun() else { return }
+        guard let file = FilePicker.choose(message: t("Select a file to run in the prefix")) else { return }
+        let existed = FileManager.default.fileExists(atPath: prefix)
+        let (runner, logID) = (runnerForRun, logIDForRun)
+        runningFiles += 1
+        Task {
+            _ = await model.runInPrefix(file: file, prefix: prefix, runner: runner, logID: logID)
+            runningFiles -= 1
+            recordCreatedPrefix(prefix, existedBefore: existed)
+        }
+    }
+
+    /// "Run an installer": runs it, then looks for the shortcut it created (10 tries, 2 s apart)
+    /// and fills the Path with the installed executable.
+    private func runInstaller() {
+        let t = model.translator
+        guard let prefix = prefixForRun() else { return }
+        guard let file = FilePicker.choose(message: t("Select the game installer")) else { return }
+        let existed = FileManager.default.fileExists(atPath: prefix)
+        let (runner, logID) = (runnerForRun, logIDForRun)
+        let before = InstalledExecutable.shortcuts(inPrefix: prefix)
+        runningFiles += 1
+        Task {
+            _ = await model.runInPrefix(file: file, prefix: prefix, runner: runner, logID: logID)
+            recordCreatedPrefix(prefix, existedBefore: existed)
+            var detected: String?
+            for attempt in 0..<10 {
+                detected = await Task.detached { InstalledExecutable.detect(prefix: prefix, existing: before) }.value
+                if detected != nil || attempt == 9 { break }
+                try? await Task.sleep(for: .seconds(2))
+            }
+            runningFiles -= 1
+            if let detected {
+                state.path = detected
+                fillFromExecutable(detected, fillTitle: false)
+            }
+        }
+    }
+
+    private func cancel() {
+        // Only prefixes no saved game uses are offered.
+        let used = Set(model.games.map { model.paths.expand($0.prefix) })
+        createdPrefixes.removeAll { used.contains($0) || !FileManager.default.fileExists(atPath: $0) }
+        if createdPrefixes.isEmpty { dismiss() } else { discardPrompt = true }
+    }
+
+    /// Prefixes go to the Trash, never `rm` (plan section 8).
+    private func discardCreatedPrefixes() {
+        for prefix in createdPrefixes {
+            try? FileManager.default.trashItem(at: URL(fileURLWithPath: prefix), resultingItemURL: nil)
+        }
+        createdPrefixes = []
     }
 
     // MARK: Save
