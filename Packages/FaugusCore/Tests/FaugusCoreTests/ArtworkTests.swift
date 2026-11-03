@@ -18,7 +18,11 @@ private enum FakePE {
 
     /// `{ len, valLen, type, key, pad, value }` with children appended by the caller.
     static func node(key: String, valueWords: Int, type: Int, value: [UInt8], children: [[UInt8]] = []) -> [UInt8] {
-        var body = pad4(le16(0) + le16(valueWords) + le16(type) + utf16(key))
+        var header: [UInt8] = le16(0)
+        header += le16(valueWords)
+        header += le16(type)
+        header += utf16(key)
+        var body = pad4(header)
         body += value
         body = pad4(body)
         for c in children { body += pad4(c) }
@@ -47,7 +51,15 @@ private enum FakePE {
         var blobs: [(type: Int, bytes: [UInt8])] = []
         if let icon {
             blobs.append((3, [UInt8](icon)))
-            let group = le16(0) + le16(1) + le16(1) + [32, 32, 0, 0] + le16(1) + le16(32) + le32(icon.count) + le16(1)
+            var group: [UInt8] = []
+            group += le16(0)
+            group += le16(1)
+            group += le16(1)
+            group += [32, 32, 0, 0]
+            group += le16(1)
+            group += le16(32)
+            group += le32(icon.count)
+            group += le16(1)
             blobs.append((14, group))
         }
         if !strings.isEmpty { blobs.append((16, versionBlob(strings: strings))) }
@@ -68,7 +80,11 @@ private enum FakePE {
             put(s + 16, le32(1) + le32(0x8000_0000 | (s + 24)))
             put(s + 24 + 12, le16(0) + le16(1))
             put(s + 24 + 16, le32(0x409) + le32(s + 48))
-            put(s + 48, le32(0x1000 + cursor) + le32(b.bytes.count) + le32(0) + le32(0))
+            var entry: [UInt8] = le32(0x1000 + cursor)
+            entry += le32(b.bytes.count)
+            entry += le32(0)
+            entry += le32(0)
+            put(s + 48, entry)
             rsrc += pad4(b.bytes)
             cursor += pad4(b.bytes).count
         }
@@ -77,7 +93,13 @@ private enum FakePE {
         file[0] = 0x4D; file[1] = 0x5A
         file.replaceSubrange(0x3C..<0x40, with: le32(0x40))
         file += [0x50, 0x45, 0, 0]
-        file += le16(0x8664) + le16(1) + le32(0) + le32(0) + le32(0) + le16(240) + le16(0x22)
+        file += le16(0x8664)
+        file += le16(1)
+        file += le32(0)
+        file += le32(0)
+        file += le32(0)
+        file += le16(240)
+        file += le16(0x22)
         var opt = [UInt8](repeating: 0, count: 240)
         opt.replaceSubrange(0..<2, with: le16(0x20B))
         opt.replaceSubrange((112 + 16)..<(112 + 24), with: le32(0x1000) + le32(rsrc.count))
