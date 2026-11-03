@@ -216,15 +216,17 @@ struct SupervisorTests {
         var env = ProcessInfo.processInfo.environment
         env["FAUGUSID"] = id
 
-        // macOS hides the environment of Apple platform binaries (/bin/sleep). Wine's binaries are
-        // ad-hoc signed, so use an ad-hoc signed copy to mirror them.
+        // macOS hides the environment of Apple platform binaries (/bin/sleep), and hosted CI
+        // runners also hide copies of them. Wine's binaries are third-party ad-hoc signed, so
+        // mirror that with a tiny compiled program.
         let dir = NSTemporaryDirectory() + "faugus-scan-" + UUID().uuidString
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
-        let sleepCopy = dir + "/sleep"
-        try FileManager.default.copyItem(atPath: "/bin/sleep", toPath: sleepCopy)
-        let sign = try await ProcessRunner.run("/usr/bin/codesign", ["--force", "-s", "-", sleepCopy])
-        #expect(sign.succeeded, "codesign: \(sign.stderr)")
+        let src = dir + "/sleeper.c"
+        try "#include <unistd.h>\nint main(void){ sleep(30); return 0; }\n".write(toFile: src, atomically: true, encoding: .utf8)
+        let sleepCopy = dir + "/sleeper"
+        let cc = try await ProcessRunner.run("/usr/bin/clang", ["-o", sleepCopy, src])
+        #expect(cc.succeeded, "clang: \(cc.stderr)")
 
         let pid = try ProcessSpawner.spawn(argv: [sleepCopy, "30"], options: .init(environment: env))
         defer { kill(pid, SIGKILL); var s: Int32 = 0; waitpid(pid, &s, 0) }
