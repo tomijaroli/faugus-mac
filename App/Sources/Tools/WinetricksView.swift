@@ -82,7 +82,7 @@ struct WinetricksView: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity)
-        case .failed(let message):
+        case let .failed(message):
             VStack(spacing: 10) {
                 Spacer()
                 Text(message).foregroundStyle(.red).multilineTextAlignment(.center).textSelection(.enabled)
@@ -127,7 +127,11 @@ struct WinetricksView: View {
                     .toggleStyle(.checkbox)
                 }
             }
-            .overlay { if verbs.isEmpty { Text("No verb found.").foregroundStyle(.secondary) } }
+            .overlay {
+                if verbs.isEmpty {
+                    Text("No verb found.").foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -144,7 +148,11 @@ struct WinetricksView: View {
             }
             .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
-            .onChange(of: lines.count) { _, n in if n > 0 { proxy.scrollTo(n - 1, anchor: .bottom) } }
+            .onChange(of: lines.count) {
+                _, n in if n > 0 {
+                    proxy.scrollTo(n - 1, anchor: .bottom)
+                }
+            }
             .accessibilityIdentifier("winetricks-log")
         }
     }
@@ -165,12 +173,14 @@ struct WinetricksView: View {
                 Text(selected.sorted().joined(separator: ", ")).foregroundStyle(.secondary).lineLimit(1)
                 Spacer()
                 Button(t("Cancel")) { cancel() }.disabled(cancelRequested)
-            case .finished(let status, let cancelled):
+            case let .finished(status, cancelled):
                 Image(systemName: status == 0 ? "checkmark.circle.fill" : "xmark.octagon.fill")
                     .foregroundStyle(status == 0 ? .green : .red)
                 Text(cancelled ? "Cancelled" : (status == 0 ? "Done" : "winetricks exited with status \(status)"))
                 Spacer()
-                Button("Back") { selected = []; phase = .picking }
+                Button("Back") { selected = []
+                    phase = .picking
+                }
                 Button(t("Close")) { dismiss() }.keyboardShortcut(.defaultAction)
             case .preparing, .failed:
                 Spacer()
@@ -194,14 +204,24 @@ struct WinetricksView: View {
     private func binding(for verb: String) -> Binding<Bool> {
         Binding(
             get: { selected.contains(verb) },
-            set: { if $0 { selected.insert(verb) } else { selected.remove(verb) } })
+            set: {
+                if $0 {
+                    selected.insert(verb)
+                } else {
+                    selected.remove(verb)
+                }
+            }
+        )
     }
 
     // MARK: Work
 
     private var runner: InstalledRunner? {
         let store = RunnerStore(paths: model.paths)
-        if case .installed(let r) = store.resolve(runnerName, defaultRunner: model.config?.defaultRunner ?? FaugusConfig.defaultRunner) {
+        if case let .installed(r) = store.resolve(
+            runnerName,
+            defaultRunner: model.config?.defaultRunner ?? FaugusConfig.defaultRunner
+        ) {
             return r
         }
         return nil
@@ -226,17 +246,21 @@ struct WinetricksView: View {
                 let inv = WinetricksInvocation.listAll(prefix: prefix, runner: runner, paths: model.paths)
                 let result = try await ProcessRunner.run(
                     inv.argv[0], Array(inv.argv.dropFirst()), environment: inv.environment,
-                    currentDirectory: model.paths.tempDir)
+                    currentDirectory: model.paths.tempDir
+                )
                 let parsed = Winetricks.parseList(result.stdout)
                 guard result.succeeded, !parsed.isEmpty else {
                     throw RunnerError.downloadFailed(
                         result.stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            ? "winetricks list-all exited with \(result.status)" : result.stderr)
+                            ? "winetricks list-all exited with \(result.status)" : result.stderr
+                    )
                 }
                 model.winetricksCatalog = parsed
                 categories = parsed
             }
-            if !categories.contains(where: { $0.name == category }) { category = categories.first?.name ?? "" }
+            if !categories.contains(where: { $0.name == category }) {
+                category = categories.first?.name ?? ""
+            }
             installedVerbs = Winetricks.installedVerbs(prefix: prefix)
             phase = .picking
         } catch {
@@ -265,9 +289,11 @@ struct WinetricksView: View {
         }
 
         let inv = WinetricksInvocation.install(
-            verbs: verbs, prefix: prefix, runner: runner, paths: model.paths, logName: logName)
+            verbs: verbs, prefix: prefix, runner: runner, paths: model.paths, logName: logName
+        )
         try? FileManager.default.createDirectory(
-            atPath: (inv.logFile as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+            atPath: (inv.logFile as NSString).deletingLastPathComponent, withIntermediateDirectories: true
+        )
         try? FileManager.default.removeItem(atPath: inv.logFile)
         lines.append("winetricks -q " + verbs.joined(separator: " "))
 
@@ -275,7 +301,12 @@ struct WinetricksView: View {
         do {
             child = try ProcessSpawner.spawn(
                 argv: inv.argv,
-                options: .init(workingDirectory: inv.workingDirectory, environment: inv.environment, outputFile: inv.logFile))
+                options: .init(
+                    workingDirectory: inv.workingDirectory,
+                    environment: inv.environment,
+                    outputFile: inv.logFile
+                )
+            )
         } catch {
             lines.append("\(error)")
             phase = .finished(1, cancelled: false)
@@ -284,7 +315,7 @@ struct WinetricksView: View {
         pid = child
         let tail = LogTail(path: inv.logFile)
         let exit = ExitBox()
-        Task { exit.set(await ProcessSpawner.waitForExit(pid: child)) }
+        Task { await exit.set(ProcessSpawner.waitForExit(pid: child)) }
         while exit.status == nil {
             append(tail.poll())
             try? await Task.sleep(for: .milliseconds(250))
@@ -299,7 +330,9 @@ struct WinetricksView: View {
     private func append(_ new: [String]) {
         guard !new.isEmpty else { return }
         lines.append(contentsOf: new)
-        if lines.count > 5000 { lines.removeFirst(lines.count - 5000) }
+        if lines.count > 5000 {
+            lines.removeFirst(lines.count - 5000)
+        }
     }
 
     /// Stops winetricks and everything it started (the child runs as its own process group),
@@ -313,11 +346,18 @@ struct WinetricksView: View {
         let prefix = prefix
         Task.detached {
             try? await Task.sleep(for: .seconds(3))
-            if ProcessSpawner.isAlive(target) { kill(-target, SIGKILL) }
+            if ProcessSpawner.isAlive(target) {
+                kill(-target, SIGKILL)
+            }
             if let runner {
                 var env = ProcessInfo.processInfo.environment
                 env["WINEPREFIX"] = prefix
-                _ = try? await ProcessRunner.run(runner.wineserverBinary, ["-k"], environment: env, currentDirectory: prefix)
+                _ = try? await ProcessRunner.run(
+                    runner.wineserverBinary,
+                    ["-k"],
+                    environment: env,
+                    currentDirectory: prefix
+                )
             }
         }
     }
@@ -326,6 +366,15 @@ struct WinetricksView: View {
 private final class ExitBox: @unchecked Sendable {
     private let lock = NSLock()
     private var value: Int32?
-    var status: Int32? { lock.lock(); defer { lock.unlock() }; return value }
-    func set(_ v: Int32) { lock.lock(); value = v; lock.unlock() }
+    var status: Int32? {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    func set(_ v: Int32) {
+        lock.lock()
+        value = v
+        lock.unlock()
+    }
 }

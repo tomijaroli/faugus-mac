@@ -36,8 +36,13 @@ struct SettingsView: View {
         _originalEnvars = State(initialValue: e)
     }
 
-    private var modified: Bool { cfg != original || envars != originalEnvars }
-    private var mode: InterfaceMode { InterfaceMode(configValue: cfg.string("interface-mode")) }
+    private var modified: Bool {
+        cfg != original || envars != originalEnvars
+    }
+
+    private var mode: InterfaceMode {
+        InterfaceMode(configValue: cfg.string("interface-mode"))
+    }
 
     var body: some View {
         let t = model.translator
@@ -79,7 +84,11 @@ struct SettingsView: View {
         }
         .confirmationDialog(
             t("Do you want to save the changes?"),
-            isPresented: Binding(get: { pendingTool != nil }, set: { if !$0 { pendingTool = nil } }),
+            isPresented: Binding(get: { pendingTool != nil }, set: {
+                if !$0 {
+                    pendingTool = nil
+                }
+            }),
             titleVisibility: .visible
         ) {
             Button(t("Yes")) { finishPendingTool(save: true) }
@@ -104,10 +113,15 @@ struct SettingsView: View {
                 HStack {
                     TextField("", text: text("default-prefix"))
                         .labelsHidden()
-                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.red, lineWidth: prefixInvalid ? 1.5 : 0))
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(
+                            Color.red,
+                            lineWidth: prefixInvalid ? 1.5 : 0
+                        ))
                         .help(t("The location where prefixes are created"))
                         .onChange(of: cfg.string("default-prefix")) { _, v in
-                            if !v.isEmpty { prefixInvalid = false }
+                            if !v.isEmpty {
+                                prefixInvalid = false
+                            }
                         }
                     Button(t("Select a prefix location") + "…") { choosePrefixFolder(t) }
                 }
@@ -126,7 +140,9 @@ struct SettingsView: View {
                     Button(t("Run")) { startTool(.run) }
                         .help(t("Run a file in the prefix"))
                         .accessibilityIdentifier("settings-run")
-                    if toolsBusy > 0 { ProgressView().controlSize(.small) }
+                    if toolsBusy > 0 {
+                        ProgressView().controlSize(.small)
+                    }
                 }
                 .disabled(toolsBusy > 0)
             }
@@ -135,7 +151,11 @@ struct SettingsView: View {
                 Toggle(t("Auto-close"), isOn: flag("auto-close-on-launch"))
                     .help(t("Automatically closes the application when launching a game"))
                 Toggle(t("Splash window"), isOn: flag("splash-window-enabled"))
-                    .help(t("Displays a splash window with information about the runner and other required components when launching a game"))
+                    .help(
+                        t(
+                            "Displays a splash window with information about the runner and other required components when launching a game"
+                        )
+                    )
                 Toggle(t("Automatic updates"), isOn: flag("automatic-updates"))
                     .help(t("Checks for and updates the runner and other required components when launching a game"))
                 Toggle(t("Categories"), isOn: flag("categories-enabled"))
@@ -188,10 +208,14 @@ struct SettingsView: View {
             Section(t("Display")) {
                 Toggle(t("Labels"), isOn: flag("labels-enabled"))
                     .disabled(!mode.supportsLabelsAndZoom)
-                    .help(mode.supportsLabelsAndZoom ? t("Displays the game title below the cover") : t("Covers or Carrousel mode"))
+                    .help(mode
+                        .supportsLabelsAndZoom ? t("Displays the game title below the cover") :
+                        t("Covers or Carrousel mode"))
                 Toggle(t("Zoom"), isOn: flag("zoom-enabled"))
                     .disabled(!mode.supportsLabelsAndZoom)
-                    .help(mode.supportsLabelsAndZoom ? t("Displays a zoom slider to adjust the size of games") : t("Covers or Carrousel mode"))
+                    .help(mode
+                        .supportsLabelsAndZoom ? t("Displays a zoom slider to adjust the size of games") :
+                        t("Covers or Carrousel mode"))
                 Toggle(t("Banner"), isOn: flag("banner-enabled"))
                     .disabled(!mode.supportsBanner(steamGridDBEnabled: sgdb))
                     .help(t("Covers or Carrousel mode with SteamGridDB"))
@@ -219,7 +243,7 @@ struct SettingsView: View {
                 HStack {
                     Text(t(InterfaceMode.maxChildrenLabel(orientation: cfg.string("grid-orientation"))))
                     Spacer()
-                    Stepper(value: maxChildren, in: 1...99) { Text("\(maxChildren.wrappedValue)").monospacedDigit() }
+                    Stepper(value: maxChildren, in: 1 ... 99) { Text("\(maxChildren.wrappedValue)").monospacedDigit() }
                         .disabled(!cfg.bool("grid-max-children-enabled"))
                     Toggle("", isOn: flag("grid-max-children-enabled")).labelsHidden()
                 }
@@ -240,15 +264,35 @@ struct SettingsView: View {
                     Text(t("Light")).tag("light")
                     Text(t("Dark")).tag("dark")
                 }
-                colorRow(t("Accent Color"), mode: "accent-mode", color: "accent-color",
-                    modes: [("system", t("Default")), ("custom", t("Custom"))])
-                colorRow(t("Background Color"), mode: "background-mode", color: "background-color",
-                    modes: [("default", t("Default")), ("accent", t("Accent color")),
-                        ("dominant_color", t("Dominant color")), ("custom", t("Custom"))])
-                colorRow(t("Overview Color"), mode: "overview-color-mode", color: "overview-color",
-                    modes: [("default", t("Default")), ("accent", t("Accent color")),
-                        ("dominant_color", t("Dominant color")), ("custom", t("Custom"))])
-                    .disabled(!cfg.bool("overview-enabled") || !mode.supportsOverview)
+                colorRow(
+                    t("Accent Color"),
+                    mode: "accent-mode",
+                    color: "accent-color",
+                    modes: [("system", t("Default")), ("custom", t("Custom"))]
+                )
+                colorRow(
+                    t("Background Color"),
+                    mode: "background-mode",
+                    color: "background-color",
+                    modes: [
+                        ("default", t("Default")),
+                        ("accent", t("Accent color")),
+                        ("dominant_color", t("Dominant color")),
+                        ("custom", t("Custom")),
+                    ]
+                )
+                colorRow(
+                    t("Overview Color"),
+                    mode: "overview-color-mode",
+                    color: "overview-color",
+                    modes: [
+                        ("default", t("Default")),
+                        ("accent", t("Accent color")),
+                        ("dominant_color", t("Dominant color")),
+                        ("custom", t("Custom")),
+                    ]
+                )
+                .disabled(!cfg.bool("overview-enabled") || !mode.supportsOverview)
                 Picker(t("Widget Color"), selection: text("widget-color-mode")) {
                     Text(t("Default")).tag("default")
                     Text(t("Accent color")).tag("accent")
@@ -283,7 +327,8 @@ struct SettingsView: View {
     private var maxChildren: Binding<Int> {
         Binding(
             get: { max(1, cfg.int("grid-max-children-per-line", default: 20)) },
-            set: { cfg.setValue("grid-max-children-per-line", String($0)) })
+            set: { cfg.setValue("grid-max-children-per-line", String($0)) }
+        )
     }
 
     private func colorBinding(_ key: String) -> Binding<Color> {
@@ -296,9 +341,11 @@ struct SettingsView: View {
                 let ns = NSColor(new).usingColorSpace(.sRGB) ?? .black
                 let c = ConfigColor(
                     red: Int((ns.redComponent * 255).rounded()), green: Int((ns.greenComponent * 255).rounded()),
-                    blue: Int((ns.blueComponent * 255).rounded()))
+                    blue: Int((ns.blueComponent * 255).rounded())
+                )
                 cfg.setValue(key, c.cssString)
-            })
+            }
+        )
     }
 
     // MARK: Runner and language
@@ -306,20 +353,25 @@ struct SettingsView: View {
     private var runnerChoices: [String] {
         var names = [FaugusConfig.defaultRunner] + runners.map(\.name)
         let current = cfg.defaultRunner
-        if !current.isEmpty, !names.contains(current) { names.append(current) }
+        if !current.isEmpty, !names.contains(current) {
+            names.append(current)
+        }
         return names
     }
 
     private var runnerBinding: Binding<String> {
         Binding(
             get: { cfg.defaultRunner.isEmpty ? FaugusConfig.defaultRunner : cfg.defaultRunner },
-            set: { cfg.setValue("default-runner", $0) })
+            set: { cfg.setValue("default-runner", $0) }
+        )
     }
 
     private var languageCodes: [String] {
         var codes = AppModel.languageCatalogs()?.selectableLanguages() ?? ["en_US"]
         let current = cfg.string("language")
-        if !current.isEmpty, !codes.contains(current) { codes.append(current) }
+        if !current.isEmpty, !codes.contains(current) {
+            codes.append(current)
+        }
         return codes
     }
 
@@ -337,7 +389,9 @@ struct SettingsView: View {
 
     private func commitNewEnvar() {
         let line = newEnvar.trimmingCharacters(in: .whitespaces)
-        if !line.isEmpty { envars.append(line) }
+        if !line.isEmpty {
+            envars.append(line)
+        }
         newEnvar = ""
     }
 
@@ -348,7 +402,9 @@ struct SettingsView: View {
         panel.canCreateDirectories = true
         panel.title = t("Select a prefix location")
         panel.directoryURL = URL(fileURLWithPath: model.paths.expand(cfg.string("default-prefix")))
-        if panel.runModal() == .OK, let url = panel.url { cfg.setValue("default-prefix", url.path) }
+        if panel.runModal() == .OK, let url = panel.url {
+            cfg.setValue("default-prefix", url.path)
+        }
     }
 
     private func cancel() {
@@ -365,7 +421,11 @@ struct SettingsView: View {
     /// Upstream's `check_modified`: unsaved changes are saved (or dropped) before the tool runs,
     /// because the tool uses the saved default prefix and runner.
     private func startTool(_ tool: PrefixTool) {
-        if modified { pendingTool = tool } else { launch(tool) }
+        if modified {
+            pendingTool = tool
+        } else {
+            launch(tool)
+        }
     }
 
     private func finishPendingTool(save: Bool) {

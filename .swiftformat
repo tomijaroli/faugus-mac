@@ -1,0 +1,36 @@
+# SwiftFormat (nicklockwood/SwiftFormat). Layout rules only; SwiftLint (.swiftlint.yml) owns the
+# semantic rules. Style follows the Swift API Design Guidelines and the Swift Evolution style
+# used in Apple's own code: 4 spaces, lines wrapped at 120, no semicolons, no `self.` noise.
+
+--swiftversion 6.0
+
+--indent 4
+--tab-width 4
+--max-width 120
+--line-after-marks true
+--linebreaks lf
+--trim-whitespace always
+
+--self remove
+--semicolons never
+--import-grouping alpha
+--trailing-commas multi-element-lists
+--wrap-arguments before-first
+--wrap-parameters before-first
+--wrap-collections before-first
+--closing-paren balanced
+--wrap-return-type preserve
+--wrap-conditions after-first
+--ifdef no-indent
+--indent-case false
+--type-body-marks preserve
+--mark-extensions always
+--extension-acl on-declarations
+--short-optionals always
+--nil-init remove
+--redundant-type inferred
+
+--exclude upstream,build,.build,.swiftpm,DerivedData,dist,TestPrograms/build,FaugusForMac.xcodeproj
+
+# Rewrites test `!` into `try #require`, which cannot nest; left to the author.
+--disable noForceUnwrapInTests

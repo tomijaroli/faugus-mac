@@ -19,9 +19,18 @@ struct GameGridView: View {
 
     @State private var viewport: CGSize = .zero
 
-    private var config: FaugusConfig { appearance.config }
-    private var horizontal: Bool { config.string("grid-orientation") == "Horizontal" }
-    private var labels: Bool { mode == .grid || config.bool("labels-enabled") }
+    private var config: FaugusConfig {
+        appearance.config
+    }
+
+    private var horizontal: Bool {
+        config.string("grid-orientation") == "Horizontal"
+    }
+
+    private var labels: Bool {
+        mode == .grid || config.bool("labels-enabled")
+    }
+
     private var maxChildren: Int {
         config.bool("grid-max-children-enabled") ? max(1, config.int("grid-max-children-per-line", default: 20)) : 20
     }
@@ -37,13 +46,15 @@ struct GameGridView: View {
     }
 
     private let spacing: CGFloat = 10
-    private var inset: CGFloat { mode == .covers ? 40 : 10 }
+    private var inset: CGFloat {
+        mode == .covers ? 40 : 10
+    }
 
     private var alignment: Alignment {
         switch config.string("grid-position", default: "Middle") {
-        case "Top": return .top
-        case "Bottom": return .bottom
-        default: return .center
+        case "Top": .top
+        case "Bottom": .bottom
+        default: .center
         }
     }
 
@@ -59,10 +70,13 @@ struct GameGridView: View {
                     }
                     .frame(
                         minWidth: horizontal ? nil : geo.size.width,
-                        minHeight: geo.size.height, alignment: alignment)
+                        minHeight: geo.size.height, alignment: alignment
+                    )
                 }
                 .onChange(of: model.selection) { _, id in
-                    if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) } }
+                    if let id {
+                        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) }
+                    }
                 }
             }
             .onAppear { viewport = geo.size }
@@ -84,7 +98,10 @@ struct GameGridView: View {
 
     @ViewBuilder
     private var grid: some View {
-        let items = Array(repeating: GridItem(.fixed(horizontal ? tile.height : tile.width), spacing: spacing), count: lanes)
+        let items = Array(
+            repeating: GridItem(.fixed(horizontal ? tile.height : tile.width), spacing: spacing),
+            count: lanes
+        )
         if horizontal {
             LazyHGrid(rows: items, spacing: spacing) { tiles }.padding(inset)
         } else {
@@ -113,7 +130,10 @@ struct GameGridView: View {
 
     private func handleKey(_ press: KeyPress) -> KeyPress.Result {
         guard let current = games.firstIndex(where: { $0.gameID == model.selection }) else {
-            if let first = games.first { model.selection = first.gameID; return .handled }
+            if let first = games.first {
+                model.selection = first.gameID
+                return .handled
+            }
             return .ignored
         }
         let cross = lanes
@@ -144,13 +164,18 @@ struct GameTile: View {
     let showsLabel: Bool
     let selected: Bool
 
-    private var installed: Bool { model.isInstalled(game) }
+    private var installed: Bool {
+        model.isInstalled(game)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             if mode == .covers {
                 ArtworkView(
-                    path: model.paths.expand(game.cover), size: CGSize(width: size.width, height: (size.width * 1.5).rounded(.down)),
+                    path: model.paths.expand(game.cover), size: CGSize(
+                        width: size.width,
+                        height: (size.width * 1.5).rounded(.down)
+                    ),
                     fill: true
                 ) {
                     appearance.placeholder
@@ -198,7 +223,7 @@ struct GameTile: View {
 struct FaugusFallbackIcon: View {
     var body: some View {
         if let url = Bundle.main.resourceURL?.appendingPathComponent("assets/faugus-launcher-raster.png"),
-            let image = NSImage(contentsOf: url)
+           let image = NSImage(contentsOf: url)
         {
             Image(nsImage: image).resizable().scaledToFit()
         } else {
@@ -231,9 +256,15 @@ private struct OrderDropDelegate: DropDelegate {
     let model: AppModel
     let targetID: String
 
-    func dropEntered(info: DropInfo) { model.dragEntered(target: targetID) }
-    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
-    func performDrop(info: DropInfo) -> Bool {
+    func dropEntered(info _: DropInfo) {
+        model.dragEntered(target: targetID)
+    }
+
+    func dropUpdated(info _: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info _: DropInfo) -> Bool {
         model.dragEnded()
         return true
     }

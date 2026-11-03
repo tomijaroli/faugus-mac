@@ -8,13 +8,15 @@ import SwiftUI
 struct WindowConfigurator: NSViewRepresentable {
     let model: AppModel
 
-    func makeNSView(context: Context) -> ConfiguratorView {
+    func makeNSView(context _: Context) -> ConfiguratorView {
         let view = ConfiguratorView()
         view.model = model
         return view
     }
 
-    func updateNSView(_ nsView: ConfiguratorView, context: Context) { nsView.model = model }
+    func updateNSView(_ nsView: ConfiguratorView, context _: Context) {
+        nsView.model = model
+    }
 
     final class ConfiguratorView: NSView {
         weak var model: AppModel?
@@ -26,21 +28,28 @@ struct WindowConfigurator: NSViewRepresentable {
             applied = true
             DispatchQueue.main.async { [weak self, weak window] in
                 guard let self, let window else { return }
-                self.apply(to: window)
-                self.observe(window)
+                apply(to: window)
+                observe(window)
             }
         }
 
         @MainActor private func apply(to window: NSWindow) {
-            guard let cfg = model?.config, InterfaceMode(configValue: cfg.string("interface-mode")) != .list else { return }
+            guard let cfg = model?.config,
+                  InterfaceMode(configValue: cfg.string("interface-mode")) != .list else { return }
             switch cfg.string("startup-window-size") {
             case "Remember":
                 let w = CGFloat(cfg.int("width", default: 1280)), h = CGFloat(cfg.int("height", default: 720))
-                if w >= 480, h >= 320 { window.setContentSize(NSSize(width: w, height: h)) }
+                if w >= 480, h >= 320 {
+                    window.setContentSize(NSSize(width: w, height: h))
+                }
             case "Maximized":
-                if !window.isZoomed { window.zoom(nil) }
+                if !window.isZoomed {
+                    window.zoom(nil)
+                }
             case "Fullscreen":
-                if !window.styleMask.contains(.fullScreen) { window.toggleFullScreen(nil) }
+                if !window.styleMask.contains(.fullScreen) {
+                    window.toggleFullScreen(nil)
+                }
             default: break
             }
         }
@@ -54,13 +63,14 @@ struct WindowConfigurator: NSViewRepresentable {
                             guard let self, let window else { return }
                             self.saveSize(of: window)
                         }
-                    })
+                    }
+                )
             }
         }
 
         @MainActor private func saveSize(of window: NSWindow) {
             guard let model, model.config?.string("startup-window-size") == "Remember",
-                model.interfaceMode != .list, !window.styleMask.contains(.fullScreen), !window.isZoomed
+                  model.interfaceMode != .list, !window.styleMask.contains(.fullScreen), !window.isZoomed
             else { return }
             let size = window.contentLayoutRect.size
             model.updateConfig {

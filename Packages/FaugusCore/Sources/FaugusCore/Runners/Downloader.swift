@@ -16,7 +16,8 @@ public final class Downloader: NSObject, URLSessionDownloadDelegate, @unchecked 
 
     public func download(_ url: URL) async throws {
         try FileManager.default.createDirectory(
-            at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
+        )
         var req = URLRequest(url: url)
         req.setValue("Faugus-for-Mac", forHTTPHeaderField: "User-Agent")
         let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
@@ -31,39 +32,43 @@ public final class Downloader: NSObject, URLSessionDownloadDelegate, @unchecked 
         }
     }
 
-    // Lock helpers are synchronous: NSLock cannot be used directly from async contexts.
+    /// Lock helpers are synchronous: NSLock cannot be used directly from async contexts.
     private func setContinuation(_ cont: CheckedContinuation<Void, Error>) {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         continuation = cont
     }
 
     private func takeContinuation() -> CheckedContinuation<Void, Error>? {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         let c = continuation
         continuation = nil
         return c
     }
 
     private func setMoveError(_ error: Error) {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         moveError = error
     }
 
     private func currentMoveError() -> Error? {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return moveError
     }
 
     // MARK: URLSessionDownloadDelegate
 
     public func urlSession(
-        _ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64,
+        _: URLSession, downloadTask _: URLSessionDownloadTask, didWriteData _: Int64,
         totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64
     ) {
         progress(totalBytesWritten, totalBytesExpectedToWrite)
     }
 
-    public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+    public func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         // The temporary file is deleted when this method returns, so move it now.
         if let http = downloadTask.response as? HTTPURLResponse, http.statusCode != 200 {
             setMoveError(RunnerError.downloadFailed("HTTP \(http.statusCode)"))
@@ -77,7 +82,7 @@ public final class Downloader: NSObject, URLSessionDownloadDelegate, @unchecked 
         }
     }
 
-    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    public func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: Error?) {
         let cont = takeContinuation()
         if let error {
             cont?.resume(throwing: RunnerError.downloadFailed(error.localizedDescription))

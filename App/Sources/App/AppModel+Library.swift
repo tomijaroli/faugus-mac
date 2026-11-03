@@ -4,33 +4,48 @@ import Foundation
 
 /// Library queries and actions: the visible list, categories, drag ordering, kill all.
 extension AppModel {
-    var noneLabel: String { translator("None") }
+    var noneLabel: String {
+        translator("None")
+    }
 
-    var categoriesEnabled: Bool { activeConfig?.bool("categories-enabled") ?? false }
-    var sortEnabled: Bool { activeConfig?.bool("sort-enabled") ?? false }
-    var interfaceMode: InterfaceMode { InterfaceMode(configValue: activeConfig?.string("interface-mode") ?? "List") }
+    var categoriesEnabled: Bool {
+        activeConfig?.bool("categories-enabled") ?? false
+    }
+
+    var sortEnabled: Bool {
+        activeConfig?.bool("sort-enabled") ?? false
+    }
+
+    var interfaceMode: InterfaceMode {
+        InterfaceMode(configValue: activeConfig?.string("interface-mode") ?? "List")
+    }
 
     /// Sorted and filtered like upstream's flowbox sort and filter functions.
     var visibleGames: [Game] {
         LibraryOrdering.visible(
             games, mode: sortMode, customOrder: customOrder, search: searchText.lowercased(),
-            category: category, categoriesEnabled: categoriesEnabled, noneLabel: noneLabel)
+            category: category, categoriesEnabled: categoriesEnabled, noneLabel: noneLabel
+        )
     }
 
-    var selectedGame: Game? { games.first { $0.gameID == selection } }
+    var selectedGame: Game? {
+        games.first { $0.gameID == selection }
+    }
 
     /// Keeps the selection on a visible game, like `select_first_visible_child`.
     func ensureSelection() {
         let visible = visibleGames
-        if let s = selection, visible.contains(where: { $0.gameID == s }) { return }
+        if let s = selection, visible.contains(where: { $0.gameID == s }) {
+            return
+        }
         selection = visible.first?.gameID
     }
 
     func categoryLabel(_ selection: CategorySelection) -> String {
         switch selection {
-        case .all: return translator("All")
-        case .uncategorized: return translator("Uncategorized")
-        case .named(let n): return n
+        case .all: translator("All")
+        case .uncategorized: translator("Uncategorized")
+        case let .named(n): n
         }
     }
 
@@ -40,7 +55,9 @@ extension AppModel {
 
     // MARK: Categories
 
-    var reservedCategoryNames: [String] { [translator("None"), translator("All"), translator("Uncategorized")] }
+    var reservedCategoryNames: [String] {
+        [translator("None"), translator("All"), translator("Uncategorized")]
+    }
 
     /// The context-menu Category item.
     func toggleCategory(_ game: Game, _ name: String) {
@@ -53,7 +70,8 @@ extension AppModel {
 
     @discardableResult
     func addCategory(_ name: String) -> CategoryStore.Failure? {
-        do { _ = try CategoryStore(paths: paths).add(name, reserved: reservedCategoryNames) } catch let f as CategoryStore.Failure {
+        do { _ = try CategoryStore(paths: paths).add(name, reserved: reservedCategoryNames)
+        } catch let f as CategoryStore.Failure {
             return f
         } catch { actionError = "\(error)" }
         categoryNames = CategoryStore(paths: paths).load()
@@ -62,10 +80,13 @@ extension AppModel {
 
     @discardableResult
     func renameCategory(_ old: String, to new: String) -> CategoryStore.Failure? {
-        do { _ = try CategoryStore(paths: paths).rename(old, to: new, reserved: reservedCategoryNames) } catch let f as CategoryStore.Failure {
+        do { _ = try CategoryStore(paths: paths).rename(old, to: new, reserved: reservedCategoryNames)
+        } catch let f as CategoryStore.Failure {
             return f
         } catch { actionError = "\(error)" }
-        if category == .named(old) { category = .named(new.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        if category == .named(old) {
+            category = .named(new.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
         reload()
         return nil
     }
@@ -75,7 +96,9 @@ extension AppModel {
         do { _ = try CategoryStore(paths: paths).remove(name) } catch let f as CategoryStore.Failure {
             return f
         } catch { actionError = "\(error)" }
-        if category == .named(name) { category = .all }
+        if category == .named(name) {
+            category = .all
+        }
         reload()
         return nil
     }
@@ -104,7 +127,9 @@ extension AppModel {
             playSessions[game.gameID] = nil
             return nil
         }
-        if let s = playSessions[game.gameID] { return s }
+        if let s = playSessions[game.gameID] {
+            return s
+        }
         let session = (start: ProcessScanner.startDate(of: pid), baseline: game.playtime)
         playSessions[game.gameID] = session
         return session
@@ -112,6 +137,8 @@ extension AppModel {
 
     /// "Kill all running games": a stop request for every running game.
     func killAll() {
-        for id in running.keys { try? RunningGames(paths: paths).requestStop(gameID: id) }
+        for id in running.keys {
+            try? RunningGames(paths: paths).requestStop(gameID: id)
+        }
     }
 }

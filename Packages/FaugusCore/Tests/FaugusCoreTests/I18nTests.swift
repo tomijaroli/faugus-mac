@@ -1,44 +1,43 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 @Suite("i18n")
 struct I18nTests {
     @Test func parsesBasicEntriesContinuationsAndEscapes() {
         let po = #"""
-            # comment
-            msgid ""
-            msgstr ""
-            "Language: de\n"
-            "Plural-Forms: nplurals=2; plural=n != 1;\n"
+        # comment
+        msgid ""
+        msgstr ""
+        "Language: de\n"
+        "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-            #: faugus/a.py:1
-            msgid "Hello"
-            msgstr "Hallo"
+        #: faugus/a.py:1
+        msgid "Hello"
+        msgstr "Hallo"
 
-            msgid "Multi"
-            "line"
-            msgstr "Mehr"
-            "zeilig\n"
+        msgid "Multi"
+        "line"
+        msgstr "Mehr"
+        "zeilig\n"
 
-            msgctxt "menu"
-            msgid "Open"
-            msgstr "Öffnen"
+        msgctxt "menu"
+        msgid "Open"
+        msgstr "Öffnen"
 
-            msgid "Quote \"x\" \\ tab\t"
-            msgstr "Zitat \"x\" \\ tab\t"
+        msgid "Quote \"x\" \\ tab\t"
+        msgstr "Zitat \"x\" \\ tab\t"
 
-            #, fuzzy
-            msgid "Fuzzy"
-            msgstr "Unscharf"
+        #, fuzzy
+        msgid "Fuzzy"
+        msgstr "Unscharf"
 
-            msgid "Untranslated"
-            msgstr ""
+        msgid "Untranslated"
+        msgstr ""
 
-            #~ msgid "Obsolete"
-            #~ msgstr "Veraltet"
-            """#
+        #~ msgid "Obsolete"
+        #~ msgstr "Veraltet"
+        """#
         let c = POCatalog.parse(po)
         #expect(c.headers["Language"] == "de")
         #expect(c.translate("Hello") == "Hallo")
@@ -54,11 +53,11 @@ struct I18nTests {
 
     @Test func pluralEntries() {
         let po = """
-            msgid "file"
-            msgid_plural "files"
-            msgstr[0] "Datei"
-            msgstr[1] "Dateien"
-            """
+        msgid "file"
+        msgid_plural "files"
+        msgstr[0] "Datei"
+        msgstr[1] "Dateien"
+        """
         let c = POCatalog.parse(po)
         #expect(c.translate("file") == "Datei")
         #expect(c.entryCount == 2)
@@ -66,13 +65,13 @@ struct I18nTests {
 
     @Test func fuzzyFlagAppliesOnlyToTheNextEntry() {
         let po = """
-            #, fuzzy, python-format
-            msgid "A"
-            msgstr "a"
+        #, fuzzy, python-format
+        msgid "A"
+        msgstr "a"
 
-            msgid "B"
-            msgstr "b"
-            """
+        msgid "B"
+        msgstr "b"
+        """
         let c = POCatalog.parse(po)
         #expect(c.translate("A") == nil)
         #expect(c.translate("B") == "b")
@@ -91,7 +90,9 @@ struct I18nTests {
 
     // MARK: Against the real upstream catalogs
 
-    private var catalogs: LanguageCatalogs { LanguageCatalogs(localeDir: TestSupport.upstreamLanguagesDir) }
+    private var catalogs: LanguageCatalogs {
+        LanguageCatalogs(localeDir: TestSupport.upstreamLanguagesDir)
+    }
 
     @Test func upstreamHasTwentySevenLanguages() throws {
         let dirs = try FileManager.default.contentsOfDirectory(atPath: TestSupport.upstreamLanguagesDir.path)
@@ -117,7 +118,7 @@ struct I18nTests {
     /// The ground truth is produced by Tools/gen-fixtures/gen.py with the real `msgfmt` and
     /// Python's `gettext`, exactly like upstream computes completions at runtime.
     @Test func entryCountsMatchMsgfmt() throws {
-        let truth = try JSONParser.parse(try TestSupport.fixtureData("translation-counts.json")).objectValue!
+        let truth = try JSONParser.parse(TestSupport.fixtureData("translation-counts.json")).objectValue!
         let counts = truth["counts"]!.objectValue!
         #expect(counts.count == 27)
         for (lang, expected) in counts.pairs {
@@ -127,7 +128,7 @@ struct I18nTests {
     }
 
     @Test func completionPercentagesMatchUpstreamFormula() throws {
-        let truth = try JSONParser.parse(try TestSupport.fixtureData("translation-counts.json")).objectValue!
+        let truth = try JSONParser.parse(TestSupport.fixtureData("translation-counts.json")).objectValue!
         let percent = truth["percent"]!.objectValue!
         let ours = catalogs.completions()
         #expect(ours.count == percent.count)
@@ -142,13 +143,19 @@ struct I18nTests {
         #expect(c.values.max()! == 100.0)
         #expect(c.values.allSatisfy { $0 >= 0 && $0 <= 100 })
         // Known gaps in 2.5.6: these fall below the 70% line and are not offered in Settings.
-        for lang in ["ar", "cs", "ta", "fi", "nl", "nb"] { #expect(!catalogs.selectableLanguages().contains(lang)) }
+        for lang in ["ar", "cs", "ta", "fi", "nl", "nb"] {
+            #expect(!catalogs.selectableLanguages().contains(lang))
+        }
 
         let selectable = catalogs.selectableLanguages()
         #expect(selectable.contains("en_US"))
         #expect(selectable.contains("de"))
-        for lang in selectable where lang != "en_US" { #expect(c[lang]! >= 70) }
-        for (lang, pct) in c where pct < 70 { #expect(!selectable.contains(lang)) }
+        for lang in selectable where lang != "en_US" {
+            #expect(c[lang]! >= 70)
+        }
+        for (lang, pct) in c where pct < 70 {
+            #expect(!selectable.contains(lang))
+        }
     }
 
     @Test func rightToLeft() {

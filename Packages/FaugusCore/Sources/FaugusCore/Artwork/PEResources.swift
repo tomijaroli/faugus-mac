@@ -39,7 +39,7 @@ public struct PEResources {
         rsrcRVA = u32(entry)
         rsrcSize = u32(entry + 4)
         var s = opt + optSize
-        for _ in 0..<sectionCount {
+        for _ in 0 ..< sectionCount {
             guard s + 40 <= data.count else { return nil }
             sections.append((u32(s + 12), u32(s + 8), u32(s + 20), u32(s + 16)))
             s += 40
@@ -72,10 +72,12 @@ public struct PEResources {
     private struct Node {
         var id: UInt32?
         var isDirectory: Bool
-        var offset: Int  // relative to the resource section start
+        var offset: Int // relative to the resource section start
     }
 
-    private var rsrcStart: Int? { offset(forRVA: rsrcRVA) }
+    private var rsrcStart: Int? {
+        offset(forRVA: rsrcRVA)
+    }
 
     private func entries(at relative: Int) -> [Node] {
         guard let base = rsrcStart, relative >= 0, base + relative + 16 <= data.count else { return [] }
@@ -83,14 +85,15 @@ public struct PEResources {
         let ids = Int(u16(base + relative + 14))
         let total = min(named + ids, 2048)
         var out: [Node] = []
-        for i in 0..<total {
+        for i in 0 ..< total {
             let e = base + relative + 16 + i * 8
             guard e + 8 <= data.count else { break }
             let name = u32(e)
             let off = u32(e + 4)
             let isNamed = name & 0x8000_0000 != 0
             out.append(Node(
-                id: isNamed ? nil : name, isDirectory: off & 0x8000_0000 != 0, offset: Int(off & 0x7FFF_FFFF)))
+                id: isNamed ? nil : name, isDirectory: off & 0x8000_0000 != 0, offset: Int(off & 0x7FFF_FFFF)
+            ))
         }
         return out
     }
@@ -108,7 +111,7 @@ public struct PEResources {
         let rva = u32(base + n.offset)
         let size = Int(u32(base + n.offset + 4))
         guard size > 0, size < 64 * 1024 * 1024, let o = offset(forRVA: rva), o + size <= data.count else { return nil }
-        return data.subdata(in: (data.startIndex + o)..<(data.startIndex + o + size))
+        return data.subdata(in: (data.startIndex + o) ..< (data.startIndex + o + size))
     }
 
     private func resources(ofType type: UInt32) -> [Node] {
@@ -126,7 +129,9 @@ public struct PEResources {
                 for key in ["ProductName", "FileDescription"] {
                     let trimmed = (table[key] ?? "")
                         .trimmingCharacters(in: CharacterSet(charactersIn: "\0").union(.whitespacesAndNewlines))
-                    if !trimmed.isEmpty { return trimmed }
+                    if !trimmed.isEmpty {
+                        return trimmed
+                    }
                 }
             }
         }
@@ -135,20 +140,29 @@ public struct PEResources {
 
     /// Walks `VS_VERSIONINFO` and returns the `StringFileInfo` tables.
     static func versionStringTables(_ blob: Data) -> [[String: String]] {
-        func rd16(_ o: Int) -> Int { o >= 0 && o + 2 <= blob.count ? Int(blob[blob.startIndex + o]) | Int(blob[blob.startIndex + o + 1]) << 8 : 0 }
+        func rd16(_ o: Int) -> Int {
+            o >= 0 && o + 2 <= blob
+                .count ? Int(blob[blob.startIndex + o]) | Int(blob[blob.startIndex + o + 1]) << 8 : 0
+        }
         func key(at o: Int) -> (String, Int) {
             var units: [UInt16] = []
             var p = o
             while p + 2 <= blob.count {
                 let c = UInt16(rd16(p))
                 p += 2
-                if c == 0 { break }
+                if c == 0 {
+                    break
+                }
                 units.append(c)
-                if units.count > 256 { break }
+                if units.count > 256 {
+                    break
+                }
             }
             return (String(decoding: units, as: UTF16.self), p)
         }
-        func align(_ x: Int) -> Int { (x + 3) & ~3 }
+        func align(_ x: Int) -> Int {
+            (x + 3) & ~3
+        }
 
         var tables: [[String: String]] = []
         // Root: VS_VERSIONINFO { len, valLen, type, "VS_VERSION_INFO", pad, VS_FIXEDFILEINFO, pad, children }
@@ -179,7 +193,10 @@ public struct PEResources {
                         let vBytes = max(0, min(valLen * 2, s + sLen - vStart))
                         var units: [UInt16] = []
                         var q = vStart
-                        while q + 2 <= vStart + vBytes { units.append(UInt16(rd16(q))); q += 2 }
+                        while q + 2 <= vStart + vBytes {
+                            units.append(UInt16(rd16(q)))
+                            q += 2
+                        }
                         table[k] = String(decoding: units, as: UTF16.self)
                         s = align(s + sLen)
                     }
@@ -198,31 +215,40 @@ public struct PEResources {
     /// the executable has no icons.
     public func iconFile() -> Data? {
         let icons = Dictionary(
-            resources(ofType: 3).compactMap { n in n.id.map { ($0, n) } }, uniquingKeysWith: { a, _ in a })
+            resources(ofType: 3).compactMap { n in n.id.map { ($0, n) } }, uniquingKeysWith: { a, _ in a }
+        )
         for group in resources(ofType: 14) {
             guard let dir = firstLeaf(of: group), dir.count >= 6 else { continue }
-            func g16(_ o: Int) -> Int { o + 2 <= dir.count ? Int(dir[dir.startIndex + o]) | Int(dir[dir.startIndex + o + 1]) << 8 : 0 }
+            func g16(_ o: Int) -> Int {
+                o + 2 <= dir
+                    .count ? Int(dir[dir.startIndex + o]) | Int(dir[dir.startIndex + o + 1]) << 8 : 0
+            }
             let count = min(g16(4), 64)
             var frames: [(entry: [UInt8], payload: Data)] = []
-            for i in 0..<count {
+            for i in 0 ..< count {
                 let e = 6 + i * 14
                 guard e + 14 <= dir.count else { break }
                 let id = UInt32(g16(e + 12))
                 guard let node = icons[id], let payload = firstLeaf(of: node) else { continue }
-                frames.append((Array(dir[(dir.startIndex + e)..<(dir.startIndex + e + 12)]), payload))
+                frames.append((Array(dir[(dir.startIndex + e) ..< (dir.startIndex + e + 12)]), payload))
             }
             guard !frames.isEmpty else { continue }
             var ico = Data([0, 0, 1, 0, UInt8(frames.count & 0xFF), UInt8(frames.count >> 8)])
             var offset = 6 + frames.count * 16
             for f in frames {
-                ico.append(contentsOf: f.entry)  // width, height, colors, reserved, planes, bits, size
+                ico.append(contentsOf: f.entry) // width, height, colors, reserved, planes, bits, size
                 // The group entry already holds the payload size at bytes 8..<12; trust the real size.
                 let size = UInt32(f.payload.count)
-                ico.replaceSubrange((ico.count - 4)..<ico.count, with: withUnsafeBytes(of: size.littleEndian) { Array($0) })
+                ico.replaceSubrange(
+                    (ico.count - 4) ..< ico.count,
+                    with: withUnsafeBytes(of: size.littleEndian) { Array($0) }
+                )
                 ico.append(contentsOf: withUnsafeBytes(of: UInt32(offset).littleEndian) { Array($0) })
                 offset += f.payload.count
             }
-            for f in frames { ico.append(f.payload) }
+            for f in frames {
+                ico.append(f.payload)
+            }
             return ico
         }
         return nil

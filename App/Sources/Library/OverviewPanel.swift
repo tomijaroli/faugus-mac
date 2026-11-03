@@ -31,7 +31,9 @@ struct OverviewPanel: View {
                 .padding(.vertical, 20)
                 HStack(spacing: 14) {
                     ForEach(Array(stats.enumerated()), id: \.offset) { index, text in
-                        if index > 0 { Text("•") }
+                        if index > 0 {
+                            Text("•")
+                        }
                         Text(text)
                     }
                 }
@@ -52,17 +54,20 @@ struct OverviewPanel: View {
         let running = model.isRunning(game)
         let session = running ? model.playSession(for: game) : nil
 
-        let seconds: Int
-        if running, let session, let start = session.start {
-            seconds = session.baseline + Int(max(0, now.timeIntervalSince(start)))
+        let seconds: Int = if running, let session, let start = session.start {
+            session.baseline + Int(max(0, now.timeIntervalSince(start)))
         } else {
-            seconds = model.playtimeSeconds(game)
+            model.playtimeSeconds(game)
         }
         let playtime = GameFormatting.playtimeDisplay(seconds: seconds, t)
         let categories = GameFormatting.categoryLine(game.categoryNames)
 
-        if !categories.isEmpty { out.append(categories) }
-        if let playtime { out.append(t.format("Playtime: {}", playtime)) }
+        if !categories.isEmpty {
+            out.append(categories)
+        }
+        if let playtime {
+            out.append(t.format("Playtime: {}", playtime))
+        }
 
         if running {
             if let start = session?.start {

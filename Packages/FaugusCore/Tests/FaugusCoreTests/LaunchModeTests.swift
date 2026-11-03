@@ -1,6 +1,5 @@
-import Testing
-
 @testable import FaugusCore
+import Testing
 
 @Suite("CLI verbs")
 struct LaunchModeTests {
@@ -12,38 +11,63 @@ struct LaunchModeTests {
     }
 
     @Test func singleFileArgument() {
-        #expect(LaunchMode.parse(["/tmp/setup.exe"]) == .launcher(hidden: false, console: false, file: "/tmp/setup.exe"))
-        #expect(LaunchMode.parse(["--hide", "/tmp/a.msi"]) == .launcher(hidden: true, console: false, file: "/tmp/a.msi"))
-        if case .invalid = LaunchMode.parse(["a.exe", "b.exe"]) {} else { Issue.record("expected invalid") }
+        #expect(LaunchMode.parse(["/tmp/setup.exe"]) == .launcher(
+            hidden: false,
+            console: false,
+            file: "/tmp/setup.exe"
+        ))
+        #expect(LaunchMode.parse(["--hide", "/tmp/a.msi"]) == .launcher(
+            hidden: true,
+            console: false,
+            file: "/tmp/a.msi"
+        ))
+        if case .invalid = LaunchMode.parse(["a.exe", "b.exe"]) {} else {
+            Issue.record("expected invalid")
+        }
     }
 
     @Test func runGame() {
         #expect(
             LaunchMode.parse(["--game", "celeste"])
-                == .runGame(id: "celeste", logs: false, preLaunch: "", postLaunch: ""))
+                == .runGame(id: "celeste", logs: false, preLaunch: "", postLaunch: "")
+        )
         #expect(
             LaunchMode.parse(["--game=celeste", "--logs", "--pre-launch", "a.sh", "--post-launch=b.sh"])
-                == .runGame(id: "celeste", logs: true, preLaunch: "a.sh", postLaunch: "b.sh"))
+                == .runGame(id: "celeste", logs: true, preLaunch: "a.sh", postLaunch: "b.sh")
+        )
     }
 
     @Test func runFile() {
         #expect(
             LaunchMode.parse(["--run", "/tmp/x.exe", "--in-game", "celeste", "--logs"])
-                == .runFile(path: "/tmp/x.exe", target: .game(id: "celeste"), logs: true, preLaunch: "", postLaunch: ""))
+                == .runFile(
+                    path: "/tmp/x.exe",
+                    target: .game(id: "celeste"),
+                    logs: true,
+                    preLaunch: "",
+                    postLaunch: ""
+                )
+        )
         #expect(
             LaunchMode.parse(["--run", "/tmp/x.exe", "--in-prefix", "/tmp/p", "--runner", "GE", "--log-id", "my-game"])
                 == .runFile(
                     path: "/tmp/x.exe", target: .prefix(path: "/tmp/p", runner: "GE", logID: "my-game"),
-                    logs: false, preLaunch: "", postLaunch: ""))
+                    logs: false, preLaunch: "", postLaunch: ""
+                )
+        )
         #expect(
             LaunchMode.parse(["--run", "/tmp/x.exe"])
-                == .invalid("--run requires --in-game <id> or --in-prefix <dir>"))
+                == .invalid("--run requires --in-game <id> or --in-prefix <dir>")
+        )
     }
 
     @Test func helperWindows() {
         #expect(LaunchMode.parse(["--splash", "/tmp/i.png"]) == .splash(image: "/tmp/i.png"))
         #expect(LaunchMode.parse(["--donate"]) == .donate)
-        #expect(LaunchMode.parse(["--dialog", "Oops", "--dialog-detail", "More"]) == .dialog(message: "Oops", detail: "More"))
+        #expect(LaunchMode.parse(["--dialog", "Oops", "--dialog-detail", "More"]) == .dialog(
+            message: "Oops",
+            detail: "More"
+        ))
         #expect(LaunchMode.parse(["--dialog", "Oops"]) == .dialog(message: "Oops", detail: ""))
         #expect(LaunchMode.parse(["--winetricks-log"]) == .winetricksLog)
     }
@@ -63,13 +87,25 @@ struct LaunchModeTests {
 
     @Test func ignoresSystemInjectedArguments() {
         #expect(
-            LaunchMode.parse(["-NSDocumentRevisionsDebugMode", "YES", "-ApplePersistenceIgnoreState", "YES", "--game", "a"])
-                == .runGame(id: "a", logs: false, preLaunch: "", postLaunch: ""))
+            LaunchMode.parse([
+                "-NSDocumentRevisionsDebugMode",
+                "YES",
+                "-ApplePersistenceIgnoreState",
+                "YES",
+                "--game",
+                "a",
+            ])
+                == .runGame(id: "a", logs: false, preLaunch: "", postLaunch: "")
+        )
         #expect(LaunchMode.parse(["-psn_0_12345"]) == .launcher(hidden: false, console: false, file: nil))
     }
 
     @Test func errors() {
-        if case .invalid = LaunchMode.parse(["--game"]) {} else { Issue.record("missing value") }
-        if case .invalid = LaunchMode.parse(["--bogus"]) {} else { Issue.record("unknown flag") }
+        if case .invalid = LaunchMode.parse(["--game"]) {} else {
+            Issue.record("missing value")
+        }
+        if case .invalid = LaunchMode.parse(["--bogus"]) {} else {
+            Issue.record("unknown flag")
+        }
     }
 }

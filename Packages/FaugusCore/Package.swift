@@ -5,7 +5,7 @@ let package = Package(
     name: "FaugusCore",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "FaugusCore", targets: ["FaugusCore"]),
+        .library(name: "FaugusCore", targets: ["FaugusCore"])
     ],
     targets: [
         .target(name: "FaugusCore"),

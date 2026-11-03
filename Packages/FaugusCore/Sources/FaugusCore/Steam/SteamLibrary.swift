@@ -7,15 +7,24 @@ public struct SteamLibrary: Sendable {
     public struct User: Equatable, Sendable {
         public var accountID: String
         public var name: String
-        public init(accountID: String, name: String) { self.accountID = accountID; self.name = name }
+        public init(accountID: String, name: String) {
+            self.accountID = accountID
+            self.name = name
+        }
+
         /// `Name (accountid)`, the label upstream shows in the user picker.
-        public var label: String { name == accountID ? accountID : "\(name) (\(accountID))" }
+        public var label: String {
+            name == accountID ? accountID : "\(name) (\(accountID))"
+        }
     }
 
     public struct InstalledGame: Equatable, Sendable {
         public var appID: String
         public var name: String
-        public init(appID: String, name: String) { self.appID = appID; self.name = name }
+        public init(appID: String, name: String) {
+            self.appID = appID
+            self.name = name
+        }
     }
 
     /// Upstream hides tools that Steam lists as installed apps.
@@ -24,10 +33,14 @@ public struct SteamLibrary: Sendable {
     static let steamID64Base: Int64 = 76_561_197_960_265_728
 
     public let root: String
-    public init(root: String) { self.root = root }
+    public init(root: String) {
+        self.root = root
+    }
 
     /// `~/Library/Application Support/Steam`.
-    public init(home: String) { self.init(root: home + "/Library/Application Support/Steam") }
+    public init(home: String) {
+        self.init(root: home + "/Library/Application Support/Steam")
+    }
 
     public var exists: Bool {
         var isDir: ObjCBool = false
@@ -36,13 +49,17 @@ public struct SteamLibrary: Sendable {
 
     /// Whether Steam looks installed: its data folder or the app bundle exists.
     public func isSteamInstalled(home: String, bundles: [String]? = nil) -> Bool {
-        if exists { return true }
+        if exists {
+            return true
+        }
         return (bundles ?? ["/Applications/Steam.app", home + "/Applications/Steam.app"]).contains {
             FileManager.default.fileExists(atPath: $0)
         }
     }
 
-    private var userdata: String { root + "/userdata" }
+    private var userdata: String {
+        root + "/userdata"
+    }
 
     // MARK: Users
 
@@ -80,20 +97,25 @@ public struct SteamLibrary: Sendable {
         for file in [root + "/steamapps/libraryfolders.vdf", root + "/config/libraryfolders.vdf"] {
             guard let vdf = VDF.parse(file: file)?["libraryfolders"] else { continue }
             for (_, entry) in vdf.entries {
-                if let p = entry["path"]?.string, !p.isEmpty, !out.contains(p) { out.append(p) }
+                if let p = entry["path"]?.string, !p.isEmpty, !out.contains(p) {
+                    out.append(p)
+                }
             }
         }
         // The Steam folder is always a library; compare real paths so a symlinked or differently
         // spelled entry does not list every game twice.
         let real = { (p: String) in URL(fileURLWithPath: p).resolvingSymlinksInPath().path }
-        if !out.contains(where: { real($0) == real(root) }) { out.insert(root, at: 0) }
+        if !out.contains(where: { real($0) == real(root) }) {
+            out.insert(root, at: 0)
+        }
         var seen: Set<String> = []
         return out.filter { seen.insert(real($0)).inserted }
     }
 
     private func familyMembers(accountID: String) -> Set<String> {
         let file = userdata + "/" + accountID + "/config/localconfig.vdf"
-        guard let members = VDF.parse(file: file)?.path("UserLocalConfigStore", "FamilyGroup", "members") else { return [] }
+        guard let members = VDF.parse(file: file)?.path("UserLocalConfigStore", "FamilyGroup", "members")
+        else { return [] }
         return Set(members.entries.compactMap { $0.value["accountid"]?.string }.filter { !$0.isEmpty })
     }
 
@@ -110,14 +132,22 @@ public struct SteamLibrary: Sendable {
             for file in files.sorted() where file.hasPrefix("appmanifest_") && file.hasSuffix(".acf") {
                 let appID = String(file.dropFirst("appmanifest_".count).dropLast(".acf".count))
                 guard !appID.isEmpty, let state = VDF.parse(file: dir + "/" + file)?["AppState"],
-                    let name = state["name"]?.string, !name.isEmpty
+                      let name = state["name"]?.string, !name.isEmpty
                 else { continue }
                 if let account, let family {
                     var owner: String?
-                    if let last = state["LastOwner"]?.string, let n = Int64(last) { owner = String(n - Self.steamID64Base) }
-                    if owner != account, !(owner.map(family.contains) ?? false) { continue }
+                    if let last = state["LastOwner"]?.string,
+                       let n = Int64(last)
+                    {
+                        owner = String(n - Self.steamID64Base)
+                    }
+                    if owner != account, !(owner.map(family.contains) ?? false) {
+                        continue
+                    }
                 }
-                if seenAppIDs.insert(appID).inserted { games.append(InstalledGame(appID: appID, name: name)) }
+                if seenAppIDs.insert(appID).inserted {
+                    games.append(InstalledGame(appID: appID, name: name))
+                }
             }
         }
         return games.sorted { $0.name.lowercased() < $1.name.lowercased() }
@@ -136,7 +166,8 @@ public struct SteamLibrary: Sendable {
         for lib in libraryFolders() {
             let manifest = lib + "/steamapps/appmanifest_\(appID).acf"
             guard let state = VDF.parse(file: manifest)?["AppState"] else { continue }
-            guard let dir = state["installdir"]?.string, !dir.isEmpty, !dir.contains("/"), dir != ".." else { return nil }
+            guard let dir = state["installdir"]?.string, !dir.isEmpty, !dir.contains("/"),
+                  dir != ".." else { return nil }
             let full = lib + "/steamapps/common/" + dir
             var isDir: ObjCBool = false
             return FileManager.default.fileExists(atPath: full, isDirectory: &isDir) && isDir.boolValue ? full : nil
@@ -154,7 +185,7 @@ public struct SteamLibrary: Sendable {
         for id in ids {
             let file = userdata + "/" + id + "/config/localconfig.vdf"
             guard let apps = VDF.parse(file: file)?.path("UserLocalConfigStore", "Software", "Valve", "Steam", "apps"),
-                let entry = apps[appID], let minutes = entry["Playtime"]?.string.flatMap({ Int($0) })
+                  let entry = apps[appID], let minutes = entry["Playtime"]?.string.flatMap({ Int($0) })
             else { continue }
             total += minutes
         }
@@ -168,7 +199,7 @@ public struct SteamLibrary: Sendable {
     public func iconPath(appID: String) -> String? {
         let cache = root + "/appcache/librarycache/" + appID
         guard let walker = FileManager.default.enumerator(atPath: cache) else { return nil }
-        let skipped: Set<String> = ["header.jpg", "library_600x900.jpg", "library_capsule.jpg"]
+        let skipped: Set = ["header.jpg", "library_600x900.jpg", "library_capsule.jpg"]
         var best: (area: Int, path: String)?
         for case let rel as String in walker where rel.lowercased().hasSuffix(".jpg") {
             let name = (rel as NSString).lastPathComponent
@@ -176,7 +207,9 @@ public struct SteamLibrary: Sendable {
             let full = cache + "/" + rel
             guard let size = ImageTools.pixelSize(atPath: full) else { continue }
             let area = size.width * size.height
-            if best == nil || area < best!.area || (area == best!.area && full < best!.path) { best = (area, full) }
+            if best == nil || area < best!.area || (area == best!.area && full < best!.path) {
+                best = (area, full)
+            }
         }
         return best?.path
     }
@@ -189,7 +222,9 @@ public enum SteamLaunch {
         let id = appID.trimmingCharacters(in: .whitespaces)
         guard !id.isEmpty, id.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
         let args = gameArguments.trimmingCharacters(in: .whitespacesAndNewlines)
-        if args.isEmpty { return "steam://rungameid/\(id)" }
+        if args.isEmpty {
+            return "steam://rungameid/\(id)"
+        }
         var allowed = CharacterSet.urlPathAllowed
         allowed.remove(charactersIn: "/")
         let encoded = args.addingPercentEncoding(withAllowedCharacters: allowed) ?? args

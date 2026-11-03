@@ -59,16 +59,18 @@ struct RunnerManagerView: View {
         }
         .padding(20)
         .frame(width: 560)
-        .task { installed = model.installedRunners(); await loadFeed() }
+        .task { installed = model.installedRunners()
+            await loadFeed()
+        }
         .task { rosetta = await Rosetta.isInstalled() }
         .onDisappear { downloads.values.forEach { $0.cancel() } }
     }
 
     private func label(for f: WineFlavor) -> String {
         switch f {
-        case .staging: return "Wine Staging"
-        case .devel: return "Wine Devel"
-        case .stable: return "Wine Stable"
+        case .staging: "Wine Staging"
+        case .devel: "Wine Devel"
+        case .stable: "Wine Stable"
         }
     }
 
@@ -91,7 +93,9 @@ struct RunnerManagerView: View {
         .padding(.vertical, 6)
     }
 
-    private var latestWord: String { model.translator("Latest") }
+    private var latestWord: String {
+        model.translator("Latest")
+    }
 
     @ViewBuilder
     private func actionButton(_ row: RunnerRow, _ t: Translator) -> some View {
@@ -149,10 +153,16 @@ struct RunnerManagerView: View {
         downloads[row.id] = Task {
             do {
                 _ = try await installer.install(remote) { p in
-                    Task { @MainActor in if !Task.isCancelled { progress[row.id] = p } }
+                    Task {
+                        @MainActor in if !Task.isCancelled {
+                            progress[row.id] = p
+                        }
+                    }
                 }
             } catch {
-                if !Task.isCancelled { errors[row.id] = "\(error)" }
+                if !Task.isCancelled {
+                    errors[row.id] = "\(error)"
+                }
             }
             downloads[row.id] = nil
             progress[row.id] = nil

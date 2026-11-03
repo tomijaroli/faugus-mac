@@ -21,7 +21,9 @@ enum FilePicker {
             if !(FileManager.default.fileExists(atPath: dir, isDirectory: &isDir) && isDir.boolValue) {
                 dir = (dir as NSString).deletingLastPathComponent
             }
-            if FileManager.default.fileExists(atPath: dir) { panel.directoryURL = URL(fileURLWithPath: dir) }
+            if FileManager.default.fileExists(atPath: dir) {
+                panel.directoryURL = URL(fileURLWithPath: dir)
+            }
         }
         return panel.runModal() == .OK ? panel.url?.path : nil
     }

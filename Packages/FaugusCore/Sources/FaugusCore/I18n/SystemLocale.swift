@@ -16,15 +16,23 @@ public enum SystemLocale {
         var region: String?
         var script: String?
         for p in parts.dropFirst() {
-            if p.count == 4 { script = p } else if p.count == 2 || p.count == 3, p.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            if p.count == 4 {
+                script = p
+            } else if p.count == 2 || p.count == 3,
+                      p.allSatisfy({ $0.isLetter || $0.isNumber })
+            {
                 region = p.uppercased()
             }
         }
         if lang == "zh" {
-            if let region { return "zh_\(region)" }
+            if let region {
+                return "zh_\(region)"
+            }
             return script == "Hant" ? "zh_TW" : "zh_CN"
         }
-        if let region { return "\(lang)_\(region)" }
+        if let region {
+            return "\(lang)_\(region)"
+        }
         return lang == "en" ? "en_US" : lang
     }
 

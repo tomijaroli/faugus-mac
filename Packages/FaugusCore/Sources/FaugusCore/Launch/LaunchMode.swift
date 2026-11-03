@@ -41,11 +41,13 @@ public enum LaunchMode: Equatable, Sendable {
         var flags: Set<String> = []
         var positionals: [String] = []
 
-        let valueOptions: Set<String> = [
-            "--game", "--run", "--in-game", "--in-prefix", "--runner", "--log-id", "--pre-launch", "--post-launch", "--splash", "--dialog",
+        let valueOptions: Set = [
+            "--game", "--run", "--in-game", "--in-prefix", "--runner", "--log-id", "--pre-launch", "--post-launch",
+            "--splash",
+            "--dialog",
             "--dialog-detail", "--shortcut",
         ]
-        let flagOptions: Set<String> = [
+        let flagOptions: Set = [
             "--logs", "--donate", "--winetricks-log", "--daemon", "--once", "--hide", "--console",
             "--ui-child",
         ]
@@ -79,14 +81,24 @@ public enum LaunchMode: Equatable, Sendable {
         let logs = flags.contains("--logs")
 
         // Same precedence as upstream's runner `main()`.
-        if let image = options["--splash"] { return .splash(image: image) }
-        if flags.contains("--donate") { return .donate }
+        if let image = options["--splash"] {
+            return .splash(image: image)
+        }
+        if flags.contains("--donate") {
+            return .donate
+        }
         if let message = options["--dialog"] {
             return .dialog(message: message, detail: options["--dialog-detail"] ?? "")
         }
-        if flags.contains("--winetricks-log") { return .winetricksLog }
-        if flags.contains("--daemon") { return .daemon(once: flags.contains("--once")) }
-        if let file = options["--shortcut"] { return .createShortcut(file: file) }
+        if flags.contains("--winetricks-log") {
+            return .winetricksLog
+        }
+        if flags.contains("--daemon") {
+            return .daemon(once: flags.contains("--once"))
+        }
+        if let file = options["--shortcut"] {
+            return .createShortcut(file: file)
+        }
         if let id = options["--game"] {
             return .runGame(id: id, logs: logs, preLaunch: pre, postLaunch: post)
         }
@@ -96,7 +108,8 @@ public enum LaunchMode: Equatable, Sendable {
             }
             if let prefix = options["--in-prefix"], !prefix.isEmpty {
                 let target = RunFileTarget.prefix(
-                    path: prefix, runner: options["--runner"] ?? "", logID: options["--log-id"] ?? "")
+                    path: prefix, runner: options["--runner"] ?? "", logID: options["--log-id"] ?? ""
+                )
                 return .runFile(path: path, target: target, logs: logs, preLaunch: pre, postLaunch: post)
             }
             return .invalid("--run requires --in-game <id> or --in-prefix <dir>")
@@ -104,10 +117,13 @@ public enum LaunchMode: Equatable, Sendable {
 
         // Launcher: `main()` removes --hide/--console/--ui-child, then exactly one positional
         // argument means "run this file".
-        if positionals.count > 1 { return .invalid("unexpected extra arguments") }
+        if positionals.count > 1 {
+            return .invalid("unexpected extra arguments")
+        }
         return .launcher(
             hidden: flags.contains("--hide"), console: flags.contains("--console"),
-            file: positionals.first)
+            file: positionals.first
+        )
     }
 
     private static func isSystemInjected(_ a: String) -> Bool {
@@ -117,7 +133,9 @@ public enum LaunchMode: Equatable, Sendable {
 
     /// Modes that start a GUI event loop as a regular (Dock) app.
     public var isInteractiveLauncher: Bool {
-        if case .launcher = self { return true }
+        if case .launcher = self {
+            return true
+        }
         return false
     }
 }

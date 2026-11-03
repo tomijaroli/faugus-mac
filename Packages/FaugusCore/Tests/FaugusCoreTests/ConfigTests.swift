@@ -1,19 +1,18 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 @Suite("config.json")
 struct ConfigTests {
     @Test func defaultsMatchUpstreamKeysOrderAndValues() throws {
-        let upstream = try JSONParser.parse(try TestSupport.fixtureData("config.default.json")).objectValue!
+        let upstream = try JSONParser.parse(TestSupport.fixtureData("config.default.json")).objectValue!
         let paths = FaugusPaths(home: "/Users/test")
         let ours = FaugusConfig.defaults(paths: paths, language: "en_US")
 
         #expect(ours.keys == upstream.keys)
 
         // Documented deviations: default-runner, default-prefix (macOS home), language.
-        let deviations: Set<String> = ["default-runner", "default-prefix", "language"]
+        let deviations: Set = ["default-runner", "default-prefix", "language"]
         for (key, value) in upstream.pairs where !deviations.contains(key) {
             #expect(ours[key] == value, "default for \(key)")
         }

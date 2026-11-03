@@ -21,11 +21,11 @@ public enum LaunchEnvironment {
 public enum LaunchSpec {
     public static func command(forPath path: String, wine: String) -> [String] {
         switch (path as NSString).pathExtension.lowercased() {
-        case "msi": return [wine, "msiexec", "/i", path]
-        case "bat", "cmd": return [wine, "cmd", "/c", path]
-        case "lnk": return [wine, "start", "/unix", path]
-        case "reg": return [wine, "regedit", path]
-        default: return [wine, path]
+        case "msi": [wine, "msiexec", "/i", path]
+        case "bat", "cmd": [wine, "cmd", "/c", path]
+        case "lnk": [wine, "start", "/unix", path]
+        case "reg": [wine, "regedit", path]
+        default: [wine, path]
         }
     }
 }
@@ -35,8 +35,8 @@ public enum LaunchError: Error, Equatable, CustomStringConvertible {
     case emptyPath
     public var description: String {
         switch self {
-        case .badArguments(let m): return "Cannot parse launch arguments: \(m)"
-        case .emptyPath: return "The game has no executable path"
+        case let .badArguments(m): "Cannot parse launch arguments: \(m)"
+        case .emptyPath: "The game has no executable path"
         }
     }
 }
@@ -55,11 +55,18 @@ public struct LaunchPlan: Sendable {
     public var logsEnabled: Bool
     public var logDirectory: String
 
-    public var executable: String { argv[0] }
-    public var arguments: [String] { Array(argv.dropFirst()) }
+    public var executable: String {
+        argv[0]
+    }
+
+    public var arguments: [String] {
+        Array(argv.dropFirst())
+    }
 
     /// Printed to `faugus.log` the way upstream prints its "UMU-LAUNCHER COMMAND".
-    public var commandDescription: String { ShellWords.join(argv) }
+    public var commandDescription: String {
+        ShellWords.join(argv)
+    }
 }
 
 public enum LaunchPlanner {
@@ -80,13 +87,20 @@ public enum LaunchPlanner {
         globalEnvironment: [(String, String)] = [],
         baseEnvironment: [String: String] = ProcessInfo.processInfo.environment
     ) throws -> LaunchPlan {
-        let defaultPrefix = paths.expand(config.string("default-prefix")).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        let defaultPrefix = paths.expand(config.string("default-prefix"))
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
         var prefix = paths.expand(game.prefix)
-        if prefix.isEmpty { prefix = (defaultPrefix.isEmpty ? paths.prefixesDir : defaultPrefix) + "/default" }
+        if prefix.isEmpty {
+            prefix = (defaultPrefix.isEmpty ? paths.prefixesDir : defaultPrefix) + "/default"
+        }
 
         var exePath = paths.expand(game.path)
-        if game.addAppEnabled, !game.addAppBat.isEmpty { exePath = paths.expand(game.addAppBat) }
-        if exePath.isEmpty { throw LaunchError.emptyPath }
+        if game.addAppEnabled, !game.addAppBat.isEmpty {
+            exePath = paths.expand(game.addAppBat)
+        }
+        if exePath.isEmpty {
+            throw LaunchError.emptyPath
+        }
 
         let launchWords: [String]
         let gameWords: [String]
@@ -101,14 +115,18 @@ public enum LaunchPlanner {
         // Faugus computed layer.
         var env = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: baseEnvironment)
         let logDir = paths.gameLogsDir(gameID: game.gameID.isEmpty ? "default" : game.gameID)
-        if !game.gameID.isEmpty { env["FAUGUSID"] = game.gameID }
+        if !game.gameID.isEmpty {
+            env["FAUGUSID"] = game.gameID
+        }
         env["WINEDEBUG"] = logs ? logsWineDebug : "-all"
         if logs {
             env["DXVK_LOG_LEVEL"] = "info"
             env["DXVK_LOG_PATH"] = logDir
             env["MVK_CONFIG_LOG_LEVEL"] = "2"
         }
-        for (k, v) in graphics.environment { env[k] = v }
+        for (k, v) in graphics.environment {
+            env[k] = v
+        }
 
         // WINEDLLOVERRIDES: winemenubuilder off + graphics, merged with whatever the user set.
         var overrides: [(dll: String, mode: String)] = [("winemenubuilder.exe", "d")] + graphics.dllOverrides
@@ -119,8 +137,12 @@ public enum LaunchPlanner {
                 env[key] = value
             }
         }
-        for (k, v) in userEnv { applyUser(k, v) }
-        for (k, v) in globalEnvironment { applyUser(k, v) }
+        for (k, v) in userEnv {
+            applyUser(k, v)
+        }
+        for (k, v) in globalEnvironment {
+            applyUser(k, v)
+        }
         env["WINEDLLOVERRIDES"] = DLLOverrides.serialize(overrides)
 
         let argv = wrapper + LaunchSpec.command(forPath: exePath, wine: runner.wineBinary) + gameWords
@@ -133,7 +155,8 @@ public enum LaunchPlanner {
         return LaunchPlan(
             argv: argv, environment: env, workingDirectory: cwd, prefix: prefix, gameID: game.gameID,
             graphics: graphics, splashIcon: game.icon.isEmpty ? nil : game.icon,
-            noSleep: game.noSleep, discordRPC: game.discordRPC, logsEnabled: logs, logDirectory: logDir)
+            noSleep: game.noSleep, discordRPC: game.discordRPC, logsEnabled: logs, logDirectory: logDir
+        )
     }
 
     /// `load_env_from_file`: `envar.json` is a JSON list of `KEY=VALUE` lines.

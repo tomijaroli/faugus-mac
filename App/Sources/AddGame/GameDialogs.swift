@@ -36,7 +36,11 @@ struct DuplicateGameView: View {
         .frame(width: 360)
         .environment(\.layoutDirection, model.isRightToLeft ? .rightToLeft : .leftToRight)
         .onAppear { focused = true }
-        .alert(warning ?? "", isPresented: Binding(get: { warning != nil }, set: { if !$0 { warning = nil } })) {
+        .alert(warning ?? "", isPresented: Binding(get: { warning != nil }, set: {
+            if !$0 {
+                warning = nil
+            }
+        })) {
             Button(t("Ok")) {}
         }
     }
@@ -45,7 +49,10 @@ struct DuplicateGameView: View {
         switch model.duplicate(game, as: title) {
         case nil: dismiss()
         case .invalidTitle?: invalid = true
-        case .exists?: warning = model.translator.format("%s already exists", title.trimmingCharacters(in: .whitespacesAndNewlines))
+        case .exists?: warning = model.translator.format(
+                "%s already exists",
+                title.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
         }
     }
 }

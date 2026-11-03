@@ -41,7 +41,9 @@ struct CategoryManagerView: View {
             .frame(minHeight: 200)
             .border(Color.secondary.opacity(0.3))
 
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            if let error {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
 
             HStack {
                 Button(t("Add")) {
@@ -76,12 +78,16 @@ struct CategoryManagerView: View {
         let name = newName
         editing = nil
         // Like upstream, an empty, reserved or duplicate name is dropped silently.
-        if !name.trimmingCharacters(in: .whitespaces).isEmpty { _ = model.addCategory(name) }
+        if !name.trimmingCharacters(in: .whitespaces).isEmpty {
+            _ = model.addCategory(name)
+        }
     }
 
     private func commitEdit(_ old: String) {
         let new = editName
         editing = nil
-        if model.renameCategory(old, to: new) == nil { selected = new.trimmingCharacters(in: .whitespacesAndNewlines) }
+        if model.renameCategory(old, to: new) == nil {
+            selected = new.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
     }
 }

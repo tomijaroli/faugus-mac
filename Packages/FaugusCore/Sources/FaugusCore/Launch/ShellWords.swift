@@ -15,7 +15,11 @@ public enum ShellWords {
         var it = s.unicodeScalars.makeIterator()
 
         func endWord() {
-            if inWord { words.append(String(cur)); cur = String.UnicodeScalarView(); inWord = false }
+            if inWord {
+                words.append(String(cur))
+                cur = String.UnicodeScalarView()
+                inWord = false
+            }
         }
 
         while let c = it.next() {
@@ -24,32 +28,46 @@ public enum ShellWords {
                 endWord()
             case "\\":
                 guard let n = it.next() else { throw ShellWordsError.noEscapedCharacter }
-                cur.append(n); inWord = true
+                cur.append(n)
+                inWord = true
             case "'":
                 inWord = true
                 var closed = false
                 while let n = it.next() {
-                    if n == "'" { closed = true; break }
+                    if n == "'" {
+                        closed = true
+                        break
+                    }
                     cur.append(n)
                 }
-                if !closed { throw ShellWordsError.noClosingQuotation }
+                if !closed {
+                    throw ShellWordsError.noClosingQuotation
+                }
             case "\"":
                 inWord = true
                 var closed = false
                 while let n = it.next() {
-                    if n == "\"" { closed = true; break }
+                    if n == "\"" {
+                        closed = true
+                        break
+                    }
                     if n == "\\" {
                         guard let e = it.next() else { throw ShellWordsError.noClosingQuotation }
                         // Inside double quotes a backslash only escapes `"` and `\`.
-                        if e != "\"" && e != "\\" { cur.append("\\") }
+                        if e != "\"", e != "\\" {
+                            cur.append("\\")
+                        }
                         cur.append(e)
                     } else {
                         cur.append(n)
                     }
                 }
-                if !closed { throw ShellWordsError.noClosingQuotation }
+                if !closed {
+                    throw ShellWordsError.noClosingQuotation
+                }
             default:
-                cur.append(c); inWord = true
+                cur.append(c)
+                inWord = true
             }
         }
         endWord()
@@ -59,17 +77,23 @@ public enum ShellWords {
     private static let safe = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@%+=:,./-_")
 
     public static func quote(_ s: String) -> String {
-        if s.isEmpty { return "''" }
-        if s.allSatisfy({ safe.contains($0) }) { return s }
+        if s.isEmpty {
+            return "''"
+        }
+        if s.allSatisfy({ safe.contains($0) }) {
+            return s
+        }
         return "'" + s.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
     }
 
-    public static func join(_ words: [String]) -> String { words.map(quote).joined(separator: " ") }
+    public static func join(_ words: [String]) -> String {
+        words.map(quote).joined(separator: " ")
+    }
 
     /// `str.isidentifier()` for ASCII env names.
     public static func isIdentifier(_ s: String) -> Bool {
         guard let first = s.unicodeScalars.first,
-            first == "_" || (first.isASCII && CharacterSet.letters.contains(first))
+              first == "_" || (first.isASCII && CharacterSet.letters.contains(first))
         else { return false }
         return s.unicodeScalars.allSatisfy { $0 == "_" || ($0.isASCII && CharacterSet.alphanumerics.contains($0)) }
     }

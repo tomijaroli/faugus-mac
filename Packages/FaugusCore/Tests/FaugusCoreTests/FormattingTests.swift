@@ -1,7 +1,6 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 @Suite("Game formatting")
 struct FormattingTests {
@@ -49,9 +48,12 @@ struct FormattingTests {
 struct SessionFormattingTests {
     @Test func playingForAndCategoryLine() {
         let now = Date()
-        #expect(GameFormatting.playingFor(start: now.addingTimeInterval(-20), now: now, .identity) == "Less than a minute")
-        #expect(GameFormatting.playingFor(start: now.addingTimeInterval(-3700), now: now, .identity) == "1 hour 1 minute")
-        #expect(GameFormatting.playingFor(start: now.addingTimeInterval(60), now: now, .identity) == "Less than a minute")
+        #expect(GameFormatting
+            .playingFor(start: now.addingTimeInterval(-20), now: now, .identity) == "Less than a minute")
+        #expect(GameFormatting
+            .playingFor(start: now.addingTimeInterval(-3700), now: now, .identity) == "1 hour 1 minute")
+        #expect(GameFormatting
+            .playingFor(start: now.addingTimeInterval(60), now: now, .identity) == "Less than a minute")
         #expect(GameFormatting.categoryLine(["zeta", "Alpha", "beta"]) == "Alpha, beta, zeta")
         #expect(GameFormatting.categoryLine([]) == "")
     }

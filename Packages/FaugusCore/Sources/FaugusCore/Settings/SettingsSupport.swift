@@ -3,10 +3,12 @@ import Foundation
 /// `envar.json`: the global environment variables, a JSON list of `KEY=VALUE` lines.
 public struct EnvarStore: Sendable {
     public let paths: FaugusPaths
-    public init(paths: FaugusPaths) { self.paths = paths }
+    public init(paths: FaugusPaths) {
+        self.paths = paths
+    }
 
     public func load() -> [String] {
-        guard case .array(let a) = JSONFile.load(paths.envarFile, default: .array([])) else { return [] }
+        guard case let .array(a) = JSONFile.load(paths.envarFile, default: .array([])) else { return [] }
         return a.compactMap(\.stringValue)
     }
 
@@ -31,7 +33,9 @@ public struct ConfigColor: Equatable, Sendable {
         self.alpha = min(max(alpha, 0), 1)
     }
 
-    private static func clamp(_ v: Int) -> Int { min(max(v, 0), 255) }
+    private static func clamp(_ v: Int) -> Int {
+        min(max(v, 0), 255)
+    }
 
     public static let fallback = ConfigColor(red: 61, green: 174, blue: 233)
 
@@ -39,9 +43,10 @@ public struct ConfigColor: Equatable, Sendable {
     public init?(_ string: String) {
         let s = string.trimmingCharacters(in: CharacterSet(charactersIn: "\" ")).lowercased()
         guard let open = s.firstIndex(of: "("), let close = s.lastIndex(of: ")"), open < close else { return nil }
-        let name = s[s.startIndex..<open]
+        let name = s[s.startIndex ..< open]
         guard name == "rgb" || name == "rgba" else { return nil }
-        let parts = s[s.index(after: open)..<close].split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let parts = s[s.index(after: open) ..< close].split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
         guard parts.count == (name == "rgb" ? 3 : 4) else { return nil }
         guard let r = Double(parts[0]), let g = Double(parts[1]), let b = Double(parts[2]) else { return nil }
         let a = parts.count == 4 ? Double(parts[3]) : 1
@@ -51,14 +56,20 @@ public struct ConfigColor: Equatable, Sendable {
 
     /// `Gdk.RGBA.to_string()`: `rgb(...)` when opaque, `rgba(...)` otherwise.
     public var cssString: String {
-        if alpha >= 1 { return "rgb(\(red),\(green),\(blue))" }
+        if alpha >= 1 {
+            return "rgb(\(red),\(green),\(blue))"
+        }
         return "rgba(\(red),\(green),\(blue),\(Self.trim(alpha)))"
     }
 
     private static func trim(_ d: Double) -> String {
         var s = String(format: "%.2f", d)
-        while s.hasSuffix("0") { s.removeLast() }
-        if s.hasSuffix(".") { s.removeLast() }
+        while s.hasSuffix("0") {
+            s.removeLast()
+        }
+        if s.hasSuffix(".") {
+            s.removeLast()
+        }
         return s
     }
 }
@@ -69,7 +80,9 @@ public enum LogsMaintenance {
     public static func formatSize(_ bytes: Int64) -> String {
         var total = Double(bytes)
         for unit in ["B", "KB", "MB", "GB"] {
-            if total < 1024 { return String(format: "%.1f %@", total, unit) }
+            if total < 1024 {
+                return String(format: "%.1f %@", total, unit)
+            }
             total /= 1024
         }
         return String(format: "%.1f TB", total)
@@ -80,7 +93,7 @@ public enum LogsMaintenance {
         let fm = FileManager.default
         var isDir: ObjCBool = false
         guard fm.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue,
-            let walker = fm.enumerator(atPath: dir)
+              let walker = fm.enumerator(atPath: dir)
         else { return nil }
         var total: Int64 = 0
         for case let rel as String in walker {

@@ -12,7 +12,9 @@ public struct GamesStore: Sendable {
 
     public let paths: FaugusPaths
 
-    public init(paths: FaugusPaths) { self.paths = paths }
+    public init(paths: FaugusPaths) {
+        self.paths = paths
+    }
 
     /// Every entry in `games.json`, hidden included, in file order. Non-object entries are
     /// skipped.
@@ -29,7 +31,7 @@ public struct GamesStore: Sendable {
     }
 
     public func existingGameIDs() throws -> Set<String> {
-        Set(try loadAll().map(\.gameID))
+        try Set(loadAll().map(\.gameID))
     }
 
     /// `save_games`. `games` is the set currently visible in the UI; hidden games that are not
@@ -65,7 +67,9 @@ public struct GamesStore: Sendable {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         let dest = paths.gamesBackupDir + "/games-data-\(f.string(from: now)).json"
-        if fm.fileExists(atPath: dest) { try fm.removeItem(atPath: dest) }
+        if fm.fileExists(atPath: dest) {
+            try fm.removeItem(atPath: dest)
+        }
         try fm.copyItem(atPath: paths.gamesJSON, toPath: dest)
 
         var backups = try fm.contentsOfDirectory(atPath: paths.gamesBackupDir)
@@ -85,7 +89,7 @@ public struct GamesStore: Sendable {
         do { value = try JSONFile.loadOrThrow(paths.gamesJSON) } catch {
             throw GamesStoreError.corrupt(path: paths.gamesJSON)
         }
-        guard case .array(let a) = value else { throw GamesStoreError.corrupt(path: paths.gamesJSON) }
+        guard case let .array(a) = value else { throw GamesStoreError.corrupt(path: paths.gamesJSON) }
         return a
     }
 }

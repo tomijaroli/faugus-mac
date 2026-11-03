@@ -14,7 +14,8 @@ struct LibraryView: View {
         GameActions(
             edit: { editor = .edit($0, model: model) },
             delete: { gameToDelete = $0 },
-            duplicate: { gameToDuplicate = $0 })
+            duplicate: { gameToDuplicate = $0 }
+        )
     }
 
     var body: some View {
@@ -89,15 +90,19 @@ struct LibraryView: View {
             if showsZoom {
                 HStack(spacing: 6) {
                     Image(systemName: "photo").foregroundStyle(.secondary)
-                    Slider(value: zoomBinding, in: 50...100, step: 10).frame(width: 110)
+                    Slider(value: zoomBinding, in: 50 ... 100, step: 10).frame(width: 110)
                     Text("\(model.coverSize)").monospacedDigit().frame(width: 28, alignment: .trailing)
                 }
                 .help(t("Displays a zoom slider to adjust the size of games"))
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {
-            if model.sortEnabled { sortMenu(t) }
-            if model.categoriesEnabled { categoryMenu(t) }
+            if model.sortEnabled {
+                sortMenu(t)
+            }
+            if model.categoriesEnabled {
+                categoryMenu(t)
+            }
             Button(t("Add"), systemImage: "plus") { editor = .new(model: model) }
                 .help(t("Add"))
             Button(t("Settings"), systemImage: "gearshape") { model.showSettings = true }
@@ -110,7 +115,7 @@ struct LibraryView: View {
                     model.isRunning(g) ? t("Stop") : t("Play"),
                     systemImage: model.isRunning(g) ? "stop.fill" : "play.fill"
                 ) { model.play(g, withLogs: false) }
-                .help(model.isRunning(g) ? t("Stop") : t("Play"))
+                    .help(model.isRunning(g) ? t("Stop") : t("Play"))
             }
         }
     }
@@ -212,7 +217,9 @@ private struct GameRow: View {
         if let p = GameFormatting.playtimeDisplay(seconds: model.playtimeSeconds(game), t) {
             parts.append(t.format("Playtime: {}", p))
         }
-        if model.isRunning(game) { return parts.joined(separator: " · ") }
+        if model.isRunning(game) {
+            return parts.joined(separator: " · ")
+        }
         if let l = GameFormatting.lastPlayed(iso: game.lastPlayed, t) {
             parts.append(t.format("Last played: {}", l))
         } else if model.playtimeSeconds(game) == 0 {

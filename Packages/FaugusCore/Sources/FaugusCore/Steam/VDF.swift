@@ -7,20 +7,24 @@ public indirect enum VDFValue: Equatable, Sendable {
 
     public static func == (a: VDFValue, b: VDFValue) -> Bool {
         switch (a, b) {
-        case (.string(let x), .string(let y)): return x == y
-        case (.object(let x), .object(let y)):
-            return x.count == y.count && zip(x, y).allSatisfy { $0.key == $1.key && $0.value == $1.value }
-        default: return false
+        case let (.string(x), .string(y)): x == y
+        case let (.object(x), .object(y)):
+            x.count == y.count && zip(x, y).allSatisfy { $0.key == $1.key && $0.value == $1.value }
+        default: false
         }
     }
 
     public var string: String? {
-        if case .string(let s) = self { return s }
+        if case let .string(s) = self {
+            return s
+        }
         return nil
     }
 
     public var entries: [(key: String, value: VDFValue)] {
-        if case .object(let e) = self { return e }
+        if case let .object(e) = self {
+            return e
+        }
         return []
     }
 
@@ -33,7 +37,9 @@ public indirect enum VDFValue: Equatable, Sendable {
 
     public func path(_ keys: String...) -> VDFValue? {
         var current: VDFValue? = self
-        for k in keys { current = current?[k] }
+        for k in keys {
+            current = current?[k]
+        }
         return current
     }
 }
@@ -59,14 +65,18 @@ public enum VDF {
         var i = 0
         var failed = false
         var depth = 0
-        init(_ s: [Unicode.Scalar]) { self.s = s }
+        init(_ s: [Unicode.Scalar]) {
+            self.s = s
+        }
 
         mutating func skipSpace() {
             while i < s.count {
                 if s[i].properties.isWhitespace || s[i] == "\u{FEFF}" {
                     i += 1
                 } else if s[i] == "/", i + 1 < s.count, s[i + 1] == "/" {
-                    while i < s.count, s[i] != "\n" { i += 1 }
+                    while i < s.count, s[i] != "\n" {
+                        i += 1
+                    }
                 } else {
                     break
                 }
@@ -87,7 +97,8 @@ public enum VDF {
                         case "t": out.append("\t")
                         case "\\": out.append("\\")
                         case "\"": out.append("\"")
-                        default: out.append(s[i]); out.append(s[i + 1])
+                        default: out.append(s[i])
+                            out.append(s[i + 1])
                         }
                         i += 2
                     } else {
@@ -95,13 +106,17 @@ public enum VDF {
                         i += 1
                     }
                 }
-                i += 1  // closing quote
+                i += 1 // closing quote
             } else {
                 while i < s.count, !s[i].properties.isWhitespace, s[i] != "{", s[i] != "}", s[i] != "\"" {
                     out.append(s[i])
                     i += 1
                 }
-                if out.isEmpty { i += 1; failed = true; return nil }
+                if out.isEmpty {
+                    i += 1
+                    failed = true
+                    return nil
+                }
             }
             return String(out)
         }
@@ -110,23 +125,32 @@ public enum VDF {
             var result: [(key: String, value: VDFValue)] = []
             depth += 1
             defer { depth -= 1 }
-            if depth > 64 { failed = true; return result }
+            if depth > 64 {
+                failed = true
+                return result
+            }
             while !failed {
                 guard let key = token() else { break }
                 skipSpace()
-                guard i < s.count else { failed = true; break }
+                guard i < s.count else { failed = true
+                    break
+                }
                 if s[i] == "{" {
                     i += 1
                     result.append((key, .object(parseEntries(topLevel: false))))
                     skipSpace()
-                    if i < s.count, s[i] == "}" { i += 1 }
+                    if i < s.count, s[i] == "}" {
+                        i += 1
+                    }
                 } else if let value = token() {
                     result.append((key, .string(value)))
                 } else {
                     failed = true
                 }
             }
-            if topLevel, i < s.count, s[i] == "}" { failed = true }
+            if topLevel, i < s.count, s[i] == "}" {
+                failed = true
+            }
             return result
         }
     }

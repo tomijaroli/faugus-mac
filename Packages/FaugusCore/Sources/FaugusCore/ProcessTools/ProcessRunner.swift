@@ -4,7 +4,9 @@ public struct ProcessResult: Sendable, Equatable {
     public let status: Int32
     public let stdout: String
     public let stderr: String
-    public var succeeded: Bool { status == 0 }
+    public var succeeded: Bool {
+        status == 0
+    }
 }
 
 public enum ProcessRunnerError: Error, Equatable {
@@ -23,8 +25,12 @@ public enum ProcessRunner {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
-        if let environment { process.environment = environment }
-        if let currentDirectory { process.currentDirectoryURL = URL(fileURLWithPath: currentDirectory) }
+        if let environment {
+            process.environment = environment
+        }
+        if let currentDirectory {
+            process.currentDirectoryURL = URL(fileURLWithPath: currentDirectory)
+        }
 
         let out = Pipe()
         let err = Pipe()
@@ -47,12 +53,15 @@ public enum ProcessRunner {
         async let outData = readAll(out.fileHandleForReading)
         async let errData = readAll(err.fileHandleForReading)
         var status: Int32 = -1
-        for await s in exits { status = s }
+        for await s in exits {
+            status = s
+        }
 
-        return ProcessResult(
+        return await ProcessResult(
             status: status,
-            stdout: String(decoding: await outData, as: UTF8.self),
-            stderr: String(decoding: await errData, as: UTF8.self))
+            stdout: String(decoding: outData, as: UTF8.self),
+            stderr: String(decoding: errData, as: UTF8.self)
+        )
     }
 
     private static func readAll(_ handle: FileHandle) async -> Data {

@@ -1,6 +1,5 @@
-import Foundation
-
 @testable import FaugusCore
+import Foundation
 
 enum TestSupport {
     static func fixtureURL(_ name: String) -> URL {
@@ -14,14 +13,16 @@ enum TestSupport {
     /// Repository root, derived from this file's location.
     static var repoRoot: URL {
         URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()  // FaugusCoreTests
-            .deletingLastPathComponent()  // Tests
-            .deletingLastPathComponent()  // FaugusCore
-            .deletingLastPathComponent()  // Packages
-            .deletingLastPathComponent()  // repo root
+            .deletingLastPathComponent() // FaugusCoreTests
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // FaugusCore
+            .deletingLastPathComponent() // Packages
+            .deletingLastPathComponent() // repo root
     }
 
-    static var upstreamLanguagesDir: URL { repoRoot.appendingPathComponent("upstream/languages") }
+    static var upstreamLanguagesDir: URL {
+        repoRoot.appendingPathComponent("upstream/languages")
+    }
 
     static func makeTempHome() throws -> FaugusPaths {
         let dir = FileManager.default.temporaryDirectory
@@ -36,7 +37,8 @@ enum TestSupport {
 
     static func install(fixture: String, at path: String) throws {
         try FileManager.default.createDirectory(
-            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true
+        )
         try fixtureData(fixture).write(to: URL(fileURLWithPath: path))
     }
 }

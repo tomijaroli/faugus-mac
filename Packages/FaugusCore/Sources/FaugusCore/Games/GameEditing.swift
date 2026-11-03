@@ -15,9 +15,15 @@ public enum GameEditing {
     /// must be non-empty.
     public static func invalidFields(title: String, path: String, prefix: String) -> [InvalidField] {
         var out: [InvalidField] = []
-        if title.isEmpty || GameID.format(title: title).isEmpty { out.append(.title) }
-        if path.isEmpty { out.append(.path) }
-        if prefix.isEmpty { out.append(.prefix) }
+        if title.isEmpty || GameID.format(title: title).isEmpty {
+            out.append(.title)
+        }
+        if path.isEmpty {
+            out.append(.path)
+        }
+        if prefix.isEmpty {
+            out.append(.prefix)
+        }
         return out
     }
 
@@ -32,15 +38,23 @@ public enum GameEditing {
         let isAbsolute = path.hasPrefix("/")
         var parts: [Substring] = []
         for part in path.split(separator: "/", omittingEmptySubsequences: true) {
-            if part == "." { continue }
+            if part == "." {
+                continue
+            }
             if part == ".." {
-                if let last = parts.last, last != ".." { parts.removeLast() } else if !isAbsolute { parts.append(part) }
+                if let last = parts.last, last != ".." {
+                    parts.removeLast()
+                } else if !isAbsolute {
+                    parts.append(part)
+                }
             } else {
                 parts.append(part)
             }
         }
         let joined = parts.joined(separator: "/")
-        if isAbsolute { return "/" + joined }
+        if isAbsolute {
+            return "/" + joined
+        }
         return joined.isEmpty ? "." : joined
     }
 
@@ -122,7 +136,9 @@ public enum GameEditing {
         let addAppLine = "start \"\" \"z:\(addApp)\"\n"
         let (a, b) = first ? (addAppLine, gameLine) : (gameLine, addAppLine)
         var out = "@echo off\n" + a
-        if !delay.isEmpty, delay != "0" { out += "ping -n \(delay) 127.0.0.1 >nul\n" }
+        if !delay.isEmpty, delay != "0" {
+            out += "ping -n \(delay) 127.0.0.1 >nul\n"
+        }
         return out + b
     }
 
@@ -136,9 +152,13 @@ public enum GameEditing {
         let contents = addAppBatContents(
             exe: paths.expand(game.path), addApp: paths.expand(game.addApp), delay: game.addAppDelay,
             first: game.addAppFirst,
-            gameArguments: game.gameArguments)
+            gameArguments: game.gameArguments
+        )
         let path = paths.expand(game.addAppBat)
-        try FileManager.default.createDirectory(atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            atPath: (path as NSString).deletingLastPathComponent,
+            withIntermediateDirectories: true
+        )
         try contents.write(toFile: path, atomically: true, encoding: .utf8)
     }
 
@@ -152,7 +172,11 @@ public enum GameEditing {
     /// Removes the artwork and the generated bat. Never touches the prefix or the game itself.
     public static func removeOwnedFiles(of game: Game, paths: FaugusPaths) {
         let fm = FileManager.default
-        for f in artworkFiles(for: game.gameID, paths: paths) where fm.fileExists(atPath: f) { try? fm.removeItem(atPath: f) }
+        for f in artworkFiles(for: game.gameID, paths: paths)
+            where fm.fileExists(atPath: f)
+        {
+            try? fm.removeItem(atPath: f)
+        }
         let bat = paths.expand(game.addAppBat)
         // Only generated `faugus-*.bat` files are removed.
         if !bat.isEmpty, (bat as NSString).lastPathComponent.hasPrefix("faugus-"), fm.fileExists(atPath: bat) {
@@ -185,8 +209,12 @@ public enum GameEditing {
     ) throws -> Game {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let base = GameID.format(title: title)
-        if title.isEmpty || base.isEmpty { throw DuplicateError.invalidTitle }
-        if titleExists(title, in: existing) { throw DuplicateError.exists }
+        if title.isEmpty || base.isEmpty {
+            throw DuplicateError.invalidTitle
+        }
+        if titleExists(title, in: existing) {
+            throw DuplicateError.exists
+        }
         let id = GameID.unique(base: base, existing: Set(existing.map(\.gameID)))
         let fm = FileManager.default
 
@@ -236,10 +264,12 @@ public enum GameEditing {
 /// `presets.json`: reusable launch arguments.
 public struct PresetsStore: Sendable {
     public let paths: FaugusPaths
-    public init(paths: FaugusPaths) { self.paths = paths }
+    public init(paths: FaugusPaths) {
+        self.paths = paths
+    }
 
     public func load() -> [String] {
-        guard case .array(let a) = JSONFile.load(paths.presetsFile, default: .array([])) else { return [] }
+        guard case let .array(a) = JSONFile.load(paths.presetsFile, default: .array([])) else { return [] }
         return a.compactMap(\.stringValue)
     }
 

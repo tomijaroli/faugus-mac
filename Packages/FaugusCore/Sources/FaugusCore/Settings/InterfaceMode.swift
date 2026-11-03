@@ -13,21 +13,48 @@ public enum InterfaceMode: String, CaseIterable, Sendable {
         self = InterfaceMode(rawValue: configValue.trimmingCharacters(in: CharacterSet(charactersIn: "\""))) ?? .list
     }
 
-    public var label: String { rawValue }
+    public var label: String {
+        rawValue
+    }
 
-    private var isCoversOrCarrousel: Bool { self == .covers || self == .carrousel }
-    private var isGridOrCovers: Bool { self == .grid || self == .covers }
+    private var isCoversOrCarrousel: Bool {
+        self == .covers || self == .carrousel
+    }
+
+    private var isGridOrCovers: Bool {
+        self == .grid || self == .covers
+    }
 
     /// Labels and zoom need covers.
-    public var supportsLabelsAndZoom: Bool { isCoversOrCarrousel }
+    public var supportsLabelsAndZoom: Bool {
+        isCoversOrCarrousel
+    }
+
     /// The banner needs covers and SteamGridDB.
-    public func supportsBanner(steamGridDBEnabled: Bool) -> Bool { isCoversOrCarrousel && steamGridDBEnabled }
+    public func supportsBanner(steamGridDBEnabled: Bool) -> Bool {
+        isCoversOrCarrousel && steamGridDBEnabled
+    }
+
     /// Position and the overview panel need anything but the list.
-    public var supportsPosition: Bool { self != .list }
-    public var supportsOverview: Bool { self != .list }
-    public var supportsOrientation: Bool { isGridOrCovers }
-    public var supportsMaxChildren: Bool { isGridOrCovers }
-    public var supportsStartupWindowSize: Bool { self != .list }
+    public var supportsPosition: Bool {
+        self != .list
+    }
+
+    public var supportsOverview: Bool {
+        self != .list
+    }
+
+    public var supportsOrientation: Bool {
+        isGridOrCovers
+    }
+
+    public var supportsMaxChildren: Bool {
+        isGridOrCovers
+    }
+
+    public var supportsStartupWindowSize: Bool {
+        self != .list
+    }
 
     /// "Maximum Columns" scrolls vertically, "Maximum Rows" horizontally.
     public static func maxChildrenLabel(orientation: String) -> String {

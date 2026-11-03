@@ -1,14 +1,22 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 /// Collects supervisor events from any thread.
 final class EventLog: @unchecked Sendable {
     private let lock = NSLock()
     private var items: [SupervisorEvent] = []
-    func add(_ e: SupervisorEvent) { lock.lock(); items.append(e); lock.unlock() }
-    var all: [SupervisorEvent] { lock.lock(); defer { lock.unlock() }; return items }
+    func add(_ e: SupervisorEvent) {
+        lock.lock()
+        items.append(e)
+        lock.unlock()
+    }
+
+    var all: [SupervisorEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        return items
+    }
 }
 
 @Suite("Game supervisor (fake Wine)", .serialized)
@@ -18,22 +26,22 @@ struct SupervisorTests {
         let bin = paths.runnersDir + "/Wine-Staging-0.0/bin"
         try FileManager.default.createDirectory(atPath: bin, withIntermediateDirectories: true)
         let wine = """
-            #!/bin/sh
-            if [ "$1" = "--version" ]; then echo "wine-0.0 (Fake)"; exit 0; fi
-            if [ "$1" = "wineboot" ]; then
-                mkdir -p "$WINEPREFIX/drive_c/windows/system32" "$WINEPREFIX/drive_c/windows/syswow64"
-                echo "WINE REGISTRY" > "$WINEPREFIX/system.reg"
-                exit 0
-            fi
-            \(wineBody)
-            """
+        #!/bin/sh
+        if [ "$1" = "--version" ]; then echo "wine-0.0 (Fake)"; exit 0; fi
+        if [ "$1" = "wineboot" ]; then
+            mkdir -p "$WINEPREFIX/drive_c/windows/system32" "$WINEPREFIX/drive_c/windows/syswow64"
+            echo "WINE REGISTRY" > "$WINEPREFIX/system.reg"
+            exit 0
+        fi
+        \(wineBody)
+        """
         let server = """
-            #!/bin/sh
-            case "$1" in
-              -k) echo killed >> "$WINEPREFIX/server.log"; pkill -TERM -f "FAKEGAME-$FAUGUSID" ; exit 0 ;;
-              -w) exit 0 ;;
-            esac
-            """
+        #!/bin/sh
+        case "$1" in
+          -k) echo killed >> "$WINEPREFIX/server.log"; pkill -TERM -f "FAKEGAME-$FAUGUSID" ; exit 0 ;;
+          -w) exit 0 ;;
+        esac
+        """
         for (name, body) in [("wine", wine), ("wineserver", server)] {
             let p = bin + "/" + name
             try Data(body.utf8).write(to: URL(fileURLWithPath: p))
@@ -70,13 +78,13 @@ struct SupervisorTests {
 
     @Test func fullLifecycleCreatesPrefixRunsAndSavesPlaytime() async throws {
         let paths = try setup(wineBody: """
-            echo "args: $@" > "$WINEPREFIX/ran.txt"
-            echo "id: $FAUGUSID" >> "$WINEPREFIX/ran.txt"
-            echo "overrides: $WINEDLLOVERRIDES" >> "$WINEPREFIX/ran.txt"
-            echo "pwd: $(pwd)" >> "$WINEPREFIX/ran.txt"
-            sleep 2
-            exit 0
-            """)
+        echo "args: $@" > "$WINEPREFIX/ran.txt"
+        echo "id: $FAUGUSID" >> "$WINEPREFIX/ran.txt"
+        echo "overrides: $WINEDLLOVERRIDES" >> "$WINEPREFIX/ran.txt"
+        echo "pwd: $(pwd)" >> "$WINEPREFIX/ran.txt"
+        sleep 2
+        exit 0
+        """)
         defer { TestSupport.cleanup(paths) }
         let events = EventLog()
         let sup = GameSupervisor(paths: paths, gameID: "fake-game", options: options()) { events.add($0) }
@@ -86,13 +94,13 @@ struct SupervisorTests {
 
         let kinds = events.all.map { e -> String in
             switch e {
-            case .preparing: return "preparing"
-            case .checkingRosetta: return "rosetta"
-            case .creatingPrefix: return "prefix"
-            case .starting: return "starting"
-            case .running: return "running"
-            case .exited: return "exited"
-            default: return "other"
+            case .preparing: "preparing"
+            case .checkingRosetta: "rosetta"
+            case .creatingPrefix: "prefix"
+            case .starting: "starting"
+            case .running: "running"
+            case .exited: "exited"
+            default: "other"
             }
         }
         #expect(kinds == ["preparing", "rosetta", "prefix", "starting", "running", "exited"])
@@ -122,12 +130,14 @@ struct SupervisorTests {
 
     @Test func runFileUsesThePrefixButIsNotTheGame() async throws {
         let paths = try setup(wineBody: """
-            echo "args: $@" > "$WINEPREFIX/ran-file.txt"
-            echo "id: [$FAUGUSID]" >> "$WINEPREFIX/ran-file.txt"
-            echo "pwd: $(pwd)" >> "$WINEPREFIX/ran-file.txt"
-            echo "running: $(ls "$FAUGUS_TEST_STATE" 2>/dev/null)" >> "$WINEPREFIX/ran-file.txt"
-            exit 0
-            """) { [home = NSTemporaryDirectory()] in $0.preLaunch = "touch '\(home)faugus-hook-marker-runfile'"; $0.postLaunch = $0.preLaunch }
+        echo "args: $@" > "$WINEPREFIX/ran-file.txt"
+        echo "id: [$FAUGUSID]" >> "$WINEPREFIX/ran-file.txt"
+        echo "pwd: $(pwd)" >> "$WINEPREFIX/ran-file.txt"
+        echo "running: $(ls "$FAUGUS_TEST_STATE" 2>/dev/null)" >> "$WINEPREFIX/ran-file.txt"
+        exit 0
+        """) { [home = NSTemporaryDirectory()] in $0.preLaunch = "touch '\(home)faugus-hook-marker-runfile'"
+            $0.postLaunch = $0.preLaunch
+        }
         defer { TestSupport.cleanup(paths) }
         var o = options()
         o.runFile = paths.home + "/Downloads/setup.msi"
@@ -140,7 +150,7 @@ struct SupervisorTests {
         let ran = try String(contentsOfFile: prefix + "/ran-file.txt", encoding: .utf8)
         #expect(ran.contains("msiexec /i") && ran.contains("setup.msi"))
         #expect(ran.contains("id: []"))
-        #expect(ran.contains("/Games"))  // the game's folder
+        #expect(ran.contains("/Games")) // the game's folder
         // No hooks, no playtime, no running state.
         try await Task.sleep(for: .milliseconds(300))
         #expect(!FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "faugus-hook-marker-runfile"))
@@ -152,10 +162,10 @@ struct SupervisorTests {
 
     @Test func winecfgRunsInTheRequestedPrefixAndCreatesIt() async throws {
         let paths = try setup(wineBody: """
-            echo "args: $@" > "$WINEPREFIX/ran-tool.txt"
-            echo "id: [$FAUGUSID]" >> "$WINEPREFIX/ran-tool.txt"
-            exit 0
-            """)
+        echo "args: $@" > "$WINEPREFIX/ran-tool.txt"
+        echo "id: [$FAUGUSID]" >> "$WINEPREFIX/ran-tool.txt"
+        exit 0
+        """)
         defer { TestSupport.cleanup(paths) }
         var o = options()
         o.runFile = "winecfg"
@@ -175,18 +185,21 @@ struct SupervisorTests {
 
     @Test func runFileLeavesARunningGameAlone() async throws {
         let paths = try setup(wineBody: """
-            case "$1" in
-              regedit) exit 0 ;;
-              *) sleep 5 ;;
-            esac
-            """)
+        case "$1" in
+          regedit) exit 0 ;;
+          *) sleep 5 ;;
+        esac
+        """)
         defer { TestSupport.cleanup(paths) }
         let game = GameSupervisor(paths: paths, gameID: "fake-game", options: options())
         let gameTask = Task { await game.run() }
         var seen = false
-        for _ in 0..<40 {
+        for _ in 0 ..< 40 {
             try await Task.sleep(for: .milliseconds(100))
-            if RunningGames(paths: paths).isRunning("fake-game") { seen = true; break }
+            if RunningGames(paths: paths).isRunning("fake-game") {
+                seen = true
+                break
+            }
         }
         #expect(seen)
 
@@ -207,9 +220,12 @@ struct SupervisorTests {
         let task = Task { await sup.run() }
 
         var seen = false
-        for _ in 0..<40 {
+        for _ in 0 ..< 40 {
             try await Task.sleep(for: .milliseconds(100))
-            if RunningGames(paths: paths).isRunning("fake-game") { seen = true; break }
+            if RunningGames(paths: paths).isRunning("fake-game") {
+                seen = true
+                break
+            }
         }
         #expect(seen)
         try RunningGames(paths: paths).requestStop(gameID: "fake-game")
@@ -225,9 +241,17 @@ struct SupervisorTests {
         let task = Task { await sup.run() }
 
         // Wait for `running`, then stop.
-        for _ in 0..<60 {
+        for _ in 0 ..< 60 {
             try await Task.sleep(for: .milliseconds(100))
-            if events.all.contains(where: { if case .running = $0 { return true } else { return false } }) { break }
+            if events.all.contains(where: {
+                if case .running = $0 {
+                    true
+                } else {
+                    false
+                }
+            }) {
+                break
+            }
         }
         let t0 = Date()
         try RunningGames(paths: paths).requestStop(gameID: "fake-game")
@@ -235,7 +259,13 @@ struct SupervisorTests {
         #expect(failure == nil)
         #expect(Date().timeIntervalSince(t0) < 5)
         #expect(events.all.contains(.stopping))
-        let exited = events.all.compactMap { e -> Int32? in if case .exited(let s, _) = e { return s } else { return nil } }
+        let exited = events.all.compactMap {
+            e -> Int32? in if case let .exited(s, _) = e {
+                s
+            } else {
+                nil
+            }
+        }
         #expect(exited.count == 1)
         #expect(!FileManager.default.fileExists(atPath: paths.stopFile(gameID: "fake-game")))
         #expect(RunningGames(paths: paths).load().isEmpty)
@@ -271,22 +301,30 @@ struct SupervisorTests {
         let paths = try setup(wineBody: "exit 0") { $0.launchArguments = "FOO='oops" }
         defer { TestSupport.cleanup(paths) }
         let failure = await GameSupervisor(paths: paths, gameID: "fake-game", options: options()).run()
-        if case .launchFailed? = failure {} else { Issue.record("expected launchFailed, got \(String(describing: failure))") }
+        if case .launchFailed? = failure {}
+        else {
+            Issue.record("expected launchFailed, got \(String(describing: failure))")
+        }
     }
 
     @Test func playtimeSaveKeepsOtherGamesAndFieldsIntact() throws {
         let paths = try TestSupport.makeTempHome()
         defer { TestSupport.cleanup(paths) }
         try TestSupport.install(fixture: "games.extra-fields.json", at: paths.gamesJSON)
-        let before = try JSONParser.parse(try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))).arrayValue!
+        let before = try JSONParser.parse(Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))).arrayValue!
 
-        try PlaytimeStore(paths: paths).save(gameID: "celeste", gameBaseline: 12345, totalBaseline: 14000, runtimeSeconds: 100)
-        let after = try JSONParser.parse(try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))).arrayValue!
+        try PlaytimeStore(paths: paths).save(
+            gameID: "celeste",
+            gameBaseline: 12345,
+            totalBaseline: 14000,
+            runtimeSeconds: 100
+        )
+        let after = try JSONParser.parse(Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))).arrayValue!
         #expect(after.count == before.count)
         let celeste = after[0].objectValue!
         #expect(celeste["playtime"] == .int(12445))
         #expect(celeste["last_played"] != before[0].objectValue!["last_played"])
-        #expect(celeste["graphics"] == "wined3d")  // extra field preserved
+        #expect(celeste["graphics"] == "wined3d") // extra field preserved
         #expect(Array(after.dropFirst()) == Array(before.dropFirst()))
         #expect(try FaugusConfig.load(paths: paths).int("playtime") == 14100)
     }
@@ -303,13 +341,20 @@ struct SupervisorTests {
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let src = dir + "/sleeper.c"
-        try "#include <unistd.h>\nint main(void){ sleep(30); return 0; }\n".write(toFile: src, atomically: true, encoding: .utf8)
+        try "#include <unistd.h>\nint main(void){ sleep(30); return 0; }\n".write(
+            toFile: src,
+            atomically: true,
+            encoding: .utf8
+        )
         let sleepCopy = dir + "/sleeper"
         let cc = try await ProcessRunner.run("/usr/bin/clang", ["-o", sleepCopy, src])
         #expect(cc.succeeded, "clang: \(cc.stderr)")
 
         let pid = try ProcessSpawner.spawn(argv: [sleepCopy, "30"], options: .init(environment: env))
-        defer { kill(pid, SIGKILL); var s: Int32 = 0; waitpid(pid, &s, 0) }
+        defer { kill(pid, SIGKILL)
+            var s: Int32 = 0
+            waitpid(pid, &s, 0)
+        }
         try await Task.sleep(for: .milliseconds(200))
         #expect(ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: id) == [pid])
         #expect(ProcessScanner.environment(of: pid)?["FAUGUSID"] == id)
@@ -328,16 +373,16 @@ struct SupervisorTests {
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let src = dir + "/retitle.c"
         try """
-            #include <string.h>
-            #include <unistd.h>
-            int main(int argc, char **argv) {
-                size_t n = strlen(argv[0]);
-                memset(argv[0], 0, n);
-                strcpy(argv[0], "C:\\\\windows\\\\x.exe");
-                sleep(30);
-                return 0;
-            }
-            """.write(toFile: src, atomically: true, encoding: .utf8)
+        #include <string.h>
+        #include <unistd.h>
+        int main(int argc, char **argv) {
+            size_t n = strlen(argv[0]);
+            memset(argv[0], 0, n);
+            strcpy(argv[0], "C:\\\\windows\\\\x.exe");
+            sleep(30);
+            return 0;
+        }
+        """.write(toFile: src, atomically: true, encoding: .utf8)
         let exe = dir + "/retitle"
         let cc = try await ProcessRunner.run("/usr/bin/clang", ["-o", exe, src])
         #expect(cc.succeeded, "clang: \(cc.stderr)")
@@ -346,7 +391,10 @@ struct SupervisorTests {
         var env = ProcessInfo.processInfo.environment
         env["FAUGUSID"] = id
         let pid = try ProcessSpawner.spawn(argv: [exe], options: .init(environment: env))
-        defer { kill(pid, SIGKILL); var s: Int32 = 0; waitpid(pid, &s, 0) }
+        defer { kill(pid, SIGKILL)
+            var s: Int32 = 0
+            waitpid(pid, &s, 0)
+        }
         try await Task.sleep(for: .milliseconds(300))
         #expect(ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: id) == [pid])
     }

@@ -16,7 +16,9 @@ public enum GameID {
         var inSpace = false
         for s in kept {
             if isPythonSpace(s) {
-                if !inSpace { out.append("-") }
+                if !inSpace {
+                    out.append("-")
+                }
                 inSpace = true
             } else {
                 out.append(s)
@@ -27,9 +29,13 @@ public enum GameID {
     }
 
     public static func unique(base: String, existing: Set<String>) -> String {
-        if base.isEmpty || !existing.contains(base) { return base }
+        if base.isEmpty || !existing.contains(base) {
+            return base
+        }
         var n = 2
-        while existing.contains("\(base)-\(n)") { n += 1 }
+        while existing.contains("\(base)-\(n)") {
+            n += 1
+        }
         return "\(base)-\(n)"
     }
 
@@ -37,16 +43,20 @@ public enum GameID {
 
     /// `str.isspace()`.
     static func isPythonSpace(_ s: Unicode.Scalar) -> Bool {
-        if (0x1C...0x1F).contains(s.value) { return true }
+        if (0x1C ... 0x1F).contains(s.value) {
+            return true
+        }
         return s.properties.isWhitespace
     }
 
     /// Python's `\w` on `str`: alphanumeric (letters and numbers) or underscore.
     static func isWordScalar(_ s: Unicode.Scalar) -> Bool {
-        if s == "_" { return true }
+        if s == "_" {
+            return true
+        }
         switch s.properties.generalCategory {
         case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter,
-            .decimalNumber, .letterNumber, .otherNumber:
+             .decimalNumber, .letterNumber, .otherNumber:
             return true
         default:
             return false
@@ -55,8 +65,12 @@ public enum GameID {
 
     static func pythonStrip(_ s: String) -> String {
         var scalars = Array(s.unicodeScalars)
-        while let f = scalars.first, isPythonSpace(f) { scalars.removeFirst() }
-        while let l = scalars.last, isPythonSpace(l) { scalars.removeLast() }
+        while let f = scalars.first, isPythonSpace(f) {
+            scalars.removeFirst()
+        }
+        while let l = scalars.last, isPythonSpace(l) {
+            scalars.removeLast()
+        }
         var v = String.UnicodeScalarView()
         v.append(contentsOf: scalars)
         return String(v)

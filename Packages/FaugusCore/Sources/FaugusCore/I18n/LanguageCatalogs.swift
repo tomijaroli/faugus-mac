@@ -11,7 +11,9 @@ public struct LanguageCatalogs: Sendable {
 
     public let localeDir: URL
 
-    public init(localeDir: URL) { self.localeDir = localeDir }
+    public init(localeDir: URL) {
+        self.localeDir = localeDir
+    }
 
     public func poURL(language: String, domain: String) -> URL? {
         let candidates = [
@@ -35,7 +37,9 @@ public struct LanguageCatalogs: Sendable {
         }
         var counts: [String: Int] = [:]
         for lang in dirs {
-            if let c = catalog(language: lang, domain: domain) { counts[lang] = c.entryCount }
+            if let c = catalog(language: lang, domain: domain) {
+                counts[lang] = c.entryCount
+            }
         }
         let total = counts.values.max() ?? 0
         guard total > 0 else { return [:] }
@@ -58,9 +62,15 @@ public struct LanguageCatalogs: Sendable {
     public func translator(for language: String) -> Translator {
         for candidate in SystemLocale.candidates(for: language) {
             var catalogs: [POCatalog] = []
-            if let mac = catalog(language: candidate, domain: LanguageCatalogs.macDomain) { catalogs.append(mac) }
-            if let up = catalog(language: candidate, domain: LanguageCatalogs.upstreamDomain) { catalogs.append(up) }
-            if !catalogs.isEmpty { return Translator(languageCode: candidate, catalogs: catalogs) }
+            if let mac = catalog(language: candidate, domain: LanguageCatalogs.macDomain) {
+                catalogs.append(mac)
+            }
+            if let up = catalog(language: candidate, domain: LanguageCatalogs.upstreamDomain) {
+                catalogs.append(up)
+            }
+            if !catalogs.isEmpty {
+                return Translator(languageCode: candidate, catalogs: catalogs)
+            }
         }
         return Translator(languageCode: language, catalogs: [])
     }

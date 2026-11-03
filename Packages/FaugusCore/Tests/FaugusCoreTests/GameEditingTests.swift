@@ -1,7 +1,6 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 private func tempPaths() -> FaugusPaths {
     let dir = NSTemporaryDirectory() + "faugus-edit-\(UUID().uuidString)"
@@ -34,17 +33,25 @@ struct GameEditingTests {
 
     @Test func batMatchesUpstreamLayout() {
         let first = GameEditing.addAppBatContents(
-            exe: "/g/game.exe", addApp: "/t/tool.exe", delay: "5", first: true, gameArguments: "-w")
-        #expect(first == "@echo off\nstart \"\" \"z:/t/tool.exe\"\nping -n 5 127.0.0.1 >nul\nstart \"\" \"z:/g/game.exe\" -w\n")
+            exe: "/g/game.exe", addApp: "/t/tool.exe", delay: "5", first: true, gameArguments: "-w"
+        )
+        #expect(first ==
+            "@echo off\nstart \"\" \"z:/t/tool.exe\"\nping -n 5 127.0.0.1 >nul\nstart \"\" \"z:/g/game.exe\" -w\n")
         let second = GameEditing.addAppBatContents(
-            exe: "/g/game.exe", addApp: "/t/tool.exe", delay: "", first: false, gameArguments: "")
+            exe: "/g/game.exe", addApp: "/t/tool.exe", delay: "", first: false, gameArguments: ""
+        )
         #expect(second == "@echo off\nstart \"\" \"z:/g/game.exe\"\nstart \"\" \"z:/t/tool.exe\"\n")
     }
 
     @Test func duplicateCopiesFilesAndGetsNewID() throws {
         let paths = tempPaths()
         let fm = FileManager.default
-        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir] { try fm.createDirectory(atPath: d, withIntermediateDirectories: true) }
+        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir] {
+            try fm.createDirectory(
+                atPath: d,
+                withIntermediateDirectories: true
+            )
+        }
         try Data([1]).write(to: URL(fileURLWithPath: "\(paths.iconsDir)/hello.png"))
         try Data([2]).write(to: URL(fileURLWithPath: "\(paths.coversDir)/hello.png"))
         try Data([3]).write(to: URL(fileURLWithPath: "\(paths.bannersDir)/hello.png"))
@@ -79,15 +86,24 @@ struct GameEditingTests {
         let paths = tempPaths()
         let fm = FileManager.default
         let gameDir = paths.dataDir + "/g"
-        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir, gameDir] { try fm.createDirectory(atPath: d, withIntermediateDirectories: true) }
-        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir] { try Data([1]).write(to: URL(fileURLWithPath: "\(d)/hello.png")) }
+        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir, gameDir] {
+            try fm.createDirectory(
+                atPath: d,
+                withIntermediateDirectories: true
+            )
+        }
+        for d in [paths.iconsDir, paths.coversDir, paths.bannersDir] {
+            try Data([1]).write(to: URL(fileURLWithPath: "\(d)/hello.png"))
+        }
         try Data([1]).write(to: URL(fileURLWithPath: "\(gameDir)/faugus-hello.bat"))
         try Data([1]).write(to: URL(fileURLWithPath: "\(gameDir)/game.exe"))
         var g = Game(gameID: "hello", title: "Hello")
         g.addAppBat = "\(gameDir)/faugus-hello.bat"
         g.path = "\(gameDir)/game.exe"
         GameEditing.removeOwnedFiles(of: g, paths: paths)
-        for f in GameEditing.artworkFiles(for: "hello", paths: paths) { #expect(!fm.fileExists(atPath: f)) }
+        for f in GameEditing.artworkFiles(for: "hello", paths: paths) {
+            #expect(!fm.fileExists(atPath: f))
+        }
         #expect(!fm.fileExists(atPath: g.addAppBat))
         #expect(fm.fileExists(atPath: g.path))
 
@@ -100,19 +116,23 @@ struct GameEditingTests {
 
     @Test func prefixSharingAndRemovalOffer() {
         let paths = tempPaths()
-        var a = Game(gameID: "a", title: "A"); a.prefix = "/p/shared"
-        var b = Game(gameID: "b", title: "B"); b.prefix = "/p/shared"
-        var c = Game(gameID: "c", title: "C"); c.prefix = "/p/own"
+        var a = Game(gameID: "a", title: "A")
+        a.prefix = "/p/shared"
+        var b = Game(gameID: "b", title: "B")
+        b.prefix = "/p/shared"
+        var c = Game(gameID: "c", title: "C")
+        c.prefix = "/p/own"
         #expect(GameEditing.otherGamesUsingPrefix(of: a, in: [a, b, c], paths: paths) == 1)
         #expect(GameEditing.otherGamesUsingPrefix(of: c, in: [a, b, c], paths: paths) == 0)
         #expect(GameEditing.offersPrefixRemoval(for: c, paths: paths))
         c.prefix = "/p/default"
         #expect(!GameEditing.offersPrefixRemoval(for: c, paths: paths))
-        c.prefix = "/p/own"; c.runner = "Steam"
+        c.prefix = "/p/own"
+        c.runner = "Steam"
         #expect(!GameEditing.offersPrefixRemoval(for: c, paths: paths))
     }
 
-    @Test func applyWritesDraftAndKeepsUnknownFields() throws {
+    @Test func applyWritesDraftAndKeepsUnknownFields() {
         let paths = tempPaths()
         var original = Game(gameID: "hello", title: "Hello")
         original.playtime = 90

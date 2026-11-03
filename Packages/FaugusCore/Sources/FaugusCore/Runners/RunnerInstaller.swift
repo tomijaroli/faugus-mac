@@ -6,7 +6,9 @@ import Foundation
 /// when present; nothing is re-signed; `bin/wine` is run directly.
 public struct RunnerInstaller: Sendable {
     public let paths: FaugusPaths
-    public init(paths: FaugusPaths) { self.paths = paths }
+    public init(paths: FaugusPaths) {
+        self.paths = paths
+    }
 
     public func install(
         _ remote: RemoteRunner,
@@ -21,7 +23,9 @@ public struct RunnerInstaller: Sendable {
 
         let downloader = Downloader(destination: archive) { done, total in
             let expected = total > 0 ? total : remote.size
-            if expected > 0 { progress(min(1, Double(done) / Double(expected)) * 0.7) }
+            if expected > 0 {
+                progress(min(1, Double(done) / Double(expected)) * 0.7)
+            }
         }
         try await downloader.download(remote.downloadURL)
 
@@ -31,7 +35,11 @@ public struct RunnerInstaller: Sendable {
         }
         progress(0.75)
 
-        return try await installArchive(at: archive.path, directoryName: remote.directoryName, sourceTag: remote.version) {
+        return try await installArchive(
+            at: archive.path,
+            directoryName: remote.directoryName,
+            sourceTag: remote.version
+        ) {
             progress(0.75 + 0.25 * $0)
         }
     }
@@ -46,7 +54,11 @@ public struct RunnerInstaller: Sendable {
         let final = paths.runnersDir + "/" + directoryName
         try fm.createDirectory(atPath: staging, withIntermediateDirectories: true)
         var succeeded = false
-        defer { if !succeeded { try? fm.removeItem(atPath: staging) } }
+        defer {
+            if !succeeded {
+                try? fm.removeItem(atPath: staging)
+            }
+        }
 
         // 1. Reject dangerous member names before anything touches the disk.
         let listing = try await ProcessRunner.run("/usr/bin/tar", ["-tf", archivePath])
@@ -73,7 +85,9 @@ public struct RunnerInstaller: Sendable {
         ]
         try JSONFile.save(info, to: staging + "/.faugus-install.json")
 
-        if fm.fileExists(atPath: final) { try fm.removeItem(atPath: final) }
+        if fm.fileExists(atPath: final) {
+            try fm.removeItem(atPath: final)
+        }
         try fm.moveItem(atPath: staging, toPath: final)
         succeeded = true
         progress(1)

@@ -25,13 +25,13 @@ public enum SupervisorFailure: Equatable, Sendable, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .gameNotFound(let id): return "Game \"\(id)\" was not found in games.json"
-        case .rosettaMissing: return "Rosetta 2 is required to run Wine"
-        case .runnerNotFound(let n): return "\(n) was not found"
-        case .runnerInstallFailed(let m): return "Could not install the Wine runner: \(m)"
-        case .componentInstallFailed(let m): return "Could not install DXVK-macOS: \(m)"
-        case .prefixFailed(let m): return m
-        case .launchFailed(let m): return m
+        case let .gameNotFound(id): "Game \"\(id)\" was not found in games.json"
+        case .rosettaMissing: "Rosetta 2 is required to run Wine"
+        case let .runnerNotFound(n): "\(n) was not found"
+        case let .runnerInstallFailed(m): "Could not install the Wine runner: \(m)"
+        case let .componentInstallFailed(m): "Could not install DXVK-macOS: \(m)"
+        case let .prefixFailed(m): m
+        case let .launchFailed(m): m
         }
     }
 }
@@ -59,8 +59,10 @@ public struct SupervisorOptions: Sendable {
     public var openSteamURL: @Sendable (String) -> Bool = { url in
         (try? ProcessSpawner.spawn(
             argv: ["/usr/bin/open", url],
-            options: .init(environment: ["PATH": "/usr/bin:/bin"], newSession: true))) != nil
+            options: .init(environment: ["PATH": "/usr/bin:/bin"], newSession: true)
+        )) != nil
     }
+
     /// How long the splash stays up after handing a game to Steam (upstream: 5 s).
     public var steamSplashDuration: Duration = .seconds(5)
     public var feed: @Sendable () async throws -> [RemoteRunner] = { try await GcenxFeed.fetchAll() }
@@ -91,16 +93,16 @@ public actor GameSupervisor {
         self.gameID = gameID
         self.options = options
         self.sink = sink
-        self.log = FaugusLog(path: paths.gameLogsDir(gameID: gameID) + "/faugus.log")
-        self.running = RunningGames(paths: paths)
+        log = FaugusLog(path: paths.gameLogsDir(gameID: gameID) + "/faugus.log")
+        running = RunningGames(paths: paths)
     }
 
     private func emit(_ e: SupervisorEvent) {
         sink(e)
         switch e {
-        case .failed(let f): log.write("FAILED: \(f)")
-        case .starting(let c): log.write("command: \(c)")
-        case .exited(let s, let p): log.write("exited status=\(s) playtime=\(p)s")
+        case let .failed(f): log.write("FAILED: \(f)")
+        case let .starting(c): log.write("command: \(c)")
+        case let .exited(s, p): log.write("exited status=\(s) playtime=\(p)s")
         default: break
         }
     }
@@ -111,7 +113,9 @@ public actor GameSupervisor {
     public func run() async -> SupervisorFailure? {
         do {
             let failure = try await runInner()
-            if let failure { emit(.failed(failure)) }
+            if let failure {
+                emit(.failed(failure))
+            }
             return failure
         } catch {
             let f = SupervisorFailure.launchFailed("\(error)")
@@ -121,7 +125,9 @@ public actor GameSupervisor {
     }
 
     private func runInner() async throws -> SupervisorFailure? {
-        if options.logs { log.truncate() }
+        if options.logs {
+            log.truncate()
+        }
         let config = try FaugusConfig.load(paths: paths)
 
         // 1. Game
@@ -133,7 +139,9 @@ public actor GameSupervisor {
             guard let found = games.first(where: { $0.gameID == gameID }) else { return .gameNotFound(gameID) }
             game = found
         }
-        if game.runner == "Steam", options.runFile == nil { return await runSteamGame(game) }
+        if game.runner == "Steam", options.runFile == nil {
+            return await runSteamGame(game)
+        }
         let isFileRun = options.runFile != nil
         emit(.preparing(title: game.title))
         log.write(isFileRun ? "running \(options.runFile ?? "") in the prefix of \(game.title) (\(gameID))"
@@ -141,7 +149,7 @@ public actor GameSupervisor {
 
         // 2. Rosetta
         emit(.checkingRosetta)
-        if !(await Rosetta.isInstalled()) {
+        if await !(Rosetta.isInstalled()) {
             guard await options.ensureRosetta() else { return .rosettaMissing }
         }
 
@@ -165,7 +173,9 @@ public actor GameSupervisor {
                 graphics = GraphicsPlan.resolve(requested: .wined3d, capabilities: runner.capabilities)
             }
         }
-        for note in graphics.notes { log.write(note) }
+        for note in graphics.notes {
+            log.write(note)
+        }
 
         // 5. Plan (also gives us the prefix path)
         var planned = game
@@ -179,7 +189,8 @@ public actor GameSupervisor {
             plan = try LaunchPlanner.plan(
                 game: planned, config: config, runner: runner, paths: paths, logs: options.logs,
                 graphics: graphics, globalEnvironment: LaunchPlanner.loadGlobalEnvironment(paths: paths),
-                baseEnvironment: options.baseEnvironment)
+                baseEnvironment: options.baseEnvironment
+            )
         } catch {
             return .launchFailed("\(error)")
         }
@@ -208,17 +219,29 @@ public actor GameSupervisor {
 
         // 7. Pre-launch hook (fire and forget, like upstream)
         let pre = options.preLaunch ?? game.preLaunch
-        if !isFileRun, !pre.isEmpty { spawnHook(pre, env: plan.environment) }
+        if !isFileRun, !pre.isEmpty {
+            spawnHook(pre, env: plan.environment)
+        }
 
         // 8. Spawn
-        log.writeSection("ENVIRONMENT", plan.environment.filter { Self.interestingKeys.contains($0.key) || $0.key.hasPrefix("DXVK") || $0.key.hasPrefix("MVK") || $0.key.hasPrefix("WINE") }
-            .sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" })
+        log.writeSection(
+            "ENVIRONMENT",
+            plan.environment
+                .filter {
+                    Self.interestingKeys.contains($0.key) || $0.key.hasPrefix("DXVK") || $0.key.hasPrefix("MVK") || $0
+                        .key
+                        .hasPrefix("WINE")
+                }
+                .sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+        )
         log.write("graphics: requested=\(graphics.requested.rawValue) backend=\(graphics.backend.rawValue)")
         emit(.starting(command: plan.commandDescription))
 
         let gameBaseline = PlaytimeStore(paths: paths).gamePlaytime(gameID: gameID)
         let totalBaseline = config.int("playtime")
-        if !isFileRun { _ = try? running.consumeStopRequest(gameID: gameID) }
+        if !isFileRun {
+            _ = try? running.consumeStopRequest(gameID: gameID)
+        }
 
         let pid: pid_t
         do {
@@ -226,13 +249,17 @@ public actor GameSupervisor {
                 argv: plan.argv,
                 options: .init(
                     workingDirectory: plan.workingDirectory, environment: plan.environment,
-                    outputFile: options.logs ? plan.logDirectory + "/wine.log" : nil, newSession: true))
+                    outputFile: options.logs ? plan.logDirectory + "/wine.log" : nil, newSession: true
+                )
+            )
         } catch {
             return .launchFailed("\(error)")
         }
         gamePID = pid
         startedAt = Date()
-        if !isFileRun { try? running.mark(gameID: gameID, pid: getpid()) }
+        if !isFileRun {
+            try? running.mark(gameID: gameID, pid: getpid())
+        }
         emit(.running(pid: pid))
 
         let sleepAssertion = plan.noSleep && !isFileRun ? SleepInhibitor(reason: "Game is running") : nil
@@ -252,7 +279,9 @@ public actor GameSupervisor {
             if !isFileRun, !stopRequested, running.consumeStopRequest(gameID: gameID) {
                 stopRequested = true
                 emit(.stopping)
-                Task { [weak self] in await self?.terminate(runner: runner, prefix: plan.prefix, env: plan.environment) }
+                Task { [weak self] in
+                    await self?.terminate(runner: runner, prefix: plan.prefix, env: plan.environment)
+                }
             }
 
             if gameExit != nil, !serverStarted {
@@ -284,7 +313,7 @@ public actor GameSupervisor {
         return nil
     }
 
-    private static let interestingKeys: Set<String> = ["FAUGUSID", "PATH"]
+    private static let interestingKeys: Set = ["FAUGUSID", "PATH"]
 
     // MARK: Pieces
 
@@ -304,24 +333,25 @@ public actor GameSupervisor {
 
         var needInstall: RemoteRunner?
         switch resolution {
-        case .installed(let r):
+        case let .installed(r):
             if wantsUpdateCheck, updatesAllowed, let flavor = r.flavor,
-                let remotes = try? await options.feed(),
-                let latest = GcenxFeed.latest(flavor, in: remotes),
-                VersionKey(latest.version) > VersionKey(r.version ?? "")
+               let remotes = try? await options.feed(),
+               let latest = GcenxFeed.latest(flavor, in: remotes),
+               VersionKey(latest.version) > VersionKey(r.version ?? "")
             {
                 needInstall = latest
             }
-        case .missingLatest(let flavor):
+        case let .missingLatest(flavor):
             guard allowed else { return (nil, .runnerNotFound(identifier)) }
             do {
                 let remotes = try await options.feed()
-                guard let latest = GcenxFeed.latest(flavor, in: remotes) else { return (nil, .runnerNotFound(identifier)) }
+                guard let latest = GcenxFeed.latest(flavor, in: remotes)
+                else { return (nil, .runnerNotFound(identifier)) }
                 needInstall = latest
             } catch { return (nil, .runnerInstallFailed("\(error)")) }
-        case .missing(let name):
+        case let .missing(name):
             guard allowed, let remotes = try? await options.feed(),
-                let match = remotes.first(where: { $0.directoryName == name })
+                  let match = remotes.first(where: { $0.directoryName == name })
             else { return (nil, .runnerNotFound(name)) }
             needInstall = match
         }
@@ -334,11 +364,16 @@ public actor GameSupervisor {
                 resolution = store.resolve(wanted, defaultRunner: defaultRunner)
             } catch {
                 // A failed *update* keeps the installed runner; a failed first install is fatal.
-                if case .installed = resolution { log.write("runner update failed: \(error)") }
-                else { return (nil, .runnerInstallFailed("\(error)")) }
+                if case .installed = resolution {
+                    log.write("runner update failed: \(error)")
+                } else {
+                    return (nil, .runnerInstallFailed("\(error)"))
+                }
             }
         }
-        if case .installed(let r) = resolution { return (r, nil) }
+        if case let .installed(r) = resolution {
+            return (r, nil)
+        }
         return (nil, .runnerNotFound(identifier))
     }
 
@@ -368,7 +403,8 @@ public actor GameSupervisor {
         do {
             let pid = try ProcessSpawner.spawn(
                 argv: [runner.wineserverBinary, "-w"],
-                options: .init(workingDirectory: nil, environment: env, newSession: false))
+                options: .init(workingDirectory: nil, environment: env, newSession: false)
+            )
             Task { [weak self] in
                 _ = await ProcessSpawner.waitForExit(pid: pid)
                 await self?.serverWaitFinished()
@@ -378,35 +414,50 @@ public actor GameSupervisor {
         }
     }
 
-    private func serverWaitFinished() { serverWaitDone = true }
+    private func serverWaitFinished() {
+        serverWaitDone = true
+    }
 
     /// Graceful, then forced (plan section 5 "Stop"). The grace period ends as soon as the
     /// game process has exited and nothing tagged with this game's `FAUGUSID` is left.
     private func terminate(runner: InstalledRunner, prefix: String, env: [String: String]) async {
         let t0 = Date()
-        func stamp(_ what: String) { log.write(String(format: "stop +%.2fs: %@", Date().timeIntervalSince(t0), what)) }
-        if gamePID > 0 { killpg(gamePID, SIGTERM) }
+        func stamp(_ what: String) {
+            log.write(String(format: "stop +%.2fs: %@", Date().timeIntervalSince(t0), what))
+        }
+        if gamePID > 0 {
+            killpg(gamePID, SIGTERM)
+        }
         stamp("SIGTERM sent")
         var serverKill: pid_t?
         if !prefixSharedWithOtherRunningGame(prefix: prefix) {
             // Not awaited: Wine's own graceful shutdown can take 10 s, far beyond our grace.
             serverKill = try? ProcessSpawner.spawn(
                 argv: [runner.wineserverBinary, "-k"],
-                options: .init(workingDirectory: nil, environment: env, newSession: false))
+                options: .init(workingDirectory: nil, environment: env, newSession: false)
+            )
             stamp("wineserver -k started")
         }
         let graceEnd = Date().addingTimeInterval(Double(options.stopGrace.components.seconds)
             + Double(options.stopGrace.components.attoseconds) / 1e18)
         while Date() < graceEnd {
-            if gameExit != nil, ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: gameID).isEmpty { break }
+            if gameExit != nil, ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: gameID).isEmpty {
+                break
+            }
             try? await Task.sleep(for: .milliseconds(200))
         }
         let leftovers = ProcessScanner.killByFaugusID(gameID)
-        if let serverKill, ProcessSpawner.isAlive(serverKill) { kill(serverKill, SIGKILL) }
-        if gameExit == nil, gamePID > 0 { killpg(gamePID, SIGKILL) }
+        if let serverKill, ProcessSpawner.isAlive(serverKill) {
+            kill(serverKill, SIGKILL)
+        }
+        if gameExit == nil, gamePID > 0 {
+            killpg(gamePID, SIGKILL)
+        }
         stamp("done (force-killed \(leftovers.count))")
         // Everything for this game is gone; there is no point waiting for the idle wineserver.
-        if gameExit != nil || leftovers.isEmpty { serverWaitDone = true }
+        if gameExit != nil || leftovers.isEmpty {
+            serverWaitDone = true
+        }
     }
 
     private func prefixSharedWithOtherRunningGame(prefix: String) -> Bool {
@@ -419,12 +470,14 @@ public actor GameSupervisor {
     private func saveProgress(gameBaseline: Int, totalBaseline: Int) {
         let runtime = Int(Date().timeIntervalSince(startedAt))
         try? PlaytimeStore(paths: paths).save(
-            gameID: gameID, gameBaseline: gameBaseline, totalBaseline: totalBaseline, runtimeSeconds: runtime)
+            gameID: gameID, gameBaseline: gameBaseline, totalBaseline: totalBaseline, runtimeSeconds: runtime
+        )
     }
 
     private func spawnHook(_ command: String, env: [String: String]) {
         _ = try? ProcessSpawner.spawn(
             argv: ["/bin/sh", "-c", command],
-            options: .init(workingDirectory: nil, environment: env, newSession: true))
+            options: .init(workingDirectory: nil, environment: env, newSession: true)
+        )
     }
 }

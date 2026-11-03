@@ -17,7 +17,9 @@ struct GameContextMenu: View {
         }
         Button(t("Edit")) { actions.edit(game) }
         Button(t("Delete")) { actions.delete(game) }
-        if game.runner != "Steam" { Button(t("Duplicate")) { actions.duplicate(game) } }
+        if game.runner != "Steam" {
+            Button(t("Duplicate")) { actions.duplicate(game) }
+        }
         Button(game.hidden ? t("Remove from hidden") : t("Hide")) { model.toggleHidden(game) }
         categoryMenu(t)
         Divider()
@@ -37,7 +39,7 @@ struct GameContextMenu: View {
     /// Upstream's run section: only for games that support logs (not Steam / Linux-Native).
     @ViewBuilder
     private func runFileMenu(_ t: Translator) -> some View {
-        if game.runner != "Steam" && game.runner != "Linux-Native" {
+        if game.runner != "Steam", game.runner != "Linux-Native" {
             let recent = model.recentRunFiles(for: game)
             Divider()
             Button(t("Run file in the prefix")) {

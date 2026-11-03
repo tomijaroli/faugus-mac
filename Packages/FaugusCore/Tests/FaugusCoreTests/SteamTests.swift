@@ -1,17 +1,17 @@
 import CoreGraphics
+@testable import FaugusCore
 import Foundation
 import ImageIO
 import Testing
 import UniformTypeIdentifiers
-
-@testable import FaugusCore
 
 @Suite("Steam", .serialized)
 struct SteamTests {
     private func makeJPEG(_ side: Int) -> Data {
         let ctx = CGContext(
             data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+        )!
         ctx.setFillColor(CGColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
         let out = NSMutableData()
@@ -25,20 +25,20 @@ struct SteamTests {
 
     @Test func parsesNestedObjectsAndComments() throws {
         let text = """
-            // comment
-            "libraryfolders"
+        // comment
+        "libraryfolders"
+        {
+            "0"
             {
-                "0"
+                "path"      "/Users/me/Library/Application Support/Steam"
+                "apps"
                 {
-                    "path"      "/Users/me/Library/Application Support/Steam"
-                    "apps"
-                    {
-                        "228980"    "1234"
-                    }
+                    "228980"    "1234"
                 }
-                "1" { "path" "/Volumes/Games/SteamLibrary" }
             }
-            """
+            "1" { "path" "/Volumes/Games/SteamLibrary" }
+        }
+        """
         let vdf = try #require(VDF.parse(text))
         let folders = try #require(vdf["libraryfolders"])
         #expect(folders["0"]?["path"]?.string == "/Users/me/Library/Application Support/Steam")
@@ -48,13 +48,25 @@ struct SteamTests {
     }
 
     @Test func parsesEscapesBareTokensAndRepeatedKeys() throws {
-        let vdf = try #require(VDF.parse("\"a\" \"x\\\\y \\\"q\\\"\"\n\"a\" \"second\"\nbare token\n\"BOM\" \"\u{FEFF}v\""))
+        let vdf = try #require(VDF
+            .parse("\"a\" \"x\\\\y \\\"q\\\"\"\n\"a\" \"second\"\nbare token\n\"BOM\" \"\u{FEFF}v\""))
         #expect(vdf["a"]?.string == "second")
         #expect(vdf["bare"]?.string == "token")
     }
 
     @Test func badInputNeverCrashes() {
-        for text in ["", "{", "}", "\"a\"", "\"a\" {", "\"a\" { \"b\" ", "\"a\" { \"b\" \"c\" } }", "\"", "\"a\" \"b", String(repeating: "\"a\" {", count: 500)] {
+        for text in [
+            "",
+            "{",
+            "}",
+            "\"a\"",
+            "\"a\" {",
+            "\"a\" { \"b\" ",
+            "\"a\" { \"b\" \"c\" } }",
+            "\"",
+            "\"a\" \"b",
+            String(repeating: "\"a\" {", count: 500),
+        ] {
             _ = VDF.parse(text)
         }
         #expect(VDF.parse("}") == nil)
@@ -72,44 +84,48 @@ struct SteamTests {
             root + "/steamapps/common/Celeste", root + "/config", root + "/userdata/1034930219/config",
             root + "/userdata/42/config", root + "/userdata/0/config", root + "/userdata/notanumber",
             second + "/steamapps/common/Hades", root + "/appcache/librarycache/504230/abc",
-        ] { try fm.createDirectory(atPath: d, withIntermediateDirectories: true) }
+        ] {
+            try fm.createDirectory(atPath: d, withIntermediateDirectories: true)
+        }
 
-        func write(_ path: String, _ text: String) throws { try Data(text.utf8).write(to: URL(fileURLWithPath: path)) }
+        func write(_ path: String, _ text: String) throws {
+            try Data(text.utf8).write(to: URL(fileURLWithPath: path))
+        }
         try write(root + "/steamapps/libraryfolders.vdf", """
-            "libraryfolders" {
-              "0" { "path" "\(root)" }
-              "1" { "path" "\(second)" }
-            }
-            """)
+        "libraryfolders" {
+          "0" { "path" "\(root)" }
+          "1" { "path" "\(second)" }
+        }
+        """)
         // 76561198995195947 = 1034930219 + base
         try write(root + "/config/loginusers.vdf", """
-            "users" {
-              "76561198995195947" { "PersonaName" "Tomi" "AccountName" "tomi" }
-              "76561197960265770" { "PersonaName" "alice" }
-            }
-            """)
+        "users" {
+          "76561198995195947" { "PersonaName" "Tomi" "AccountName" "tomi" }
+          "76561197960265770" { "PersonaName" "alice" }
+        }
+        """)
         try write(root + "/steamapps/appmanifest_504230.acf", """
-            "AppState" { "appid" "504230" "name" "Celeste" "installdir" "Celeste" "LastOwner" "76561198995195947" }
-            """)
+        "AppState" { "appid" "504230" "name" "Celeste" "installdir" "Celeste" "LastOwner" "76561198995195947" }
+        """)
         try write(second + "/steamapps/appmanifest_1145360.acf", """
-            "AppState" { "appid" "1145360" "name" "Hades" "installdir" "Hades" "LastOwner" "76561197960265770" }
-            """)
+        "AppState" { "appid" "1145360" "name" "Hades" "installdir" "Hades" "LastOwner" "76561197960265770" }
+        """)
         try write(root + "/steamapps/appmanifest_1493710.acf", """
-            "AppState" { "appid" "1493710" "name" "Proton Experimental" "installdir" "Proton" "LastOwner" "76561198995195947" }
-            """)
+        "AppState" { "appid" "1493710" "name" "Proton Experimental" "installdir" "Proton" "LastOwner" "76561198995195947" }
+        """)
         try write(root + "/steamapps/appmanifest_9.acf", "\"AppState\" { \"appid\" \"9\" \"installdir\" \"NoName\" }")
         try write(root + "/userdata/1034930219/config/localconfig.vdf", """
-            "UserLocalConfigStore" {
-              "Software" { "Valve" { "Steam" { "apps" {
-                "504230" { "Playtime" "125" "LastPlayed" "1" }
-                "1145360" { "Playtime" "30" }
-              } } } }
-              "FamilyGroup" { "members" { "0" { "accountid" "42" } } }
-            }
-            """)
+        "UserLocalConfigStore" {
+          "Software" { "Valve" { "Steam" { "apps" {
+            "504230" { "Playtime" "125" "LastPlayed" "1" }
+            "1145360" { "Playtime" "30" }
+          } } } }
+          "FamilyGroup" { "members" { "0" { "accountid" "42" } } }
+        }
+        """)
         try write(root + "/userdata/42/config/localconfig.vdf", """
-            "UserLocalConfigStore" { "Software" { "Valve" { "Steam" { "apps" { "504230" { "Playtime" "10" } } } } } }
-            """)
+        "UserLocalConfigStore" { "Software" { "Valve" { "Steam" { "apps" { "504230" { "Playtime" "10" } } } } } }
+        """)
         return steam
     }
 
@@ -163,7 +179,7 @@ struct SteamTests {
         #expect(steam.playtimeMinutes(appID: "999", accountID: nil) == 0)
         #expect(steam.installFolder(appID: "504230") == steam.root + "/steamapps/common/Celeste")
         #expect(steam.installFolder(appID: "1145360") == paths.home + "/Disk/SteamLibrary/steamapps/common/Hades")
-        #expect(steam.installFolder(appID: "1493710") == nil)  // folder missing
+        #expect(steam.installFolder(appID: "1493710") == nil) // folder missing
         #expect(steam.installFolder(appID: "nope") == nil)
     }
 
@@ -207,7 +223,8 @@ struct SteamTests {
     @Test func launchURLs() {
         #expect(SteamLaunch.url(appID: "504230", gameArguments: "") == "steam://rungameid/504230")
         #expect(SteamLaunch.url(appID: " 504230 ", gameArguments: "  ") == "steam://rungameid/504230")
-        #expect(SteamLaunch.url(appID: "504230", gameArguments: "-windowed -w 1280") == "steam://run/504230//-windowed%20-w%201280/")
+        #expect(SteamLaunch
+            .url(appID: "504230", gameArguments: "-windowed -w 1280") == "steam://run/504230//-windowed%20-w%201280/")
         #expect(SteamLaunch.url(appID: "504230", gameArguments: "a/b?c") == "steam://run/504230//a%2Fb%3Fc/")
         #expect(SteamLaunch.url(appID: "", gameArguments: "") == nil)
         #expect(SteamLaunch.url(appID: "12 34", gameArguments: "") == nil)
@@ -228,7 +245,9 @@ struct SteamTests {
         let box = Box()
         var o = SupervisorOptions()
         o.steamSplashDuration = .milliseconds(10)
-        o.openSteamURL = { box.urls.append($0); return true }
+        o.openSteamURL = { box.urls.append($0)
+            return true
+        }
         let events = EventLog()
         let failure = await GameSupervisor(paths: paths, gameID: "celeste", options: o) { events.add($0) }.run()
         #expect(failure == nil)

@@ -14,12 +14,26 @@ final class RunnerMode {
     private var isSteam = false
     private var splashShownAt = Date()
 
-    static func run(gameID: String, logs: Bool, preLaunch: String, postLaunch: String, runFile: String? = nil, adhocGame: Game? = nil) -> Never {
+    static func run(
+        gameID: String,
+        logs: Bool,
+        preLaunch: String,
+        postLaunch: String,
+        runFile: String? = nil,
+        adhocGame: Game? = nil
+    ) -> Never {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         let mode = RunnerMode()
         Task { @MainActor in
-            await mode.start(gameID: gameID, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch, runFile: runFile, adhocGame: adhocGame)
+            await mode.start(
+                gameID: gameID,
+                logs: logs,
+                preLaunch: preLaunch,
+                postLaunch: postLaunch,
+                runFile: runFile,
+                adhocGame: adhocGame
+            )
             exit(0)
         }
         app.run()
@@ -27,24 +41,44 @@ final class RunnerMode {
     }
 
     /// `--run <file>` in a saved game's prefix, or in a prefix from the Add Game dialog.
-    static func run(target: RunFileTarget, logs: Bool, preLaunch: String, postLaunch: String, runFile: String) -> Never {
+    static func run(
+        target: RunFileTarget,
+        logs: Bool,
+        preLaunch: String,
+        postLaunch: String,
+        runFile: String
+    ) -> Never {
         switch target {
-        case .game(let id):
+        case let .game(id):
             run(gameID: id, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch, runFile: runFile)
-        case .prefix(let path, let runner, let logID):
+        case let .prefix(path, runner, logID):
             var game = Game(gameID: logID.isEmpty ? "installer" : logID, title: logID.isEmpty ? "installer" : logID)
             game.prefix = path
             game.runner = runner
-            run(gameID: game.gameID, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch, runFile: runFile, adhocGame: game)
+            run(
+                gameID: game.gameID,
+                logs: logs,
+                preLaunch: preLaunch,
+                postLaunch: postLaunch,
+                runFile: runFile,
+                adhocGame: game
+            )
         }
     }
 
-    private func start(gameID: String, logs: Bool, preLaunch: String, postLaunch: String, runFile: String?, adhocGame: Game?) async {
+    private func start(
+        gameID: String,
+        logs: Bool,
+        preLaunch: String,
+        postLaunch: String,
+        runFile: String?,
+        adhocGame: Game?
+    ) async {
         self.gameID = gameID
         let config = try? FaugusConfig.load(paths: paths)
         let language =
             ProcessInfo.processInfo.environment["FAUGUS_LANG"]
-            ?? config?.string("language", default: "en_US") ?? "en_US"
+                ?? config?.string("language", default: "en_US") ?? "en_US"
         translator = AppModel.languageCatalogs()?.translator(for: language) ?? .identity
         // Running a file in the prefix shows no splash (upstream), only errors.
         let splashEnabled = runFile == nil && (config?.bool("splash-window-enabled") ?? true)
@@ -56,7 +90,9 @@ final class RunnerMode {
             splash.model.status = translator("Loading...")
             splash.show(
                 iconPath: game?.icon,
-                fallbackIconPath: Bundle.main.resourceURL?.appendingPathComponent("assets/faugus-launcher-raster.png").path)
+                fallbackIconPath: Bundle.main.resourceURL?.appendingPathComponent("assets/faugus-launcher-raster.png")
+                    .path
+            )
             splashShownAt = Date()
             startWindowWatcher()
         }
@@ -65,8 +101,12 @@ final class RunnerMode {
         options.logs = logs
         options.runFile = runFile
         options.adhocGame = adhocGame
-        if !preLaunch.isEmpty { options.preLaunch = preLaunch }
-        if !postLaunch.isEmpty { options.postLaunch = postLaunch }
+        if !preLaunch.isEmpty {
+            options.preLaunch = preLaunch
+        }
+        if !postLaunch.isEmpty {
+            options.postLaunch = postLaunch
+        }
         options.allowDownloads = true
         options.ensureRosetta = { await RunnerMode.askToInstallRosetta() }
 
@@ -78,10 +118,15 @@ final class RunnerMode {
         let failure = await supervisor.run()
         windowTimer?.invalidate()
         splash.close()
-        if let failure { showFailure(failure) }
-        if runFile != nil { return }
+        if let failure {
+            showFailure(failure)
+        }
+        if runFile != nil {
+            return
+        }
         DistributedNotificationCenter.default().postNotificationName(
-            .faugusRefreshMenu, object: nil, userInfo: nil, deliverImmediately: true)
+            .faugusRefreshMenu, object: nil, userInfo: nil, deliverImmediately: true
+        )
     }
 
     // MARK: Events
@@ -91,7 +136,7 @@ final class RunnerMode {
         switch event {
         case .preparing: splash.model.status = t("Loading...")
         case .checkingRosetta: break
-        case .downloadingRunner(let name, let p), .downloadingComponent(let name, let p):
+        case let .downloadingRunner(name, p), let .downloadingComponent(name, p):
             splash.model.status = "Downloading \(name)..."
             splash.model.progress = p
         case .creatingPrefix:
@@ -109,14 +154,16 @@ final class RunnerMode {
             MainActor.assumeIsolated {
                 guard let self, self.splash.isVisible else { return }
                 let timedOut = Date().timeIntervalSince(self.splashShownAt) > 120
-                if timedOut || GameWindowWatcher.gameWindowVisible(gameID: self.gameID) { self.splash.close() }
+                if timedOut || GameWindowWatcher.gameWindowVisible(gameID: self.gameID) {
+                    self.splash.close()
+                }
             }
         }
     }
 
     // MARK: Dialogs
 
-    nonisolated private static func askToInstallRosetta() async -> Bool {
+    private nonisolated static func askToInstallRosetta() async -> Bool {
         let accepted: Bool = await MainActor.run {
             let alert = NSAlert()
             alert.messageText = "Rosetta 2 is required"
@@ -137,7 +184,7 @@ final class RunnerMode {
         let alert = NSAlert()
         alert.alertStyle = .warning
         switch failure {
-        case .runnerNotFound(let name):
+        case let .runnerNotFound(name):
             alert.messageText = t.format("%s was not found", name)
             alert.informativeText = "Open the Runner Manager to install it, or choose another runner."
         case .rosettaMissing:

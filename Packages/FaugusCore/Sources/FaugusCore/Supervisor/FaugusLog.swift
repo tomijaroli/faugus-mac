@@ -19,11 +19,15 @@ public final class FaugusLog: @unchecked Sendable {
     }
 
     private func append(_ text: String) {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         let fm = FileManager.default
         if !fm.fileExists(atPath: path) {
             // Created on first write, so a run that never logs leaves no folder behind.
-            try? fm.createDirectory(atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+            try? fm.createDirectory(
+                atPath: (path as NSString).deletingLastPathComponent,
+                withIntermediateDirectories: true
+            )
             fm.createFile(atPath: path, contents: nil)
         }
         guard let h = FileHandle(forWritingAtPath: path) else { return }
@@ -33,9 +37,11 @@ public final class FaugusLog: @unchecked Sendable {
     }
 
     public func truncate() {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         try? FileManager.default.createDirectory(
-            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true
+        )
         try? Data().write(to: URL(fileURLWithPath: path))
     }
 }

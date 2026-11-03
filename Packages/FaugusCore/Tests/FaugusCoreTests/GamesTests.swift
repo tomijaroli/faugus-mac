@@ -1,12 +1,11 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 @Suite("games.json")
 struct GamesTests {
     @Test func gameFieldsMatchUpstream() throws {
-        let upstream = try JSONParser.parse(try TestSupport.fixtureData("game_fields.json"))
+        let upstream = try JSONParser.parse(TestSupport.fixtureData("game_fields.json"))
         #expect(upstream.arrayValue?.compactMap(\.stringValue) == gameFields)
     }
 
@@ -31,7 +30,9 @@ struct GamesTests {
         let a = try JSONParser.parse(before).arrayValue!
         let b = try JSONParser.parse(after).arrayValue!
         #expect(a.count == b.count)
-        for entry in a { #expect(b.contains(entry)) }
+        for entry in a {
+            #expect(b.contains(entry))
+        }
         #expect(!String(decoding: after, as: UTF8.self).contains("\"graphics\""))
     }
 
@@ -41,7 +42,7 @@ struct GamesTests {
         try TestSupport.install(fixture: "games.upstream.json", at: paths.gamesJSON)
         let before = try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))
         let store = GamesStore(paths: paths)
-        try store.save(games: try store.loadAll())
+        try store.save(games: store.loadAll())
         #expect(try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON)) == before)
     }
 
@@ -58,7 +59,7 @@ struct GamesTests {
         #expect(try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON)) == before)
     }
 
-    @Test func missingGraphicsIsNeverBackfilled() throws {
+    @Test func missingGraphicsIsNeverBackfilled() {
         var g = Game(gameID: "x", title: "X")
         #expect(g.graphics == nil)
         #expect(g.saveObject()["graphics"] == nil)
@@ -88,11 +89,15 @@ struct GamesTests {
         let store = GamesStore(paths: paths)
         let visible = try store.load(showHidden: false)
         try store.save(games: visible, deletedGameID: "celeste")
-        #expect(Set(try store.loadAll().map(\.gameID)) == ["the-witcher-3-wild-hunt", "hollow-knight-silksong", "installer-test"])
+        #expect(try Set(store.loadAll().map(\.gameID)) == [
+            "the-witcher-3-wild-hunt",
+            "hollow-knight-silksong",
+            "installer-test",
+        ])
 
         // Deleting a hidden game (it is not in `visible`) also drops it.
         try store.save(games: [], deletedGameID: "hollow-knight-silksong")
-        #expect(!(try store.existingGameIDs()).contains("hollow-knight-silksong"))
+        #expect(try !(store.existingGameIDs()).contains("hollow-knight-silksong"))
     }
 
     @Test func showHiddenAndSortByLowercasedTitle() throws {
@@ -113,7 +118,8 @@ struct GamesTests {
         let store = GamesStore(paths: paths)
         #expect(throws: GamesStoreError.self) { try store.loadAll() }
         #expect(throws: GamesStoreError.self) { try store.save(games: [Game(gameID: "a", title: "A")]) }
-        #expect(String(decoding: try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON)), as: UTF8.self) == "[{oops")
+        #expect(try String(decoding: Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON)), as: UTF8.self) ==
+            "[{oops")
     }
 
     @Test func missingFileMeansEmptyAndFirstSaveCreatesIt() throws {
@@ -133,7 +139,7 @@ struct GamesTests {
         let store = GamesStore(paths: paths)
         try store.save(games: [Game(gameID: "a", title: "A")])
         let start = Date(timeIntervalSince1970: 1_800_000_000)
-        for i in 0..<25 {
+        for i in 0 ..< 25 {
             try store.save(games: [Game(gameID: "a", title: "A\(i)")], now: start.addingTimeInterval(Double(i)))
         }
         let files = try FileManager.default.contentsOfDirectory(atPath: paths.gamesBackupDir).sorted()
@@ -163,7 +169,8 @@ struct GameIDTests {
             ("ＡＢＣ １２３", "ａｂｃ-１２３"),
             ("Ⅳ roman", "ⅳ-roman"),
             ("İstanbul", "istanbul"),
-        ])
+        ]
+    )
     func formatTitle(input: String, expected: String) {
         #expect(GameID.format(title: input) == expected)
     }

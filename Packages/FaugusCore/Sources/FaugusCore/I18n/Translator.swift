@@ -13,11 +13,15 @@ public struct Translator: Sendable {
 
     public static let identity = Translator(languageCode: "en_US", catalogs: [])
 
-    public func callAsFunction(_ msgid: String) -> String { translate(msgid) }
+    public func callAsFunction(_ msgid: String) -> String {
+        translate(msgid)
+    }
 
     public func translate(_ msgid: String, context: String? = nil) -> String {
         for c in catalogs {
-            if let t = c.translate(msgid, context: context) { return t }
+            if let t = c.translate(msgid, context: context) {
+                return t
+            }
         }
         return msgid
     }
@@ -36,27 +40,46 @@ public struct Translator: Sendable {
             let c = template[i]
             let next = template.index(after: i)
             if c == "{", next < template.endIndex {
-                if template[next] == "{" { out.append("{"); i = template.index(after: next); continue }
+                if template[next] == "{" {
+                    out.append("{")
+                    i = template.index(after: next)
+                    continue
+                }
                 if let close = template[next...].firstIndex(of: "}") {
-                    let inner = template[next..<close]
+                    let inner = template[next ..< close]
                     if inner.isEmpty {
-                        if auto < args.count { out += args[auto] }
+                        if auto < args.count {
+                            out += args[auto]
+                        }
                         auto += 1
-                        i = template.index(after: close); continue
+                        i = template.index(after: close)
+                        continue
                     }
                     if let n = Int(inner) {
-                        if n < args.count { out += args[n] }
-                        i = template.index(after: close); continue
+                        if n < args.count {
+                            out += args[n]
+                        }
+                        i = template.index(after: close)
+                        continue
                     }
                 }
             } else if c == "}", next < template.endIndex, template[next] == "}" {
-                out.append("}"); i = template.index(after: next); continue
+                out.append("}")
+                i = template.index(after: next)
+                continue
             } else if c == "%", next < template.endIndex {
-                if template[next] == "%" { out.append("%"); i = template.index(after: next); continue }
+                if template[next] == "%" {
+                    out.append("%")
+                    i = template.index(after: next)
+                    continue
+                }
                 if template[next] == "s" || template[next] == "d" {
-                    if auto < args.count { out += args[auto] }
+                    if auto < args.count {
+                        out += args[auto]
+                    }
                     auto += 1
-                    i = template.index(after: next); continue
+                    i = template.index(after: next)
+                    continue
                 }
             }
             out.append(c)

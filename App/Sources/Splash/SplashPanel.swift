@@ -31,7 +31,8 @@ final class SplashPanel {
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 240),
             styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
-            backing: .buffered, defer: false)
+            backing: .buffered, defer: false
+        )
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = true
@@ -53,7 +54,9 @@ final class SplashPanel {
         panel = nil
     }
 
-    var isVisible: Bool { panel != nil }
+    var isVisible: Bool {
+        panel != nil
+    }
 }
 
 private struct SplashView: View {

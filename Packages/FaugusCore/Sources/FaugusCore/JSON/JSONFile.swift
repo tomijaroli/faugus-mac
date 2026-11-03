@@ -36,7 +36,7 @@ public enum JSONFile {
     /// `load_json_file(path, default)`: missing or invalid file yields `default`.
     public static func load(_ path: String, default fallback: JSONValue = .array([])) -> JSONValue {
         guard let data = FileManager.default.contents(atPath: path),
-            let value = try? JSONParser.parse(data)
+              let value = try? JSONParser.parse(data)
         else { return fallback }
         return value
     }

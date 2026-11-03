@@ -9,17 +9,28 @@ public struct DXVKComponent: Sendable {
     public static let assetName = "dxvk-macOS-async-v1.10.3-20230507-repack.tar.gz"
     public static let archiveRoot = "dxvk-macOS-async-v1.10.3-20230507-repack"
     public static let downloadURL = URL(
-        string: "https://github.com/Gcenx/DXVK-macOS/releases/download/\(tag)/\(assetName)")!
+        string: "https://github.com/Gcenx/DXVK-macOS/releases/download/\(tag)/\(assetName)"
+    )!
     /// GitHub exposes no digest for this asset, so it is pinned here.
     public static let sha256 = "acd1520ad105d8ef124a09c8e11a259a5dc8bdc565ad18e0e52693f9807b2477"
     public static let dllNames = ["d3d10core.dll", "d3d11.dll"]
 
     public let paths: FaugusPaths
-    public init(paths: FaugusPaths) { self.paths = paths }
+    public init(paths: FaugusPaths) {
+        self.paths = paths
+    }
 
-    public var installDirectory: String { paths.dxvkMacOSDir + "/" + DXVKComponent.tag }
-    public var x64Directory: String { installDirectory + "/x64" }
-    public var x32Directory: String { installDirectory + "/x32" }
+    public var installDirectory: String {
+        paths.dxvkMacOSDir + "/" + DXVKComponent.tag
+    }
+
+    public var x64Directory: String {
+        installDirectory + "/x64"
+    }
+
+    public var x32Directory: String {
+        installDirectory + "/x32"
+    }
 
     public var isInstalled: Bool {
         let fm = FileManager.default
@@ -29,14 +40,18 @@ public struct DXVKComponent: Sendable {
     }
 
     public func install(progress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
-        if isInstalled { return }
+        if isInstalled {
+            return
+        }
         let fm = FileManager.default
         try fm.createDirectory(atPath: paths.tempDir, withIntermediateDirectories: true)
         let archive = URL(fileURLWithPath: paths.tempDir).appendingPathComponent(DXVKComponent.assetName + ".part")
         defer { try? fm.removeItem(at: archive) }
 
         let downloader = Downloader(destination: archive) { done, total in
-            if total > 0 { progress(min(1, Double(done) / Double(total)) * 0.8) }
+            if total > 0 {
+                progress(min(1, Double(done) / Double(total)) * 0.8)
+            }
         }
         try await downloader.download(DXVKComponent.downloadURL)
         try installArchive(at: archive.path, expectedSHA256: DXVKComponent.sha256)
@@ -65,7 +80,9 @@ public struct DXVKComponent: Sendable {
                 throw RunnerError.extractionFailed("missing \(arch)/\(dll)")
             }
         }
-        if fm.fileExists(atPath: installDirectory) { try fm.removeItem(atPath: installDirectory) }
+        if fm.fileExists(atPath: installDirectory) {
+            try fm.removeItem(atPath: installDirectory)
+        }
         try fm.createDirectory(atPath: paths.dxvkMacOSDir, withIntermediateDirectories: true)
         try fm.moveItem(atPath: extractedRoot, toPath: installDirectory)
     }

@@ -17,12 +17,15 @@ final class AppModel {
             // `show-hidden` changes the games list, everything else is read live.
             let old = (oldValue ?? config)?.bool("show-hidden")
             let new = (previewConfig ?? config)?.bool("show-hidden")
-            if old != new { reloadGames() }
+            if old != new {
+                reloadGames()
+            }
         }
     }
+
     private(set) var games: [Game] = []
     private(set) var translator: Translator = .identity
-    private(set) var languageCode: String = "en_US"
+    private(set) var languageCode = "en_US"
     private(set) var loadError: String?
     /// `gameid -> runner pid`, refreshed once per second and on `refresh-menu`.
     private(set) var running: [String: Int32] = [:]
@@ -32,23 +35,49 @@ final class AppModel {
 
     // Library state (search, sort, category, zoom and selection of the main window).
     var searchText = ""
-    var sortMode: SortMode = .alpha { didSet { if sortMode != oldValue { persistInterfaceState() } } }
-    var category: CategorySelection = .all { didSet { if category != oldValue { persistInterfaceState() } } }
+    var sortMode: SortMode = .alpha {
+        didSet {
+            if sortMode != oldValue {
+                persistInterfaceState()
+            }
+        }
+    }
+
+    var category: CategorySelection = .all {
+        didSet {
+            if category != oldValue {
+                persistInterfaceState()
+            }
+        }
+    }
+
     /// Cover zoom in percent, 50 to 100 in steps of 10.
-    var coverSize = 100 { didSet { if coverSize != oldValue { persistInterfaceState() } } }
+    var coverSize = 100 {
+        didSet {
+            if coverSize != oldValue {
+                persistInterfaceState()
+            }
+        }
+    }
+
     var selection: String?
     var customOrder: [String: Int] = [:]
     var categoryNames: [String] = []
     @ObservationIgnored var dragSourceID: String?
     @ObservationIgnored var playSessions: [String: (start: Date?, baseline: Int)] = [:]
     @ObservationIgnored private var restoredInterfaceState = false
-    @ObservationIgnored private var steamInstalledCache: [String: (at: Date, ids: Set<String>, names: Set<String>)] = [:]
+    @ObservationIgnored private var steamInstalledCache: [String: (at: Date, ids: Set<String>, names: Set<String>)] =
+        [:]
     @ObservationIgnored private var steamPlaytimeCache: [String: (at: Date, seconds: Int)] = [:]
 
     /// What the library draws with: the Settings draft while the dialog is open.
-    var activeConfig: FaugusConfig? { previewConfig ?? config }
+    var activeConfig: FaugusConfig? {
+        previewConfig ?? config
+    }
 
-    var isRightToLeft: Bool { LanguageCatalogs.isRightToLeft(languageCode) }
+    var isRightToLeft: Bool {
+        LanguageCatalogs.isRightToLeft(languageCode)
+    }
 
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var notificationToken: NSObjectProtocol?
@@ -67,7 +96,10 @@ final class AppModel {
             let cfg = try FaugusConfig.load(paths: paths)
             config = cfg
             // `FAUGUS_LANG` is a QA override that never touches config.json.
-            languageCode = ProcessInfo.processInfo.environment["FAUGUS_LANG"] ?? cfg.string("language", default: "en_US")
+            languageCode = ProcessInfo.processInfo.environment["FAUGUS_LANG"] ?? cfg.string(
+                "language",
+                default: "en_US"
+            )
             translator = Self.languageCatalogs()?.translator(for: languageCode) ?? .identity
             games = try GamesStore(paths: paths).load(showHidden: (previewConfig ?? cfg).bool("show-hidden"))
             running = RunningGames(paths: paths).load()
@@ -83,7 +115,9 @@ final class AppModel {
 
     private func reloadGames() {
         let show = activeConfig?.bool("show-hidden") ?? false
-        if let loaded = try? GamesStore(paths: paths).load(showHidden: show) { games = loaded }
+        if let loaded = try? GamesStore(paths: paths).load(showHidden: show) {
+            games = loaded
+        }
     }
 
     /// Applies `sort`, `category` and `cover-size` from `config.json` once per launch.
@@ -101,7 +135,9 @@ final class AppModel {
         guard var cfg = config else { return }
         body(&cfg)
         guard cfg != config else { return }
-        do { try cfg.save() } catch { actionError = "\(error)"; return }
+        do { try cfg.save() } catch { actionError = "\(error)"
+            return
+        }
         config = cfg
     }
 
@@ -124,17 +160,19 @@ final class AppModel {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 guard let self else { return }
-                let paths = self.paths
-                let previous = self.running
+                let paths = paths
+                let previous = running
                 let current = await Task.detached { () -> [String: Int32] in
                     let store = RunningGames(paths: paths)
                     _ = store.pruneDead()
                     return store.load()
                 }.value
                 if current != previous {
-                    self.running = current
+                    running = current
                     // A game ended: playtime and last_played changed on disk.
-                    if current.count < previous.count || Set(previous.keys) != Set(current.keys) { self.reload() }
+                    if current.count < previous.count || Set(previous.keys) != Set(current.keys) {
+                        reload()
+                    }
                 }
             }
         }
@@ -146,7 +184,7 @@ final class AppModel {
             return LanguageCatalogs(localeDir: URL(fileURLWithPath: override))
         }
         guard let dir = Bundle.main.resourceURL?.appendingPathComponent("languages"),
-            FileManager.default.fileExists(atPath: dir.path)
+              FileManager.default.fileExists(atPath: dir.path)
         else { return nil }
         return LanguageCatalogs(localeDir: dir)
     }
@@ -183,9 +221,13 @@ final class AppModel {
         reload()
     }
 
-    func discardSettingsPreview() { previewConfig = nil }
+    func discardSettingsPreview() {
+        previewConfig = nil
+    }
 
-    func logsSize() -> Int64? { LogsMaintenance.size(of: paths.logsDir) }
+    func logsSize() -> Int64? {
+        LogsMaintenance.size(of: paths.logsDir)
+    }
 
     func clearLogs() {
         do { try LogsMaintenance.clear(paths: paths) } catch { actionError = "\(error)" }
@@ -193,22 +235,35 @@ final class AppModel {
 
     // MARK: Running games
 
-    func isRunning(_ game: Game) -> Bool { running[game.gameID] != nil }
+    func isRunning(_ game: Game) -> Bool {
+        running[game.gameID] != nil
+    }
 
     /// Spawns `Faugus --game <id> [--logs]` in its own session, so quitting the launcher never
     /// stops a game (upstream behaviour; plan section 5).
     func play(_ game: Game, withLogs: Bool) {
-        if isRunning(game) { stop(game); return }
+        if isRunning(game) {
+            stop(game)
+            return
+        }
         guard let exe = Bundle.main.executablePath ?? CommandLine.arguments.first else { return }
         var argv = [exe, "--game", game.gameID]
-        if withLogs { argv.append("--logs") }
+        if withLogs {
+            argv.append("--logs")
+        }
         let gameDir = (paths.expand(game.path) as NSString).deletingLastPathComponent
         var isDir: ObjCBool = false
-        let cwd = FileManager.default.fileExists(atPath: gameDir, isDirectory: &isDir) && isDir.boolValue ? gameDir : nil
+        let cwd = FileManager.default.fileExists(atPath: gameDir, isDirectory: &isDir) && isDir
+            .boolValue ? gameDir : nil
         do {
             _ = try ProcessSpawner.spawn(
                 argv: argv,
-                options: .init(workingDirectory: cwd, environment: ProcessInfo.processInfo.environment, newSession: true))
+                options: .init(
+                    workingDirectory: cwd,
+                    environment: ProcessInfo.processInfo.environment,
+                    newSession: true
+                )
+            )
             actionError = nil
             updateLastPlayedOrdering(game)
         } catch {
@@ -230,13 +285,18 @@ final class AppModel {
     func runFile(_ file: String, in game: Game, withLogs: Bool = false) {
         guard let exe = Bundle.main.executablePath ?? CommandLine.arguments.first else { return }
         var argv = [exe, "--run", file, "--in-game", game.gameID]
-        if withLogs { argv.append("--logs") }
+        if withLogs {
+            argv.append("--logs")
+        }
         do {
             var env = ProcessInfo.processInfo.environment
             env["FAUGUS_DISABLE_UPDATES"] = "1"
-            _ = try ProcessSpawner.spawn(argv: argv, options: .init(workingDirectory: nil, environment: env, newSession: true))
+            _ = try ProcessSpawner.spawn(
+                argv: argv,
+                options: .init(workingDirectory: nil, environment: env, newSession: true)
+            )
             try? RecentRunFiles(paths: paths).record(gameID: game.gameID, file: file)
-                actionError = nil
+            actionError = nil
         } catch {
             actionError = "\(error)"
         }
@@ -250,11 +310,16 @@ final class AppModel {
         do {
             let pid = try ProcessSpawner.spawn(
                 argv: argv,
-                options: .init(workingDirectory: nil, environment: ProcessInfo.processInfo.environment, newSession: true))
+                options: .init(
+                    workingDirectory: nil,
+                    environment: ProcessInfo.processInfo.environment,
+                    newSession: true
+                )
+            )
             actionError = nil
             await Task.detached {
                 var status: Int32 = 0
-                while waitpid(pid, &status, 0) < 0 && errno == EINTR {}
+                while waitpid(pid, &status, 0) < 0, errno == EINTR {}
             }.value
             return true
         } catch {
@@ -266,7 +331,8 @@ final class AppModel {
     /// The default prefix (`<default-prefix>/default`) that Settings' Winecfg, Winetricks and
     /// Run work in, with the default runner.
     var defaultPrefixPath: String {
-        let base = paths.expand(config?.string("default-prefix") ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        let base = paths.expand(config?.string("default-prefix") ?? "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
         return (base.isEmpty ? paths.prefixesDir : base) + "/default"
     }
 
@@ -278,7 +344,7 @@ final class AppModel {
         try? RunningGames(paths: paths).requestStop(gameID: game.gameID)
     }
 
-    private func updateLastPlayedOrdering(_ game: Game) {
+    private func updateLastPlayedOrdering(_: Game) {
         // Upstream records `latest-games.json`; that arrives with the full library (P2).
     }
 
@@ -303,7 +369,9 @@ final class AppModel {
     /// bat, drops it from the custom order and writes games.json. With `removePrefix` the prefix
     /// goes to the Trash (never `rm`), and only when no other game still uses it.
     func delete(_ game: Game, removePrefix: Bool) {
-        if isRunning(game) { stop(game) }
+        if isRunning(game) {
+            stop(game)
+        }
         let all = ((try? GamesStore(paths: paths).loadAll()) ?? []).filter { $0.gameID != game.gameID }
         let prefix = paths.expand(game.prefix)
         let shared = all.contains { paths.expand($0.prefix) == prefix }
@@ -360,7 +428,9 @@ final class AppModel {
     // MARK: Finder
 
     func gameLocation(_ game: Game) -> String? {
-        if game.runner == "Steam" { return steam.installFolder(appID: game.path) }
+        if game.runner == "Steam" {
+            return steam.installFolder(appID: game.path)
+        }
         let dir = (paths.expand(game.path) as NSString).deletingLastPathComponent
         return dir.isEmpty ? nil : dir
     }
@@ -374,16 +444,22 @@ final class AppModel {
     }
 
     func revealGameLocation(_ game: Game) {
-        if let dir = gameLocation(game) { NSWorkspace.shared.open(URL(fileURLWithPath: dir)) }
+        if let dir = gameLocation(game) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: dir))
+        }
     }
 
     func revealPrefix(_ game: Game) {
-        if let dir = prefixLocation(game) { NSWorkspace.shared.open(URL(fileURLWithPath: dir)) }
+        if let dir = prefixLocation(game) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: dir))
+        }
     }
 
     // MARK: Steam
 
-    var steam: SteamLibrary { SteamLibrary(home: paths.home) }
+    var steam: SteamLibrary {
+        SteamLibrary(home: paths.home)
+    }
 
     /// Upstream's `is_game_installed`: the executable exists, or for Steam the app id (or the
     /// title) is among Steam's installed games. Steam is re-read at most every 3 seconds.
@@ -405,8 +481,11 @@ final class AppModel {
         guard game.runner == "Steam" else { return game.playtime }
         let key = game.path + "|" + game.steamUser
         let now = Date()
-        if let hit = steamPlaytimeCache[key], now.timeIntervalSince(hit.at) <= 5 { return hit.seconds }
-        let seconds = steam.playtimeMinutes(appID: game.path, accountID: game.steamUser.isEmpty ? nil : game.steamUser) * 60
+        if let hit = steamPlaytimeCache[key], now.timeIntervalSince(hit.at) <= 5 {
+            return hit.seconds
+        }
+        let seconds = steam
+            .playtimeMinutes(appID: game.path, accountID: game.steamUser.isEmpty ? nil : game.steamUser) * 60
         steamPlaytimeCache[key] = (now, seconds)
         return seconds
     }
@@ -417,5 +496,7 @@ final class AppModel {
 
     // MARK: Runners
 
-    func installedRunners() -> [InstalledRunner] { RunnerStore(paths: paths).installed() }
+    func installedRunners() -> [InstalledRunner] {
+        RunnerStore(paths: paths).installed()
+    }
 }

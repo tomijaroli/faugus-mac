@@ -1,22 +1,26 @@
+@testable import FaugusCore
 import Foundation
 import Testing
 
-@testable import FaugusCore
-
 @Suite("Launch planning")
 struct LaunchPlanTests {
-    private func fakeRunner(caps: RunnerCapabilities = RunnerCapabilities(vulkan: true, sdl: true, gstreamer: true)) -> InstalledRunner {
+    private func fakeRunner(caps: RunnerCapabilities = RunnerCapabilities(vulkan: true, sdl: true, gstreamer: true))
+        -> InstalledRunner
+    {
         InstalledRunner(
             name: "Wine-Staging-11.21", directory: "/r/Wine-Staging-11.21",
             wineRoot: "/r/Wine-Staging-11.21/Wine Staging.app/Contents/Resources/wine",
-            flavor: .staging, version: "11.21", capabilities: caps)
+            flavor: .staging, version: "11.21", capabilities: caps
+        )
     }
 
-    private func env(_ plan: LaunchPlan, _ key: String) -> String? { plan.environment[key] }
+    private func env(_ plan: LaunchPlan, _ key: String) -> String? {
+        plan.environment[key]
+    }
 
     private func makeConfig() throws -> (FaugusConfig, FaugusPaths) {
         let paths = FaugusPaths(home: NSTemporaryDirectory() + "faugus-plan-\(UUID().uuidString)")
-        return (try FaugusConfig.load(paths: paths, language: "en_US"), paths)
+        return try (FaugusConfig.load(paths: paths, language: "en_US"), paths)
     }
 
     @Test func basicExeLaunch() throws {
@@ -28,7 +32,8 @@ struct LaunchPlanTests {
         let gfx = GraphicsPlan.resolve(requested: .dxvk, capabilities: fakeRunner().capabilities)
         let plan = try LaunchPlanner.plan(
             game: g, config: cfg, runner: fakeRunner(), paths: paths, logs: false, graphics: gfx,
-            baseEnvironment: ["PATH": "/usr/bin", "HOME": "/Users/u"])
+            baseEnvironment: ["PATH": "/usr/bin", "HOME": "/Users/u"]
+        )
 
         #expect(plan.argv == [fakeRunner().wineBinary, "/Games/Celeste/Celeste.exe"])
         #expect(env(plan, "WINEPREFIX") == "/Users/u/Faugus/celeste")
@@ -63,7 +68,8 @@ struct LaunchPlanTests {
         let plan = try LaunchPlanner.plan(
             game: g, config: cfg, runner: fakeRunner(), paths: paths, logs: false, graphics: gfx,
             globalEnvironment: [("BAR", "global"), ("WINEDEBUG", "err+all")],
-            baseEnvironment: [:])
+            baseEnvironment: [:]
+        )
 
         #expect(plan.argv == ["caffeinate", "-i", fakeRunner().wineBinary, "/g/w3.exe", "-windowed", "--res=1920 1080"])
         #expect(env(plan, "FOO") == "1")
@@ -80,7 +86,15 @@ struct LaunchPlanTests {
         var g = Game(gameID: "x", title: "X")
         g.path = "/g/x.exe"
         let gfx = GraphicsPlan.resolve(requested: .wined3d, capabilities: fakeRunner().capabilities)
-        let plan = try LaunchPlanner.plan(game: g, config: cfg, runner: fakeRunner(), paths: paths, logs: true, graphics: gfx, baseEnvironment: [:])
+        let plan = try LaunchPlanner.plan(
+            game: g,
+            config: cfg,
+            runner: fakeRunner(),
+            paths: paths,
+            logs: true,
+            graphics: gfx,
+            baseEnvironment: [:]
+        )
         #expect(env(plan, "WINEDEBUG") == LaunchPlanner.logsWineDebug)
         #expect(env(plan, "DXVK_LOG_PATH") == paths.logsDir + "/x")
         #expect(env(plan, "WINEDLLOVERRIDES") == "winemenubuilder.exe=d;d3d11,d3d10core=b")
@@ -95,7 +109,15 @@ struct LaunchPlanTests {
         g.addAppEnabled = true
         g.addAppBat = "/g/both.bat"
         let gfx = GraphicsPlan.resolve(requested: .wined3d, capabilities: fakeRunner().capabilities)
-        let plan = try LaunchPlanner.plan(game: g, config: cfg, runner: fakeRunner(), paths: paths, logs: false, graphics: gfx, baseEnvironment: [:])
+        let plan = try LaunchPlanner.plan(
+            game: g,
+            config: cfg,
+            runner: fakeRunner(),
+            paths: paths,
+            logs: false,
+            graphics: gfx,
+            baseEnvironment: [:]
+        )
         #expect(plan.argv == [fakeRunner().wineBinary, "cmd", "/c", "/g/both.bat"])
     }
 
@@ -105,13 +127,29 @@ struct LaunchPlanTests {
         let gfx = GraphicsPlan.resolve(requested: .wined3d, capabilities: fakeRunner().capabilities)
         let empty = Game(gameID: "x", title: "X")
         #expect(throws: LaunchError.emptyPath) {
-            try LaunchPlanner.plan(game: empty, config: cfg, runner: fakeRunner(), paths: paths, logs: false, graphics: gfx, baseEnvironment: [:])
+            try LaunchPlanner.plan(
+                game: empty,
+                config: cfg,
+                runner: fakeRunner(),
+                paths: paths,
+                logs: false,
+                graphics: gfx,
+                baseEnvironment: [:]
+            )
         }
         var bad = Game(gameID: "x", title: "X")
         bad.path = "/g/x.exe"
         bad.launchArguments = "FOO='unterminated"
         #expect(throws: LaunchError.self) {
-            try LaunchPlanner.plan(game: bad, config: cfg, runner: fakeRunner(), paths: paths, logs: false, graphics: gfx, baseEnvironment: [:])
+            try LaunchPlanner.plan(
+                game: bad,
+                config: cfg,
+                runner: fakeRunner(),
+                paths: paths,
+                logs: false,
+                graphics: gfx,
+                baseEnvironment: [:]
+            )
         }
     }
 

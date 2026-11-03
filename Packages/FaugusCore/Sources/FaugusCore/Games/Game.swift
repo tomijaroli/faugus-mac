@@ -31,7 +31,9 @@ public enum GraphicsBackend: String, CaseIterable, Sendable {
 public struct Game: Equatable, Sendable, Identifiable {
     public private(set) var raw: JSONObject
 
-    public var id: String { gameID }
+    public var id: String {
+        gameID
+    }
 
     /// `Game(**prepare_game_kwargs(data))`
     public init(json: JSONObject) {
@@ -39,23 +41,25 @@ public struct Game: Equatable, Sendable, Identifiable {
         for f in gameFields where o[f] == nil {
             o[f] = Game.defaultValue(for: f)
         }
-        self.raw = o
+        raw = o
     }
 
     public init(gameID: String, title: String) {
         var o = JSONObject()
-        for f in gameFields { o[f] = Game.defaultValue(for: f) }
+        for f in gameFields {
+            o[f] = Game.defaultValue(for: f)
+        }
         o["gameid"] = .string(gameID)
         o["title"] = .string(title)
         o["runner"] = "Default"
-        self.raw = o
+        raw = o
     }
 
     static func defaultValue(for field: String) -> JSONValue {
         switch field {
-        case "playtime": return .int(0)
-        case "hidden", "no_sleep", "category": return .bool(false)
-        default: return .string("")
+        case "playtime": .int(0)
+        case "hidden", "no_sleep", "category": .bool(false)
+        default: .string("")
         }
     }
 
@@ -63,56 +67,139 @@ public struct Game: Equatable, Sendable, Identifiable {
 
     private func str(_ key: String) -> String {
         switch raw[key] {
-        case .string(let s)?: return s
-        case .int(let i)?: return String(i)
-        case .double(let d)?: return "\(d)"
-        default: return ""
+        case let .string(s)?: s
+        case let .int(i)?: String(i)
+        case let .double(d)?: "\(d)"
+        default: ""
         }
     }
 
-    private mutating func set(_ key: String, _ value: String) { raw[key] = .string(value) }
+    private mutating func set(_ key: String, _ value: String) {
+        raw[key] = .string(value)
+    }
 
-    public var gameID: String { get { str("gameid") } set { set("gameid", newValue) } }
-    public var title: String { get { str("title") } set { set("title", newValue) } }
-    public var path: String { get { str("path") } set { set("path", newValue) } }
-    public var prefix: String { get { str("prefix") } set { set("prefix", newValue) } }
-    public var launchArguments: String { get { str("launch_arguments") } set { set("launch_arguments", newValue) } }
-    public var gameArguments: String { get { str("game_arguments") } set { set("game_arguments", newValue) } }
-    public var runner: String { get { str("runner") } set { set("runner", newValue) } }
-    public var addApp: String { get { str("addapp") } set { set("addapp", newValue) } }
-    public var addAppBat: String { get { str("addapp_bat") } set { set("addapp_bat", newValue) } }
-    public var addAppDelay: String { get { str("addapp_delay") } set { set("addapp_delay", newValue) } }
-    public var cover: String { get { str("cover") } set { set("cover", newValue) } }
-    public var icon: String { get { str("icon") } set { set("icon", newValue) } }
-    public var steamGridDBID: String { get { str("steamgriddb_id") } set { set("steamgriddb_id", newValue) } }
-    public var preLaunch: String { get { str("pre_launch") } set { set("pre_launch", newValue) } }
-    public var postLaunch: String { get { str("post_launch") } set { set("post_launch", newValue) } }
-    public var steamUser: String { get { str("steam_user") } set { set("steam_user", newValue) } }
-    public var runtime: String { get { str("runtime") } set { set("runtime", newValue) } }
-    public var lastPlayed: String { get { str("last_played") } set { set("last_played", newValue) } }
+    public var gameID: String {
+        get { str("gameid") } set { set("gameid", newValue) }
+    }
+
+    public var title: String {
+        get { str("title") } set { set("title", newValue) }
+    }
+
+    public var path: String {
+        get { str("path") } set { set("path", newValue) }
+    }
+
+    public var prefix: String {
+        get { str("prefix") } set { set("prefix", newValue) }
+    }
+
+    public var launchArguments: String {
+        get { str("launch_arguments") } set { set("launch_arguments", newValue) }
+    }
+
+    public var gameArguments: String {
+        get { str("game_arguments") } set { set("game_arguments", newValue) }
+    }
+
+    public var runner: String {
+        get { str("runner") } set { set("runner", newValue) }
+    }
+
+    public var addApp: String {
+        get { str("addapp") } set { set("addapp", newValue) }
+    }
+
+    public var addAppBat: String {
+        get { str("addapp_bat") } set { set("addapp_bat", newValue) }
+    }
+
+    public var addAppDelay: String {
+        get { str("addapp_delay") } set { set("addapp_delay", newValue) }
+    }
+
+    public var cover: String {
+        get { str("cover") } set { set("cover", newValue) }
+    }
+
+    public var icon: String {
+        get { str("icon") } set { set("icon", newValue) }
+    }
+
+    public var steamGridDBID: String {
+        get { str("steamgriddb_id") } set { set("steamgriddb_id", newValue) }
+    }
+
+    public var preLaunch: String {
+        get { str("pre_launch") } set { set("pre_launch", newValue) }
+    }
+
+    public var postLaunch: String {
+        get { str("post_launch") } set { set("post_launch", newValue) }
+    }
+
+    public var steamUser: String {
+        get { str("steam_user") } set { set("steam_user", newValue) }
+    }
+
+    public var runtime: String {
+        get { str("runtime") } set { set("runtime", newValue) }
+    }
+
+    public var lastPlayed: String {
+        get { str("last_played") } set { set("last_played", newValue) }
+    }
 
     // MARK: Flags (Python truthiness on loosely typed JSON)
 
-    private func flag(_ key: String) -> Bool { raw[key]?.isTruthy ?? false }
+    private func flag(_ key: String) -> Bool {
+        raw[key]?.isTruthy ?? false
+    }
 
-    public var mangohud: Bool { get { flag("mangohud") } set { raw["mangohud"] = .bool(newValue) } }
-    public var gamemode: Bool { get { flag("gamemode") } set { raw["gamemode"] = .bool(newValue) } }
-    public var sdlEnabled: Bool { get { flag("sdl_enabled") } set { raw["sdl_enabled"] = .bool(newValue) } }
-    public var discordRPC: Bool { get { flag("discord_rpc") } set { raw["discord_rpc"] = .bool(newValue) } }
-    public var disableUMU: Bool { get { flag("disable_umu") } set { raw["disable_umu"] = .bool(newValue) } }
-    public var addAppFirst: Bool { get { flag("addapp_first") } set { raw["addapp_first"] = .bool(newValue) } }
-    public var addAppEnabled: Bool { get { flag("addapp_enabled") } set { raw["addapp_enabled"] = .bool(newValue) } }
-    public var hidden: Bool { get { flag("hidden") } set { raw["hidden"] = .bool(newValue) } }
-    public var noSleep: Bool { get { flag("no_sleep") } set { raw["no_sleep"] = .bool(newValue) } }
+    public var mangohud: Bool {
+        get { flag("mangohud") } set { raw["mangohud"] = .bool(newValue) }
+    }
+
+    public var gamemode: Bool {
+        get { flag("gamemode") } set { raw["gamemode"] = .bool(newValue) }
+    }
+
+    public var sdlEnabled: Bool {
+        get { flag("sdl_enabled") } set { raw["sdl_enabled"] = .bool(newValue) }
+    }
+
+    public var discordRPC: Bool {
+        get { flag("discord_rpc") } set { raw["discord_rpc"] = .bool(newValue) }
+    }
+
+    public var disableUMU: Bool {
+        get { flag("disable_umu") } set { raw["disable_umu"] = .bool(newValue) }
+    }
+
+    public var addAppFirst: Bool {
+        get { flag("addapp_first") } set { raw["addapp_first"] = .bool(newValue) }
+    }
+
+    public var addAppEnabled: Bool {
+        get { flag("addapp_enabled") } set { raw["addapp_enabled"] = .bool(newValue) }
+    }
+
+    public var hidden: Bool {
+        get { flag("hidden") } set { raw["hidden"] = .bool(newValue) }
+    }
+
+    public var noSleep: Bool {
+        get { flag("no_sleep") } set { raw["no_sleep"] = .bool(newValue) }
+    }
 
     /// Seconds played.
     public var playtime: Int {
         get {
             switch raw["playtime"] {
-            case .int(let i)?: return Int(i)
-            case .double(let d)?: return Int(d)
-            case .string(let s)?: return Int(s) ?? 0
-            default: return 0
+            case let .int(i)?: Int(i)
+            case let .double(d)?: Int(d)
+            case let .string(s)?: Int(s) ?? 0
+            default: 0
             }
         }
         set { raw["playtime"] = .int(Int64(newValue)) }
@@ -130,7 +217,11 @@ public struct Game: Equatable, Sendable, Identifiable {
     public var graphics: GraphicsBackend? {
         get { raw["graphics"]?.stringValue.flatMap(GraphicsBackend.init(rawValue:)) }
         set {
-            if let newValue { raw["graphics"] = .string(newValue.rawValue) } else { raw["graphics"] = nil }
+            if let newValue {
+                raw["graphics"] = .string(newValue.rawValue)
+            } else {
+                raw["graphics"] = nil
+            }
         }
     }
 
@@ -140,15 +231,21 @@ public struct Game: Equatable, Sendable, Identifiable {
     /// followed by any extra fields in their original order.
     public func saveObject(hidden hiddenOverride: Bool? = nil) -> JSONObject {
         var out = JSONObject()
-        for f in gameFields { out[f] = raw[f] ?? Game.defaultValue(for: f) }
+        for f in gameFields {
+            out[f] = raw[f] ?? Game.defaultValue(for: f)
+        }
         out["mangohud"] = mangohud ? .bool(true) : ""
         out["gamemode"] = gamemode ? .bool(true) : ""
         out["sdl_enabled"] = sdlEnabled ? .bool(true) : ""
         out["discord_rpc"] = discordRPC ? .bool(true) : ""
         out["addapp_enabled"] = addAppEnabled ? "addapp_enabled" : ""
         out["disable_umu"] = disableUMU ? .bool(true) : ""
-        if let hiddenOverride { out["hidden"] = .bool(hiddenOverride) }
-        for (k, v) in raw.pairs where out[k] == nil { out[k] = v }
+        if let hiddenOverride {
+            out["hidden"] = .bool(hiddenOverride)
+        }
+        for (k, v) in raw.pairs where out[k] == nil {
+            out[k] = v
+        }
         return out
     }
 }

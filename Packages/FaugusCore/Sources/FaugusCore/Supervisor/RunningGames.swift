@@ -4,13 +4,17 @@ import Foundation
 /// (`state/stop-<gameid>`, polled once a second by the runner).
 public struct RunningGames: Sendable {
     public let paths: FaugusPaths
-    public init(paths: FaugusPaths) { self.paths = paths }
+    public init(paths: FaugusPaths) {
+        self.paths = paths
+    }
 
     public func load() -> [String: Int32] {
         let json = JSONFile.load(paths.runningGamesFile, default: .object(JSONObject()))
         var out: [String: Int32] = [:]
         for (k, v) in json.objectValue?.pairs ?? [] {
-            if let n = v.intValue { out[k] = Int32(truncatingIfNeeded: n) }
+            if let n = v.intValue {
+                out[k] = Int32(truncatingIfNeeded: n)
+            }
         }
         return out
     }
@@ -66,7 +70,9 @@ public struct RunningGames: Sendable {
 /// Playtime bookkeeping, matching upstream `_save_progress`.
 public struct PlaytimeStore: Sendable {
     public let paths: FaugusPaths
-    public init(paths: FaugusPaths) { self.paths = paths }
+    public init(paths: FaugusPaths) {
+        self.paths = paths
+    }
 
     /// `datetime.now().isoformat()` (microseconds, no timezone).
     public static func isoNow(_ date: Date = Date()) -> String {

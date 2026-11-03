@@ -18,21 +18,37 @@ struct CarrouselView: View {
     @State private var scrollAccumulator = 0.0
     @State private var lastScroll = Date.distantPast
 
-    private var config: FaugusConfig { appearance.config }
-    private var labels: Bool { config.bool("labels-enabled") }
+    private var config: FaugusConfig {
+        appearance.config
+    }
+
+    private var labels: Bool {
+        config.bool("labels-enabled")
+    }
 
     private var alignment: Alignment {
         switch config.string("grid-position", default: "Middle") {
-        case "Top": return .top
-        case "Bottom": return .bottom
-        default: return .center
+        case "Top": .top
+        case "Bottom": .bottom
+        default: .center
         }
     }
 
-    private var coverWidth: CGFloat { (230 * Double(model.coverSize) / 100).rounded(.down) }
-    private var coverHeight: CGFloat { (coverWidth * 1.5).rounded(.down) }
-    private var step: CGFloat { coverWidth + 20 }
-    private var crossSize: CGFloat { coverHeight + 50 + 140 }
+    private var coverWidth: CGFloat {
+        (230 * Double(model.coverSize) / 100).rounded(.down)
+    }
+
+    private var coverHeight: CGFloat {
+        (coverWidth * 1.5).rounded(.down)
+    }
+
+    private var step: CGFloat {
+        coverWidth + 20
+    }
+
+    private var crossSize: CGFloat {
+        coverHeight + 50 + 140
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -56,7 +72,9 @@ struct CarrouselView: View {
             case .leftArrow: move(-1)
             case .rightArrow: move(1)
             case .return:
-                if let g = centerGame { model.play(g, withLogs: false) }
+                if let g = centerGame {
+                    model.play(g, withLogs: false)
+                }
             default: return .ignored
             }
             return .handled
@@ -68,7 +86,9 @@ struct CarrouselView: View {
         .onDisappear { removeScrollMonitor() }
         .onChange(of: games.map(\.gameID)) { _, _ in syncToSelection(animated: false) }
         .onChange(of: model.selection) { _, sel in
-            if sel != centerGame?.gameID { syncToSelection(animated: true) }
+            if sel != centerGame?.gameID {
+                syncToSelection(animated: true)
+            }
         }
     }
 
@@ -79,7 +99,9 @@ struct CarrouselView: View {
         return games[Self.mod(index, games.count)]
     }
 
-    static func mod(_ i: Int, _ n: Int) -> Int { ((i % n) + n) % n }
+    static func mod(_ i: Int, _ n: Int) -> Int {
+        ((i % n) + n) % n
+    }
 
     private func move(_ delta: Int) {
         guard !games.isEmpty, delta != 0 else { return }
@@ -93,10 +115,16 @@ struct CarrouselView: View {
         guard !games.isEmpty else { return }
         let n = games.count
         let target = model.selection.flatMap { id in games.firstIndex { $0.gameID == id } } ?? 0
-        if model.selection == nil || model.selection != games[target].gameID { model.selection = games[target].gameID }
+        if model.selection == nil || model.selection != games[target].gameID {
+            model.selection = games[target].gameID
+        }
         // Pick the copy of `target` closest to where the fan is now.
         var delta = target - Self.mod(index, n)
-        if delta > n / 2 { delta -= n } else if delta < -n / 2 { delta += n }
+        if delta > n / 2 {
+            delta -= n
+        } else if delta < -n / 2 {
+            delta += n
+        }
         index += delta
         if animated {
             withAnimation(.easeInOut(duration: 0.26)) { position = Double(index) }
@@ -123,7 +151,9 @@ struct CarrouselView: View {
             guard delta != 0 else { return event }
             // One step per notch; a trackpad needs about 40 points of travel for a step.
             let unit: CGFloat = event.hasPreciseScrollingDeltas ? 40 : 1
-            if scrollAccumulator * delta < 0 { scrollAccumulator = 0 }
+            if scrollAccumulator * delta < 0 {
+                scrollAccumulator = 0
+            }
             scrollAccumulator += delta / unit
             guard abs(scrollAccumulator) >= 1, Date().timeIntervalSince(lastScroll) > 0.04 else { return nil }
             let direction = scrollAccumulator > 0 ? -1 : 1
@@ -135,7 +165,9 @@ struct CarrouselView: View {
     }
 
     private func removeScrollMonitor() {
-        if let m = scrollMonitor { NSEvent.removeMonitor(m) }
+        if let m = scrollMonitor {
+            NSEvent.removeMonitor(m)
+        }
         scrollMonitor = nil
     }
 }
@@ -159,7 +191,13 @@ private struct CarrouselLayer: View, Animatable {
 
     /// `carrousel_scale_opacity`.
     static func scaleOpacity(_ offset: Double) -> (scale: Double, opacity: Double) {
-        let anchors: [(Double, Double, Double)] = [(0, 1.05, 1), (1, 0.82, 0.75), (2, 0.62, 0.5), (3, 0.46, 0.25), (4, 0.3, 0)]
+        let anchors: [(Double, Double, Double)] = [
+            (0, 1.05, 1),
+            (1, 0.82, 0.75),
+            (2, 0.62, 0.5),
+            (3, 0.46, 0.25),
+            (4, 0.3, 0),
+        ]
         let d = abs(offset)
         for (a, b) in zip(anchors, anchors.dropFirst()) where d <= b.0 {
             let t = (d - a.0) / (b.0 - a.0)
@@ -177,7 +215,7 @@ private struct CarrouselLayer: View, Animatable {
             let base = Int(position.rounded(.down))
             ZStack {
                 if n > 0 {
-                    ForEach((base - 4)...(base + 5), id: \.self) { i in
+                    ForEach((base - 4) ... (base + 5), id: \.self) { i in
                         let offset = Double(i) - position
                         slot(i, offset: offset, radius: radius, n: n)
                     }

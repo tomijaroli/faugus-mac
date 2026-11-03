@@ -34,51 +34,140 @@ public struct FaugusPaths: Equatable, Sendable {
 
     // MARK: Roots
 
-    public var appSupport: String { h("Library", "Application Support", "Faugus") }
-    public var configDir: String { appSupport + "/config" }
-    public var dataDir: String { appSupport + "/data" }
-    public var stateDir: String { appSupport + "/state" }
-    public var runnersDir: String { appSupport + "/runners" }
-    public var componentsDir: String { appSupport + "/components" }
-    public var dxvkMacOSDir: String { componentsDir + "/dxvk-macos" }
-    public var winetricksDir: String { componentsDir + "/winetricks" }
-    public var cachesDir: String { h("Library", "Caches", "Faugus") }
-    public var tempDir: String { cachesDir + "/tmp" }
-    public var logsDir: String { h("Library", "Logs", "Faugus") }
+    public var appSupport: String {
+        h("Library", "Application Support", "Faugus")
+    }
+
+    public var configDir: String {
+        appSupport + "/config"
+    }
+
+    public var dataDir: String {
+        appSupport + "/data"
+    }
+
+    public var stateDir: String {
+        appSupport + "/state"
+    }
+
+    public var runnersDir: String {
+        appSupport + "/runners"
+    }
+
+    public var componentsDir: String {
+        appSupport + "/components"
+    }
+
+    public var dxvkMacOSDir: String {
+        componentsDir + "/dxvk-macos"
+    }
+
+    public var winetricksDir: String {
+        componentsDir + "/winetricks"
+    }
+
+    public var cachesDir: String {
+        h("Library", "Caches", "Faugus")
+    }
+
+    public var tempDir: String {
+        cachesDir + "/tmp"
+    }
+
+    public var logsDir: String {
+        h("Library", "Logs", "Faugus")
+    }
 
     /// `PREFIXES_DIR`: default parent of per-game prefixes (kept at `~/Faugus` like upstream).
-    public var prefixesDir: String { h("Faugus") }
-    public var defaultPrefix: String { prefixesDir + "/default" }
+    public var prefixesDir: String {
+        h("Faugus")
+    }
 
-    public var userApplicationsShortcutsDir: String { h("Applications", "Faugus") }
-    public var desktopDir: String { h("Desktop") }
+    public var defaultPrefix: String {
+        prefixesDir + "/default"
+    }
+
+    public var userApplicationsShortcutsDir: String {
+        h("Applications", "Faugus")
+    }
+
+    public var desktopDir: String {
+        h("Desktop")
+    }
 
     // MARK: Config dir files
 
-    public var configFile: String { configDir + "/config.json" }
-    public var envarFile: String { configDir + "/envar.json" }
+    public var configFile: String {
+        configDir + "/config.json"
+    }
+
+    public var envarFile: String {
+        configDir + "/envar.json"
+    }
 
     // MARK: Data dir files and folders
 
-    public var gamesJSON: String { dataDir + "/games.json" }
-    public var presetsFile: String { dataDir + "/presets.json" }
-    public var categoriesFile: String { dataDir + "/categories.json" }
-    public var customOrderFile: String { dataDir + "/custom-order.json" }
-    public var coversDir: String { dataDir + "/covers" }
-    public var bannersDir: String { dataDir + "/banners" }
-    public var iconsDir: String { dataDir + "/icons" }
-    public var shortcutIconsDir: String { dataDir + "/icons-nolauncher" }
-    public var gamesBackupDir: String { dataDir + "/games-backup" }
+    public var gamesJSON: String {
+        dataDir + "/games.json"
+    }
+
+    public var presetsFile: String {
+        dataDir + "/presets.json"
+    }
+
+    public var categoriesFile: String {
+        dataDir + "/categories.json"
+    }
+
+    public var customOrderFile: String {
+        dataDir + "/custom-order.json"
+    }
+
+    public var coversDir: String {
+        dataDir + "/covers"
+    }
+
+    public var bannersDir: String {
+        dataDir + "/banners"
+    }
+
+    public var iconsDir: String {
+        dataDir + "/icons"
+    }
+
+    public var shortcutIconsDir: String {
+        dataDir + "/icons-nolauncher"
+    }
+
+    public var gamesBackupDir: String {
+        dataDir + "/games-backup"
+    }
 
     // MARK: State dir files
 
-    public var latestGamesFile: String { stateDir + "/latest-games.json" }
-    public var recentRunFilesFile: String { stateDir + "/recent-run-files.json" }
-    public var runningGamesFile: String { stateDir + "/running-games.json" }
-    public var fileChooserFoldersFile: String { stateDir + "/filechooser_folders.json" }
+    public var latestGamesFile: String {
+        stateDir + "/latest-games.json"
+    }
 
-    public func stopFile(gameID: String) -> String { stateDir + "/stop-" + gameID }
-    public func gameLogsDir(gameID: String) -> String { logsDir + "/" + gameID }
+    public var recentRunFilesFile: String {
+        stateDir + "/recent-run-files.json"
+    }
+
+    public var runningGamesFile: String {
+        stateDir + "/running-games.json"
+    }
+
+    public var fileChooserFoldersFile: String {
+        stateDir + "/filechooser_folders.json"
+    }
+
+    public func stopFile(gameID: String) -> String {
+        stateDir + "/stop-" + gameID
+    }
+
+    public func gameLogsDir(gameID: String) -> String {
+        logsDir + "/" + gameID
+    }
 
     // MARK: Helpers
 
@@ -86,7 +175,11 @@ public struct FaugusPaths: Equatable, Sendable {
     public func expand(_ value: String) -> String {
         guard !value.isEmpty else { return value }
         var s = value
-        if s == "~" { s = home } else if s.hasPrefix("~/") { s = home + String(s.dropFirst(1)) }
+        if s == "~" {
+            s = home
+        } else if s.hasPrefix("~/") {
+            s = home + String(s.dropFirst(1))
+        }
         return expandEnvironmentVariables(s)
     }
 
@@ -97,18 +190,27 @@ public struct FaugusPaths: Equatable, Sendable {
         var i = s.startIndex
         while i < s.endIndex {
             let c = s[i]
-            guard c == "$" else { out.append(c); i = s.index(after: i); continue }
+            guard c == "$" else { out.append(c)
+                i = s.index(after: i)
+                continue
+            }
             var j = s.index(after: i)
             var name = ""
             var braced = false
-            if j < s.endIndex, s[j] == "{" { braced = true; j = s.index(after: j) }
+            if j < s.endIndex, s[j] == "{" {
+                braced = true
+                j = s.index(after: j)
+            }
             while j < s.endIndex, s[j].isLetter || s[j].isNumber || s[j] == "_", s[j].isASCII {
-                name.append(s[j]); j = s.index(after: j)
+                name.append(s[j])
+                j = s.index(after: j)
             }
             if braced {
                 if j < s.endIndex, s[j] == "}", !name.isEmpty {
                     j = s.index(after: j)
-                } else { name = "" }
+                } else {
+                    name = ""
+                }
             }
             if !name.isEmpty, let v = env[name] {
                 out += v

@@ -24,9 +24,14 @@ public enum GameArtwork {
     @discardableResult
     static func installResized(temp: String, dest: String, width: Int, height: Int) -> Bool {
         let fm = FileManager.default
-        if fm.fileExists(atPath: dest), fm.contentsEqual(atPath: temp, andPath: dest) { return true }
+        if fm.fileExists(atPath: dest), fm.contentsEqual(atPath: temp, andPath: dest) {
+            return true
+        }
         do {
-            try fm.createDirectory(atPath: (dest as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+            try fm.createDirectory(
+                atPath: (dest as NSString).deletingLastPathComponent,
+                withIntermediateDirectories: true
+            )
             try ImageTools.resizeFile(from: temp, to: dest, width: width, height: height)
             return true
         } catch {
@@ -50,7 +55,8 @@ public enum GameArtwork {
     public static func saveBanner(temp: String?, gameID: String, paths: FaugusPaths) {
         guard let temp, FileManager.default.fileExists(atPath: temp) else { return }
         installResized(
-            temp: temp, dest: "\(paths.bannersDir)/\(gameID).png", width: bannerSize.width, height: bannerSize.height)
+            temp: temp, dest: "\(paths.bannersDir)/\(gameID).png", width: bannerSize.width, height: bannerSize.height
+        )
     }
 
     /// Moves the chosen icon to `icons/<id>.png` and drops a legacy `.ico`. Returns the icon
@@ -78,7 +84,7 @@ public enum GameArtwork {
     public static func validatedImageURL(_ text: String) -> URL? {
         let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: " ", with: "%20")
         guard let url = URL(string: cleaned), let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
-            url.host != nil
+              url.host != nil
         else { return nil }
         let ext = url.pathExtension.lowercased()
         return ["png", "jpg", "jpeg", "bmp", "gif"].contains(ext) ? url : nil
@@ -90,7 +96,8 @@ public enum GameArtwork {
         var request = URLRequest(url: url, timeoutInterval: 15)
         request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw DownloadError.failed }
+        guard let http = response as? HTTPURLResponse,
+              (200 ..< 300).contains(http.statusCode) else { throw DownloadError.failed }
         guard data.count <= maxDownloadBytes else { throw DownloadError.tooLarge }
         guard ImageTools.isValid(data) else { throw DownloadError.notAnImage }
         return data

@@ -1,10 +1,9 @@
-import Testing
-
 @testable import FaugusCore
+import Testing
 
 @Suite("shlex")
 struct ShellWordsTests {
-    // Expectations were produced by Python's shlex.split / shlex.quote.
+    /// Expectations were produced by Python's shlex.split / shlex.quote.
     @Test(
         "split matches Python",
         arguments: [
@@ -18,7 +17,8 @@ struct ShellWordsTests {
             (#"a"b"c"#, ["abc"]),
             (#"-windowed -w=1920 --opt="x y""#, ["-windowed", "-w=1920", "--opt=x y"]),
             ("é 'ü ñ'", ["é", "ü ñ"]),
-        ])
+        ]
+    )
     func split(input: String, expected: [String]) throws {
         #expect(try ShellWords.split(input) == expected)
     }
@@ -34,7 +34,8 @@ struct ShellWordsTests {
         arguments: [
             ("", "''"), ("abc", "abc"), ("a b", "'a b'"), ("it's", #"'it'"'"'s'"#),
             ("a/b-c_d.e", "a/b-c_d.e"), ("ü", "'ü'"), ("$HOME", "'$HOME'"), ("a=b", "a=b"),
-        ])
+        ]
+    )
     func quote(input: String, expected: String) {
         #expect(ShellWords.quote(input) == expected)
     }

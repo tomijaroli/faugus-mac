@@ -1,7 +1,6 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 private func game(
     _ id: String, _ title: String, playtime: Int = 0, lastPlayed: String = "", category: JSONValue = .bool(false)
@@ -39,7 +38,13 @@ struct LibraryOrderingTests {
 
     @Test func customOrderPutsUnlistedGamesLast() {
         let order = ["d": 0, "a": 1]
-        #expect(LibraryOrdering.sorted(games, mode: .custom, customOrder: order).map(\.gameID) == ["d", "a", "b", "c", "e"])
+        #expect(LibraryOrdering.sorted(games, mode: .custom, customOrder: order).map(\.gameID) == [
+            "d",
+            "a",
+            "b",
+            "c",
+            "e",
+        ])
     }
 
     @Test func unknownSortValueFallsBackToAlpha() {
@@ -57,11 +62,12 @@ struct LibraryOrderingTests {
         let g = [game("x", "X", category: .array(["RPG"])), game("y", "Y")]
         #expect(LibraryOrdering.visible(g, mode: .alpha, category: .named("RPG"), categoriesEnabled: false).count == 2)
         #expect(LibraryOrdering.visible(g, mode: .alpha, category: .all, categoriesEnabled: true).count == 2)
-        #expect(LibraryOrdering.visible(g, mode: .alpha, category: .named("RPG"), categoriesEnabled: true).map(\.gameID) == ["x"])
+        #expect(LibraryOrdering.visible(g, mode: .alpha, category: .named("RPG"), categoriesEnabled: true)
+            .map(\.gameID) == ["x"])
     }
 
     @Test func categoryValuesOfEveryShape() {
-        let none = game("n", "n")  // upstream stores `false`
+        let none = game("n", "n") // upstream stores `false`
         let str = game("s", "s", category: "RPG")
         let list = game("l", "l", category: .array(["RPG", "Indie"]))
         let literalNone = game("z", "z", category: .array(["None"]))
@@ -105,13 +111,17 @@ struct LibraryStoreTests {
         var o = JSONObject()
         o["gameid"] = .string(id)
         o["title"] = .string(id.uppercased())
-        if let category { o["category"] = category }
-        if extra { o["unknown_future_field"] = .int(7) }
+        if let category {
+            o["category"] = category
+        }
+        if extra {
+            o["unknown_future_field"] = .int(7)
+        }
         return .object(o)
     }
 
     private func categories(of id: String, _ paths: FaugusPaths) throws -> JSONValue? {
-        guard case .array(let a) = try JSONFile.loadOrThrow(paths.gamesJSON) else { return nil }
+        guard case let .array(a) = try JSONFile.loadOrThrow(paths.gamesJSON) else { return nil }
         return a.compactMap(\.objectValue).first { $0["gameid"]?.stringValue == id }?["category"]
     }
 
@@ -146,14 +156,14 @@ struct LibraryStoreTests {
         try assign.toggle(gameID: "a", category: "RPG")
         #expect(try categories(of: "a", paths) == .array(["Indie"]))
         try assign.toggle(gameID: "a", category: "None")
-        #expect(try categories(of: "a", paths) == nil)  // key removed, like upstream's pop
+        #expect(try categories(of: "a", paths) == nil) // key removed, like upstream's pop
 
         // A legacy string value is treated as a one-element list.
         try assign.toggle(gameID: "b", category: "Extra")
         #expect(try categories(of: "b", paths) == .array(["Legacy", "Extra"]))
 
         // Unknown fields survive.
-        guard case .array(let all) = try JSONFile.loadOrThrow(paths.gamesJSON) else { return }
+        guard case let .array(all) = try JSONFile.loadOrThrow(paths.gamesJSON) else { return }
         #expect(all.first?.objectValue?["unknown_future_field"] == .int(7))
     }
 
@@ -168,9 +178,9 @@ struct LibraryStoreTests {
         try store.save(["Indie", "RPG"])
 
         _ = try store.rename("RPG", to: "Rpg2", reserved: [])
-        #expect(try categories(of: "a", paths) == .array(["Rpg2"]))  // string becomes a list
+        #expect(try categories(of: "a", paths) == .array(["Rpg2"])) // string becomes a list
         #expect(try categories(of: "b", paths) == .array(["Rpg2", "Indie"]))
-        #expect(try categories(of: "c", paths) == .array(["Indie", "Rpg2"]))  // de-duplicated
+        #expect(try categories(of: "c", paths) == .array(["Indie", "Rpg2"])) // de-duplicated
         #expect(try categories(of: "d", paths) == nil)
         #expect(store.load() == ["Indie", "Rpg2"])
 
@@ -185,7 +195,12 @@ struct LibraryStoreTests {
     }
 
     @Test func customOrderMovesLikeADragAndForgetsDeletedGames() throws {
-        #expect(CustomOrderStore.move(ordered: ["a", "b", "c", "d"], source: "d", target: "b") == ["a": 0, "d": 1, "b": 2, "c": 3])
+        #expect(CustomOrderStore.move(ordered: ["a", "b", "c", "d"], source: "d", target: "b") == [
+            "a": 0,
+            "d": 1,
+            "b": 2,
+            "c": 3,
+        ])
         #expect(CustomOrderStore.move(ordered: ["a", "b", "c"], source: "a", target: "c") == ["b": 0, "c": 1, "a": 2])
         #expect(CustomOrderStore.move(ordered: ["a", "b"], source: "a", target: "a") == nil)
         #expect(CustomOrderStore.move(ordered: ["a", "b"], source: "a", target: "zzz") == nil)
@@ -206,13 +221,15 @@ struct LibraryStoreTests {
         let dir = paths.home + "/files"
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         var files: [String] = []
-        for i in 0..<7 {
+        for i in 0 ..< 7 {
             let f = dir + "/f\(i).exe"
             FileManager.default.createFile(atPath: f, contents: Data())
             files.append(f)
         }
         let recent = RecentRunFiles(paths: paths)
-        for f in files { try recent.record(gameID: "g", file: f) }
+        for f in files {
+            try recent.record(gameID: "g", file: f)
+        }
         #expect(recent.files(gameID: "g") == [files[6], files[5], files[4], files[3], files[2]])
 
         // Re-running a file moves it to the front without duplicating it.

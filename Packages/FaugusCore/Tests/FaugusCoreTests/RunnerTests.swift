@@ -1,19 +1,19 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 @Suite("Runner catalog and installer")
 struct RunnerTests {
     @Test func versionOrdering() {
-        let sorted = ["11.21", "11.6_1", "11.0_1", "11.7", "11.18", "10.20", "11.9"].sorted { VersionKey($0) < VersionKey($1) }
+        let sorted = ["11.21", "11.6_1", "11.0_1", "11.7", "11.18", "10.20", "11.9"]
+            .sorted { VersionKey($0) < VersionKey($1) }
         #expect(sorted == ["10.20", "11.0_1", "11.6_1", "11.7", "11.9", "11.18", "11.21"])
         #expect(VersionKey("11.0") < VersionKey("11.0_1"))
         #expect(VersionKey("11.0-rc1") < VersionKey("11.0"))
     }
 
     @Test func parsesRealGcenxFeed() throws {
-        let json = try JSONParser.parse(try TestSupport.fixtureData("gcenx-releases.json"))
+        let json = try JSONParser.parse(TestSupport.fixtureData("gcenx-releases.json"))
         let runners = GcenxFeed.parse(json)
         #expect(!runners.isEmpty)
         #expect(Set(runners.map(\.flavor)) == [.staging, .devel, .stable])
@@ -32,11 +32,24 @@ struct RunnerTests {
 
     @Test func ignoresDraftsPrereleasesAndForeignAssets() {
         let json: JSONValue = [
-            ["tag_name": "1.0", "draft": true, "assets": [["name": "wine-staging-1.0-osx64.tar.xz", "browser_download_url": "https://x/a"]]],
-            ["tag_name": "2.0", "prerelease": true, "assets": [["name": "wine-staging-2.0-osx64.tar.xz", "browser_download_url": "https://x/b"]]],
+            [
+                "tag_name": "1.0",
+                "draft": true,
+                "assets": [["name": "wine-staging-1.0-osx64.tar.xz", "browser_download_url": "https://x/a"]],
+            ],
+            [
+                "tag_name": "2.0",
+                "prerelease": true,
+                "assets": [["name": "wine-staging-2.0-osx64.tar.xz", "browser_download_url": "https://x/b"]],
+            ],
             ["tag_name": "3.0", "assets": [
                 ["name": "README.txt", "browser_download_url": "https://x/c"],
-                ["name": "wine-staging-3.0-osx64.tar.xz", "browser_download_url": "https://x/d", "size": 5, "digest": "sha256:abc"],
+                [
+                    "name": "wine-staging-3.0-osx64.tar.xz",
+                    "browser_download_url": "https://x/d",
+                    "size": 5,
+                    "digest": "sha256:abc",
+                ],
             ]],
         ]
         let runners = GcenxFeed.parse(json)
@@ -51,7 +64,11 @@ struct RunnerTests {
         #expect(throws: RunnerError.self) { try ArchiveSafety.validate(memberNames: ["a/../../b"]) }
         #expect(throws: RunnerError.self) { try ArchiveSafety.validate(memberNames: ["../x"]) }
         #expect(throws: RunnerError.self) { try ArchiveSafety.validate(memberNames: ["~/x"]) }
-        #expect(throws: Never.self) { try ArchiveSafety.validate(memberNames: ["Wine Staging.app/Contents/..hidden", "a/b/c", "a/"]) }
+        #expect(throws: Never.self) { try ArchiveSafety.validate(memberNames: [
+            "Wine Staging.app/Contents/..hidden",
+            "a/b/c",
+            "a/",
+        ]) }
     }
 
     @Test func rejectsEscapingSymlinks() throws {
@@ -91,7 +108,8 @@ struct RunnerTests {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
         p.arguments = ["-cJf", tar, "-C", src, "."]
-        try p.run(); p.waitUntilExit()
+        try p.run()
+        p.waitUntilExit()
         #expect(p.terminationStatus == 0)
         return tar
     }
@@ -101,7 +119,11 @@ struct RunnerTests {
         defer { TestSupport.cleanup(paths) }
         let tar = try makeFakeRunnerTarball(in: paths.home)
         let installer = RunnerInstaller(paths: paths)
-        let runner = try await installer.installArchive(at: tar, directoryName: "Wine-Staging-11.21", sourceTag: "11.21")
+        let runner = try await installer.installArchive(
+            at: tar,
+            directoryName: "Wine-Staging-11.21",
+            sourceTag: "11.21"
+        )
 
         #expect(runner.name == "Wine-Staging-11.21")
         #expect(runner.flavor == .staging)
@@ -137,7 +159,8 @@ struct RunnerTests {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
         p.arguments = ["-cJf", tar, "-C", src, "."]
-        try p.run(); p.waitUntilExit()
+        try p.run()
+        p.waitUntilExit()
 
         await #expect(throws: RunnerError.self) {
             try await RunnerInstaller(paths: paths).installArchive(at: tar, directoryName: "Wine-Staging-1")
@@ -152,12 +175,14 @@ struct RunnerTests {
         let tar0 = try makeFakeRunnerTarball(in: paths.home)
         _ = tar0
         try FileManager.default.createSymbolicLink(
-            atPath: paths.home + "/src/evil", withDestinationPath: "../../../../etc")
+            atPath: paths.home + "/src/evil", withDestinationPath: "../../../../etc"
+        )
         let tar = paths.home + "/evil.tar.xz"
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
         p.arguments = ["-cJf", tar, "-C", paths.home + "/src", "."]
-        try p.run(); p.waitUntilExit()
+        try p.run()
+        p.waitUntilExit()
 
         await #expect(throws: RunnerError.self) {
             try await RunnerInstaller(paths: paths).installArchive(at: tar, directoryName: "Wine-Staging-2")
@@ -178,12 +203,14 @@ struct RunnerTests {
         _ = try await installer.installArchive(at: tar, directoryName: "Wine-Staging-11.21")
         _ = try await installer.installArchive(at: tar, directoryName: "Wine-Devel-11.30")
 
-        guard case .installed(let latest) = store.resolve("Default", defaultRunner: "Wine-Staging Latest") else {
-            Issue.record("expected installed"); return
+        guard case let .installed(latest) = store.resolve("Default", defaultRunner: "Wine-Staging Latest") else {
+            Issue.record("expected installed")
+            return
         }
         #expect(latest.name == "Wine-Staging-11.21")
-        guard case .installed(let exact) = store.resolve("Wine-Staging-11.9", defaultRunner: "x") else {
-            Issue.record("expected installed"); return
+        guard case let .installed(exact) = store.resolve("Wine-Staging-11.9", defaultRunner: "x") else {
+            Issue.record("expected installed")
+            return
         }
         #expect(exact.version == "11.9")
         #expect(store.resolve("Wine-Stable Latest", defaultRunner: "x") == .missingLatest(.stable))
@@ -195,6 +222,8 @@ struct RunnerTests {
     }
 
     @Test func rosettaScriptShape() {
-        #expect(Rosetta.installAppleScript == "do shell script \"/usr/sbin/softwareupdate --install-rosetta --agree-to-license\" with administrator privileges")
+        #expect(Rosetta
+            .installAppleScript ==
+            "do shell script \"/usr/sbin/softwareupdate --install-rosetta --agree-to-license\" with administrator privileges")
     }
 }

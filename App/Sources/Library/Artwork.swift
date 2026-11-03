@@ -9,7 +9,9 @@ final class ArtworkCache: @unchecked Sendable {
     static let shared = ArtworkCache()
     private let cache = NSCache<NSString, NSImage>()
 
-    private init() { cache.countLimit = 400 }
+    private init() {
+        cache.countLimit = 400
+    }
 
     static func key(path: String, maxPixel: Int) -> String {
         let mtime = (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate] as? Date)?
@@ -26,7 +28,9 @@ final class ArtworkCache: @unchecked Sendable {
     @MainActor
     func load(path: String, maxPixel: Int) async -> NSImage? {
         let key = Self.key(path: path, maxPixel: maxPixel)
-        if let hit = cache.object(forKey: key as NSString) { return hit }
+        if let hit = cache.object(forKey: key as NSString) {
+            return hit
+        }
         let decoded = await Task.detached(priority: .utility) { () -> CGImage? in
             let url = URL(fileURLWithPath: path) as CFURL
             guard let src = CGImageSourceCreateWithURL(url, nil) else { return nil }
@@ -38,7 +42,9 @@ final class ArtworkCache: @unchecked Sendable {
             return CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary)
         }.value
         let image = decoded.map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
-        if let image { cache.setObject(image, forKey: key as NSString) }
+        if let image {
+            cache.setObject(image, forKey: key as NSString)
+        }
         return image
     }
 }
@@ -53,7 +59,9 @@ struct ArtworkView<Placeholder: View>: View {
     @State private var image: NSImage?
     @Environment(\.displayScale) private var scale
 
-    private var maxPixel: Int { Int(max(size.width, size.height) * scale) }
+    private var maxPixel: Int {
+        Int(max(size.width, size.height) * scale)
+    }
 
     var body: some View {
         Group {
@@ -70,8 +78,13 @@ struct ArtworkView<Placeholder: View>: View {
         .frame(width: size.width, height: size.height)
         .clipped()
         .task(id: ArtworkCache.key(path: path, maxPixel: maxPixel)) {
-            guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { image = nil; return }
-            if let hit = ArtworkCache.shared.cached(path: path, maxPixel: maxPixel) { image = hit; return }
+            guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { image = nil
+                return
+            }
+            if let hit = ArtworkCache.shared.cached(path: path, maxPixel: maxPixel) {
+                image = hit
+                return
+            }
             image = await ArtworkCache.shared.load(path: path, maxPixel: maxPixel)
         }
     }

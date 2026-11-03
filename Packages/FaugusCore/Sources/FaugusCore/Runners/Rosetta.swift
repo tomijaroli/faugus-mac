@@ -27,7 +27,9 @@ public enum Rosetta {
     /// dismisses the prompt.
     public static func install() async throws {
         let r = try await ProcessRunner.run("/usr/bin/osascript", ["-e", installAppleScript])
-        if r.succeeded { return }
+        if r.succeeded {
+            return
+        }
         if r.stderr.contains("-128") || r.stderr.lowercased().contains("user canceled") {
             throw InstallError.cancelled
         }

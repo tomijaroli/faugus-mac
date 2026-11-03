@@ -10,21 +10,31 @@ public final class SleepInhibitor: @unchecked Sendable {
     public init(reason: String) {
         IOPMAssertionCreateWithName(
             kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
-            IOPMAssertionLevel(kIOPMAssertionLevelOn), reason as CFString, &systemAssertion)
+            IOPMAssertionLevel(kIOPMAssertionLevelOn), reason as CFString, &systemAssertion
+        )
         IOPMAssertionCreateWithName(
             kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
-            IOPMAssertionLevel(kIOPMAssertionLevelOn), reason as CFString, &displayAssertion)
+            IOPMAssertionLevel(kIOPMAssertionLevelOn), reason as CFString, &displayAssertion
+        )
     }
 
     public var isActive: Bool {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return systemAssertion != 0 || displayAssertion != 0
     }
 
     public func release() {
-        lock.lock(); defer { lock.unlock() }
-        if systemAssertion != 0 { IOPMAssertionRelease(systemAssertion); systemAssertion = 0 }
-        if displayAssertion != 0 { IOPMAssertionRelease(displayAssertion); displayAssertion = 0 }
+        lock.lock()
+        defer { lock.unlock() }
+        if systemAssertion != 0 {
+            IOPMAssertionRelease(systemAssertion)
+            systemAssertion = 0
+        }
+        if displayAssertion != 0 {
+            IOPMAssertionRelease(displayAssertion)
+            displayAssertion = 0
+        }
     }
 
     deinit { release() }

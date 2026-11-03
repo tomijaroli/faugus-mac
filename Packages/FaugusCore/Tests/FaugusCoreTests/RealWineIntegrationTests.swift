@@ -1,7 +1,6 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 /// Opt-in end-to-end tests against a real Gcenx Wine runner under Rosetta 2.
 ///
@@ -31,19 +30,22 @@ struct RealWineIntegrationTests {
         return out
     }
 
-    private func read(_ path: String) -> String { (try? String(contentsOfFile: path, encoding: .utf8)) ?? "" }
+    private func read(_ path: String) -> String {
+        (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+    }
 
     private struct Rig {
         let paths: FaugusPaths
         let runnerName: String
     }
 
-    private func makeRig(programs: String) throws -> Rig {
+    private func makeRig(programs _: String) throws -> Rig {
         let paths = try TestSupport.makeTempHome()
         let name = "Wine-Staging-11.21"
         try FileManager.default.createDirectory(atPath: paths.runnersDir, withIntermediateDirectories: true)
         try FileManager.default.createSymbolicLink(
-            atPath: paths.runnersDir + "/" + name, withDestinationPath: runnerSource!)
+            atPath: paths.runnersDir + "/" + name, withDestinationPath: runnerSource!
+        )
         var cfg = try FaugusConfig.load(paths: paths, language: "en_US")
         cfg.setValue("default-runner", name)
         cfg.setValue("automatic-updates", bool: false)
@@ -52,7 +54,13 @@ struct RealWineIntegrationTests {
         return Rig(paths: paths, runnerName: name)
     }
 
-    private func game(_ id: String, exe: String, args: String = "", graphics: GraphicsBackend? = nil, prefix: String) -> Game {
+    private func game(
+        _ id: String,
+        exe: String,
+        args: String = "",
+        graphics: GraphicsBackend? = nil,
+        prefix: String
+    ) -> Game {
         var g = Game(gameID: id, title: id)
         g.path = programs + "/" + exe
         g.prefix = prefix
@@ -102,7 +110,9 @@ struct RealWineIntegrationTests {
         // 1. First run creates the prefix and runs a 64-bit console program.
         let started = Date()
         let f1 = await supervise(rig.paths, "hello64")
-        print("hello64 (incl. prefix creation) took \(Date().timeIntervalSince(started))s, failure=\(String(describing: f1))")
+        print(
+            "hello64 (incl. prefix creation) took \(Date().timeIntervalSince(started))s, failure=\(String(describing: f1))"
+        )
         #expect(f1 == nil)
         #expect(PrefixManager(paths: rig.paths).isCreated(prefix: prefix))
         let log64 = wineLog(rig.paths, "hello64")
@@ -118,11 +128,15 @@ struct RealWineIntegrationTests {
 
         // 3. Direct3D 9 and 11 on WineD3D.
         #expect(await supervise(rig.paths, "d3d9-wined3d") == nil)
-        print("d3d9 log: \(wineLog(rig.paths, "d3d9-wined3d").split(separator: "\n").filter { !$0.contains(":trace:") && !$0.contains("fixme") }.suffix(8).joined(separator: "\n"))")
+        print(
+            "d3d9 log: \(wineLog(rig.paths, "d3d9-wined3d").split(separator: "\n").filter { !$0.contains(":trace:") && !$0.contains("fixme") }.suffix(8).joined(separator: "\n"))"
+        )
 
         #expect(await supervise(rig.paths, "d3d11-wined3d") == nil)
         let w3d = wineLog(rig.paths, "d3d11-wined3d")
-        print("d3d11 wined3d: \(w3d.split(separator: "\n").filter { $0.contains("d3d11.dll=") || $0.contains("device") }.prefix(6).joined(separator: "\n"))")
+        print(
+            "d3d11 wined3d: \(w3d.split(separator: "\n").filter { $0.contains("d3d11.dll=") || $0.contains("device") }.prefix(6).joined(separator: "\n"))"
+        )
         #expect(w3d.contains("d3d11.dll=builtin"), "wine.log tail: \(w3d.suffix(2000))")
 
         // 4. DXVK needs Vulkan; without it the plan falls back to WineD3D (GraphicsPlan).
@@ -130,8 +144,13 @@ struct RealWineIntegrationTests {
             #expect(await supervise(rig.paths, "d3d11-dxvk") == nil)
             let dx = wineLog(rig.paths, "d3d11-dxvk")
             let expectDXVK = caps?.vulkan == true
-            print("d3d11 dxvk (vulkan=\(expectDXVK)): \(dx.split(separator: "\n").filter { $0.contains("d3d11.dll=") }.joined(separator: "\n"))")
-            #expect(dx.contains(expectDXVK ? "d3d11.dll=DXVK" : "d3d11.dll=builtin"), "wine.log tail: \(dx.suffix(2000))")
+            print(
+                "d3d11 dxvk (vulkan=\(expectDXVK)): \(dx.split(separator: "\n").filter { $0.contains("d3d11.dll=") }.joined(separator: "\n"))"
+            )
+            #expect(
+                dx.contains(expectDXVK ? "d3d11.dll=DXVK" : "d3d11.dll=builtin"),
+                "wine.log tail: \(dx.suffix(2000))"
+            )
         }
 
         // The runner tree is byte-for-byte what we downloaded.
@@ -145,7 +164,12 @@ struct RealWineIntegrationTests {
         let rig = try makeRig(programs: programs)
         defer { TestSupport.cleanup(rig.paths) }
         let prefix = rig.paths.home + "/Faugus/stop"
-        try GamesStore(paths: rig.paths).save(games: [game("spawner", exe: "spawner.exe", graphics: .wined3d, prefix: prefix)])
+        try GamesStore(paths: rig.paths).save(games: [game(
+            "spawner",
+            exe: "spawner.exe",
+            graphics: .wined3d,
+            prefix: prefix
+        )])
 
         var o = SupervisorOptions()
         o.logs = true
@@ -169,7 +193,8 @@ struct RealWineIntegrationTests {
         let failure = await task.value
         let elapsed = Date().timeIntervalSince(t0)
         print("stop took \(elapsed)s")
-        print(read(rig.paths.gameLogsDir(gameID: "spawner") + "/faugus.log").split(separator: "\n").filter { $0.contains("stop +") }.joined(separator: "\n"))
+        print(read(rig.paths.gameLogsDir(gameID: "spawner") + "/faugus.log").split(separator: "\n")
+            .filter { $0.contains("stop +") }.joined(separator: "\n"))
         #expect(failure == nil)
         #expect(elapsed < 5.0)
         #expect(!running.isRunning("spawner"))

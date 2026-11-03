@@ -11,17 +11,18 @@ enum GameWindowWatcher {
     static func gameWindowVisible(gameID: String) -> Bool {
         let tagged = Set(ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: gameID))
         guard !tagged.isEmpty else { return false }
-        guard
-            let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
-                as? [[String: Any]]
+        guard let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+            as? [[String: Any]]
         else { return false }
         for w in info {
             guard let owner = w[kCGWindowOwnerPID as String] as? Int32, tagged.contains(owner),
-                (w[kCGWindowLayer as String] as? Int) == 0,
-                let boundsDict = w[kCGWindowBounds as String] as? NSDictionary,
-                let bounds = CGRect(dictionaryRepresentation: boundsDict as CFDictionary)
+                  (w[kCGWindowLayer as String] as? Int) == 0,
+                  let boundsDict = w[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: boundsDict as CFDictionary)
             else { continue }
-            if bounds.width >= 200, bounds.height >= 150 { return true }
+            if bounds.width >= 200, bounds.height >= 150 {
+                return true
+            }
         }
         return false
     }

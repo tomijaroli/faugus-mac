@@ -1,7 +1,6 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 @Suite("Settings support", .serialized)
 struct SettingsSupportTests {
@@ -27,7 +26,8 @@ struct SettingsSupportTests {
         #expect(ConfigColor("nonsense") == nil)
         #expect(ConfigColor(red: 61, green: 174, blue: 233).cssString == "rgb(61,174,233)")
         #expect(ConfigColor(red: 1, green: 2, blue: 3, alpha: 0.5).cssString == "rgba(1,2,3,0.5)")
-        #expect(ConfigColor.fallback.cssString == FaugusConfig.defaults(paths: .live, language: "en_US")["background-color"]?.stringValue)
+        #expect(ConfigColor.fallback.cssString == FaugusConfig
+            .defaults(paths: .live, language: "en_US")["background-color"]?.stringValue)
     }
 
     @Test func sizesAreFormattedLikeUpstream() {
@@ -43,7 +43,10 @@ struct SettingsSupportTests {
         let paths = try TestSupport.makeTempHome()
         defer { TestSupport.cleanup(paths) }
         #expect(LogsMaintenance.size(of: paths.logsDir) == nil || LogsMaintenance.size(of: paths.logsDir) == 0)
-        try FileManager.default.createDirectory(atPath: paths.gameLogsDir(gameID: "g"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            atPath: paths.gameLogsDir(gameID: "g"),
+            withIntermediateDirectories: true
+        )
         try Data(count: 2048).write(to: URL(fileURLWithPath: paths.gameLogsDir(gameID: "g") + "/wine.log"))
         try Data(count: 100).write(to: URL(fileURLWithPath: paths.logsDir + "/faugus.log"))
         #expect(LogsMaintenance.size(of: paths.logsDir) == 2148)

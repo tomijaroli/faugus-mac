@@ -16,7 +16,7 @@ public enum ProcessScanner {
         let stride = MemoryLayout<kinfo_proc>.stride
         let count = size / stride
         return buffer.withUnsafeBytes { raw in
-            (0..<count).compactMap { i in
+            (0 ..< count).compactMap { i in
                 let p = raw.load(fromByteOffset: i * stride, as: kinfo_proc.self)
                 return p.kp_proc.p_pid > 0 ? p.kp_proc.p_pid : nil
             }
@@ -47,21 +47,33 @@ public enum ProcessScanner {
         var argc: Int32 = 0
         memcpy(&argc, buffer, MemoryLayout<Int32>.size)
         var i = MemoryLayout<Int32>.size
-        while i < buffer.count, buffer[i] != 0 { i += 1 }  // exec path
-        while i < buffer.count, buffer[i] == 0 { i += 1 }  // padding
+        while i < buffer.count, buffer[i] != 0 {
+            i += 1
+        } // exec path
+        while i < buffer.count, buffer[i] == 0 {
+            i += 1
+        } // padding
         var seen: Int32 = 0
-        while seen < argc, i < buffer.count {  // skip argv
-            while i < buffer.count, buffer[i] != 0 { i += 1 }
-            i += 1; seen += 1
+        while seen < argc, i < buffer.count { // skip argv
+            while i < buffer.count, buffer[i] != 0 {
+                i += 1
+            }
+            i += 1
+            seen += 1
         }
         var env: [String: String] = [:]
         while i < buffer.count {
             var j = i
-            while j < buffer.count, buffer[j] != 0 { j += 1 }
+            while j < buffer.count, buffer[j] != 0 {
+                j += 1
+            }
             // Wine rewrites its process title over the start of the argv/env block, which can
             // leave empty strings in the middle: skip them rather than stopping.
-            if j == i { i += 1; continue }
-            let entry = String(decoding: buffer[i..<j], as: UTF8.self)
+            if j == i {
+                i += 1
+                continue
+            }
+            let entry = String(decoding: buffer[i ..< j], as: UTF8.self)
             if let eq = entry.firstIndex(of: "=") {
                 env[String(entry[..<eq])] = String(entry[entry.index(after: eq)...])
             }
@@ -80,7 +92,9 @@ public enum ProcessScanner {
     @discardableResult
     public static func killByFaugusID(_ id: String, signal sig: Int32 = SIGKILL) -> [pid_t] {
         let victims = pids(withEnvironment: "FAUGUSID", equalTo: id)
-        for p in victims { kill(p, sig) }
+        for p in victims {
+            kill(p, sig)
+        }
         return victims
     }
 }

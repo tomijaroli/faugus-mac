@@ -1,20 +1,23 @@
+@testable import FaugusCore
 import Foundation
 import Testing
 
-@testable import FaugusCore
-
 @Suite("Installed executable detection")
 struct InstalledExecutableTests {
-    private func le32(_ v: Int) -> [UInt8] { (0..<4).map { UInt8((v >> ($0 * 8)) & 0xFF) } }
+    private func le32(_ v: Int) -> [UInt8] {
+        (0 ..< 4).map { UInt8((v >> ($0 * 8)) & 0xFF) }
+    }
 
     /// A minimal shell link: header, no ID list, a LinkInfo with a local base path.
     private func link(target: String, unicode: Bool, idList: Bool = false) -> Data {
         var header = [UInt8](repeating: 0, count: 76)
         header[0] = 0x4C
         let flags = 0x02 | (idList ? 0x01 : 0)
-        header.replaceSubrange(20..<24, with: le32(flags))
+        header.replaceSubrange(20 ..< 24, with: le32(flags))
         var out = header
-        if idList { out += [3, 0, 1, 2, 3] }  // size 3 + 3 bytes of "item ids"
+        if idList {
+            out += [3, 0, 1, 2, 3]
+        } // size 3 + 3 bytes of "item ids"
 
         let headerSize = unicode ? 0x24 : 0x1C
         let pathBytes: [UInt8] = unicode
@@ -24,11 +27,13 @@ struct InstalledExecutableTests {
         let size = headerSize + pathBytes.count
         info += le32(size)
         info += le32(headerSize)
-        info += le32(1)  // VolumeIDAndLocalBasePath
-        info += le32(0)  // VolumeIDOffset
-        info += le32(unicode ? 0 : headerSize)  // LocalBasePathOffset
-        info += le32(0) + le32(0)  // network, suffix
-        if unicode { info += le32(headerSize) + le32(0) }  // local base unicode, suffix unicode
+        info += le32(1) // VolumeIDAndLocalBasePath
+        info += le32(0) // VolumeIDOffset
+        info += le32(unicode ? 0 : headerSize) // LocalBasePathOffset
+        info += le32(0) + le32(0) // network, suffix
+        if unicode {
+            info += le32(headerSize) + le32(0)
+        } // local base unicode, suffix unicode
         info += pathBytes
         return Data(out + info)
     }
@@ -50,13 +55,17 @@ struct InstalledExecutableTests {
             _ = InstalledExecutable.targetPath(inLink: good.prefix(cut))
         }
         var corrupt = good
-        for i in 76..<corrupt.count where i % 5 == 0 { corrupt[i] = 0xFF }
+        for i in 76 ..< corrupt.count where i % 5 == 0 {
+            corrupt[i] = 0xFF
+        }
         _ = InstalledExecutable.targetPath(inLink: corrupt)
     }
 
     @Test func mapsWindowsPaths() throws {
-        #expect(InstalledExecutable.prefixPath(forWindowsPath: "C:\\Games\\a.exe", prefix: "/p") == "/p/drive_c/Games/a.exe")
-        #expect(InstalledExecutable.prefixPath(forWindowsPath: "\"c:\\\\x\\y.exe\"", prefix: "/p") == "/p/drive_c/x/y.exe")
+        #expect(InstalledExecutable
+            .prefixPath(forWindowsPath: "C:\\Games\\a.exe", prefix: "/p") == "/p/drive_c/Games/a.exe")
+        #expect(InstalledExecutable
+            .prefixPath(forWindowsPath: "\"c:\\\\x\\y.exe\"", prefix: "/p") == "/p/drive_c/x/y.exe")
         #expect(InstalledExecutable.prefixPath(forWindowsPath: "relative\\a.exe", prefix: "/p") == nil)
         #expect(InstalledExecutable.prefixPath(forWindowsPath: "Q:\\a.exe", prefix: "/nonexistent") == nil)
 
@@ -86,7 +95,9 @@ struct InstalledExecutableTests {
         let desktop = prefix + "/drive_c/users/crossover/Desktop"
         let menu = prefix + "/drive_c/ProgramData/Microsoft/Windows/Start Menu/Programs/Foo"
         let gameDir = prefix + "/drive_c/Program Files/Foo"
-        for d in [desktop, menu, gameDir] { try fm.createDirectory(atPath: d, withIntermediateDirectories: true) }
+        for d in [desktop, menu, gameDir] {
+            try fm.createDirectory(atPath: d, withIntermediateDirectories: true)
+        }
         try Data("MZ".utf8).write(to: URL(fileURLWithPath: gameDir + "/Foo.EXE"))
         try Data("MZ".utf8).write(to: URL(fileURLWithPath: gameDir + "/unins000.exe"))
 
@@ -96,8 +107,10 @@ struct InstalledExecutableTests {
         let before = InstalledExecutable.shortcuts(inPrefix: prefix)
         #expect(before == [old])
 
-        try link(target: "c:\\program files\\foo\\foo.exe", unicode: false).write(to: URL(fileURLWithPath: desktop + "/Foo.lnk"))
-        try link(target: "C:\\Program Files\\Foo\\Foo.exe", unicode: true).write(to: URL(fileURLWithPath: menu + "/Foo.lnk"))
+        try link(target: "c:\\program files\\foo\\foo.exe", unicode: false)
+            .write(to: URL(fileURLWithPath: desktop + "/Foo.lnk"))
+        try link(target: "C:\\Program Files\\Foo\\Foo.exe", unicode: true)
+            .write(to: URL(fileURLWithPath: menu + "/Foo.lnk"))
         try link(target: "C:\\Program Files\\Foo\\unins000.exe", unicode: true)
             .write(to: URL(fileURLWithPath: menu + "/Uninstall Foo.lnk"))
         try link(target: "C:\\Program Files\\Foo\\missing.exe", unicode: true)
@@ -105,13 +118,15 @@ struct InstalledExecutableTests {
         try Data("not a link".utf8).write(to: URL(fileURLWithPath: menu + "/Broken.lnk"))
 
         let resolved = InstalledExecutable.resolveNew(
-            InstalledExecutable.shortcuts(inPrefix: prefix).subtracting(before), prefix: prefix)
+            InstalledExecutable.shortcuts(inPrefix: prefix).subtracting(before), prefix: prefix
+        )
         #expect(resolved.count == 1)
         let foo = try #require(resolved.first)
         #expect(foo.name == "Foo")
         #expect(foo.onDesktop && foo.onStartMenu)
         #expect(foo.target.hasSuffix("/Program Files/Foo/Foo.EXE"))
         #expect(InstalledExecutable.detect(prefix: prefix, existing: before)?.hasSuffix("Foo.EXE") == true)
-        #expect(InstalledExecutable.detect(prefix: prefix, existing: InstalledExecutable.shortcuts(inPrefix: prefix)) == nil)
+        #expect(InstalledExecutable
+            .detect(prefix: prefix, existing: InstalledExecutable.shortcuts(inPrefix: prefix)) == nil)
     }
 }

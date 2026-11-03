@@ -14,18 +14,24 @@ enum LogsWindowController {
             return
         }
         let dir = model.paths.gameLogsDir(gameID: game.gameID)
-        let view = LogsView(title: model.translator.format("%s Logs", game.title), directory: dir, translator: model.translator)
+        let view = LogsView(
+            title: model.translator.format("%s Logs", game.title),
+            directory: dir,
+            translator: model.translator
+        )
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
+            styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false
+        )
         window.title = model.translator.format("%s Logs", game.title)
         window.contentView = NSHostingView(rootView: view)
         window.isReleasedWhenClosed = false
         window.center()
         windows[game.gameID] = window
-        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
-            MainActor.assumeIsolated { windows[game.gameID] = nil }
-        }
+        NotificationCenter.default
+            .addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
+                MainActor.assumeIsolated { windows[game.gameID] = nil }
+            }
         window.makeKeyAndOrderFront(nil)
     }
 }
@@ -55,7 +61,9 @@ struct LogsView: View {
             .background(Color(nsColor: .textBackgroundColor))
             HStack {
                 Button(translator("Clear Logs")) {
-                    for f in files { try? FileManager.default.removeItem(atPath: directory + "/" + f) }
+                    for f in files {
+                        try? FileManager.default.removeItem(atPath: directory + "/" + f)
+                    }
                     refresh()
                 }
                 Spacer()

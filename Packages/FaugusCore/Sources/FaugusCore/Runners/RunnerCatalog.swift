@@ -11,7 +11,9 @@ public struct RunnerRow: Identifiable, Equatable, Sendable {
     /// The newest release of its flavor: what "<Flavor> Latest" resolves to once installed.
     public let isLatest: Bool
 
-    public var id: String { directoryName }
+    public var id: String {
+        directoryName
+    }
 }
 
 public enum RunnerCatalog {
@@ -27,7 +29,9 @@ public enum RunnerCatalog {
             rows.append(
                 RunnerRow(
                     flavor: flavor, version: r.version, directoryName: r.directoryName, remote: r,
-                    isInstalled: installedNames.contains(r.directoryName), isLatest: i == 0))
+                    isInstalled: installedNames.contains(r.directoryName), isLatest: i == 0
+                )
+            )
         }
         let extras = installed.filter { $0.flavor == flavor && !seen.contains($0.name) }
             .sorted { VersionKey($0.version ?? $0.name) > VersionKey($1.version ?? $1.name) }
@@ -35,7 +39,9 @@ public enum RunnerCatalog {
             rows.append(
                 RunnerRow(
                     flavor: flavor, version: r.version ?? r.name, directoryName: r.name, remote: nil,
-                    isInstalled: true, isLatest: releases.isEmpty && rows.isEmpty && extras.first == r))
+                    isInstalled: true, isLatest: releases.isEmpty && rows.isEmpty && extras.first == r
+                )
+            )
         }
         return rows
     }

@@ -118,7 +118,7 @@ public struct FaugusConfig: Equatable, Sendable {
     private init(paths: FaugusPaths, values: JSONObject, existing: JSONObject?) {
         self.paths = paths
         self.values = existing ?? values
-        self.defaultKeys = Set(FaugusConfig.defaults(paths: paths, language: "").keys)
+        defaultKeys = Set(FaugusConfig.defaults(paths: paths, language: "").keys)
     }
 
     public func save() throws {
@@ -129,11 +129,11 @@ public struct FaugusConfig: Equatable, Sendable {
 
     public func string(_ key: String, default fallback: String = "") -> String {
         switch values[key] {
-        case .string(let s)?: return s
-        case .int(let i)?: return String(i)
-        case .double(let d)?: return "\(d)"
-        case .bool(let b)?: return b ? "True" : "False"
-        default: return fallback
+        case let .string(s)?: s
+        case let .int(i)?: String(i)
+        case let .double(d)?: "\(d)"
+        case let .bool(b)?: b ? "True" : "False"
+        default: fallback
         }
     }
 
@@ -145,9 +145,9 @@ public struct FaugusConfig: Equatable, Sendable {
     public func int(_ key: String, default fallback: Int = 0) -> Int {
         guard let v = values[key] else { return fallback }
         switch v {
-        case .int(let i): return Int(i)
-        case .double(let d): return Int(d)
-        case .string(let s): return Int(s) ?? fallback
+        case let .int(i): return Int(i)
+        case let .double(d): return Int(d)
+        case let .string(s): return Int(s) ?? fallback
         default: return fallback
         }
     }

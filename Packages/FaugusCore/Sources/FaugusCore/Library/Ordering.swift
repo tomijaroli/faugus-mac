@@ -5,15 +5,17 @@ import Foundation
 public enum SortMode: String, CaseIterable, Sendable {
     case alpha, playtime, lastplayed, custom
 
-    public init(configValue: String) { self = SortMode(rawValue: configValue) ?? .alpha }
+    public init(configValue: String) {
+        self = SortMode(rawValue: configValue) ?? .alpha
+    }
 
     /// The msgid upstream shows on the sort button.
     public var label: String {
         switch self {
-        case .alpha: return "Alphabetical"
-        case .playtime: return "Playtime"
-        case .lastplayed: return "Last played"
-        case .custom: return "Custom"
+        case .alpha: "Alphabetical"
+        case .playtime: "Playtime"
+        case .lastplayed: "Last played"
+        case .custom: "Custom"
         }
     }
 }
@@ -34,9 +36,9 @@ public enum CategorySelection: Hashable, Sendable {
 
     public var configValue: String {
         switch self {
-        case .all: return "all"
-        case .uncategorized: return "uncategorized"
-        case .named(let n): return n
+        case .all: "all"
+        case .uncategorized: "uncategorized"
+        case let .named(n): n
         }
     }
 }
@@ -46,9 +48,9 @@ extension Game {
     /// stores `False`) is none.
     public var categoryNames: [String] {
         switch category {
-        case .string(let s): return [s]
-        case .array(let a): return a.compactMap(\.stringValue)
-        default: return []
+        case let .string(s): [s]
+        case let .array(a): a.compactMap(\.stringValue)
+        default: []
         }
     }
 }
@@ -65,7 +67,7 @@ public enum LibraryOrdering {
         switch selection {
         case .all: return true
         case .uncategorized: return cats.isEmpty || cats == [noneLabel]
-        case .named(let name): return (cats.isEmpty ? [noneLabel] : cats).contains(name)
+        case let .named(name): return (cats.isEmpty ? [noneLabel] : cats).contains(name)
         }
     }
 
@@ -74,7 +76,9 @@ public enum LibraryOrdering {
         _ game: Game, search: String, category: CategorySelection, categoriesEnabled: Bool,
         noneLabel: String = "None"
     ) -> Bool {
-        if !search.isEmpty, !game.title.lowercased().contains(search.lowercased()) { return false }
+        if !search.isEmpty, !game.title.lowercased().contains(search.lowercased()) {
+            return false
+        }
         if categoriesEnabled, category != .all {
             return gameInCategory(game, category, noneLabel: noneLabel)
         }
@@ -121,7 +125,9 @@ public enum LibraryOrdering {
 
     /// `_count_games_in_category`: the number shown next to each category in the picker.
     public static func count(_ games: [Game], in selection: CategorySelection, noneLabel: String = "None") -> Int {
-        if selection == .all { return games.count }
+        if selection == .all {
+            return games.count
+        }
         return games.filter { gameInCategory($0, selection, noneLabel: noneLabel) }.count
     }
 }

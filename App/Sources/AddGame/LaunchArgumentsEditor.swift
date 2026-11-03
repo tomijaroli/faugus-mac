@@ -27,7 +27,9 @@ struct LaunchArgumentsEditor: View {
 
     static func normalized(_ lines: [ArgLine]) -> [ArgLine] {
         var out = lines
-        if out.last.map({ !$0.text.isEmpty }) ?? true { out.append(ArgLine(text: "")) }
+        if out.last.map({ !$0.text.isEmpty }) ?? true {
+            out.append(ArgLine(text: ""))
+        }
         return out
     }
 
@@ -74,8 +76,8 @@ struct LaunchArgumentsEditor: View {
                 Button {
                     insert(line.wrappedValue.text, into: other, at: nil)
                 } label: { Image(systemName: "arrow.up") }
-                .buttonStyle(.borderless)
-                .help(t("Launch Arguments"))
+                    .buttonStyle(.borderless)
+                    .help(t("Launch Arguments"))
             }
             if !line.wrappedValue.text.isEmpty {
                 Button { remove(line.wrappedValue.id, from: lines) } label: { Image(systemName: "xmark.circle.fill") }

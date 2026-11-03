@@ -4,20 +4,24 @@ public struct WinetricksVerb: Equatable, Hashable, Sendable, Identifiable {
     public let name: String
     public let summary: String
     public let category: String
-    public var id: String { name }
+    public var id: String {
+        name
+    }
 }
 
 public struct WinetricksCategory: Equatable, Sendable, Identifiable {
     public let name: String
     public let verbs: [WinetricksVerb]
-    public var id: String { name }
+    public var id: String {
+        name
+    }
 }
 
 public enum Winetricks {
     /// Parses `winetricks list-all` (`===== dlls =====` headings, then `verb  description`).
     /// Anything else the script prints (`Executing ...`, warnings) is ignored.
     /// The `prefix` heading only lists meta-verbs that install a whole category; it is left out.
-    public static let hiddenCategories: Set<String> = ["prefix"]
+    public static let hiddenCategories: Set = ["prefix"]
 
     public static func parseList(_ output: String) -> [WinetricksCategory] {
         var order: [String] = []
@@ -28,16 +32,24 @@ public enum Winetricks {
             if line.hasPrefix("===== "), line.hasSuffix(" =====") {
                 let name = String(line.dropFirst(6).dropLast(6))
                 current = name
-                if verbs[name] == nil { order.append(name); verbs[name] = [] }
+                if verbs[name] == nil {
+                    order.append(name)
+                    verbs[name] = []
+                }
                 continue
             }
             guard let category = current, let first = line.first, !first.isWhitespace else { continue }
             let parts = line.split(maxSplits: 1, whereSeparator: { $0 == " " || $0 == "\t" })
-            guard let name = parts.first, name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" || $0 == "." || $0 == "=" }),
-                !name.hasSuffix("=")
+            guard let name = parts.first,
+                  name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" || $0 == "." || $0 == "=" }),
+                  !name.hasSuffix("=")
             else { continue }
             let summary = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : ""
-            verbs[category, default: []].append(WinetricksVerb(name: String(name), summary: summary, category: category))
+            verbs[category, default: []].append(WinetricksVerb(
+                name: String(name),
+                summary: summary,
+                category: category
+            ))
         }
         return order.compactMap { name in
             guard !hiddenCategories.contains(name), let list = verbs[name], !list.isEmpty else { return nil }
@@ -48,14 +60,16 @@ public enum Winetricks {
     /// Verbs winetricks recorded in the prefix (`winetricks.log`, one verb per line).
     public static func installedVerbs(prefix: String) -> Set<String> {
         guard let text = try? String(contentsOfFile: prefix + "/winetricks.log", encoding: .utf8) else { return [] }
-        return Set(text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+        return Set(text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty })
     }
 
     /// `PATH` entries a Finder-launched app lacks but winetricks needs (`cabextract`, `7z`...).
     public static let extraPathDirectories = ["/opt/homebrew/bin", "/usr/local/bin"]
 
     public static func cabextractPath(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        let path = (extraPathDirectories + (environment["PATH"] ?? "").split(separator: ":").map(String.init)).joined(separator: ":")
+        let path = (extraPathDirectories + (environment["PATH"] ?? "").split(separator: ":").map(String.init))
+            .joined(separator: ":")
         return ProcessSpawner.resolveExecutable("cabextract", path: path)
     }
 
@@ -76,7 +90,8 @@ public struct WinetricksInvocation: Sendable {
         base: [String: String] = ProcessInfo.processInfo.environment
     ) -> WinetricksInvocation {
         make(
-            arguments: ["-q"] + verbs, prefix: prefix, runner: runner, paths: paths, logName: logName, base: base)
+            arguments: ["-q"] + verbs, prefix: prefix, runner: runner, paths: paths, logName: logName, base: base
+        )
     }
 
     /// `winetricks list-all`: needs no prefix, only a Wine on `PATH`.
@@ -84,11 +99,19 @@ public struct WinetricksInvocation: Sendable {
         prefix: String, runner: InstalledRunner, paths: FaugusPaths,
         base: [String: String] = ProcessInfo.processInfo.environment
     ) -> WinetricksInvocation {
-        make(arguments: ["list-all"], prefix: prefix, runner: runner, paths: paths, logName: "winetricks-list", base: base)
+        make(
+            arguments: ["list-all"],
+            prefix: prefix,
+            runner: runner,
+            paths: paths,
+            logName: "winetricks-list",
+            base: base
+        )
     }
 
     static func make(
-        arguments: [String], prefix: String, runner: InstalledRunner, paths: FaugusPaths, logName: String = "winetricks",
+        arguments: [String], prefix: String, runner: InstalledRunner, paths: FaugusPaths,
+        logName: String = "winetricks",
         base: [String: String] = ProcessInfo.processInfo.environment
     ) -> WinetricksInvocation {
         let component = WinetricksComponent(paths: paths)
@@ -102,7 +125,8 @@ public struct WinetricksInvocation: Sendable {
         let argv = ["/bin/sh", component.scriptPath] + arguments
         return WinetricksInvocation(
             argv: argv, environment: env, workingDirectory: prefix,
-            logFile: paths.gameLogsDir(gameID: logName) + "/winetricks.log")
+            logFile: paths.gameLogsDir(gameID: logName) + "/winetricks.log"
+        )
     }
 }
 
@@ -130,9 +154,11 @@ public final class LogTail: @unchecked Sendable {
         pending.append(data)
         var lines: [String] = []
         while let i = pending.firstIndex(where: { $0 == 0x0A || $0 == 0x0D }) {
-            let line = String(decoding: pending[pending.startIndex..<i], as: UTF8.self)
-            pending.removeSubrange(pending.startIndex...i)
-            if !line.isEmpty { lines.append(line) }
+            let line = String(decoding: pending[pending.startIndex ..< i], as: UTF8.self)
+            pending.removeSubrange(pending.startIndex ... i)
+            if !line.isEmpty {
+                lines.append(line)
+            }
         }
         if flush, !pending.isEmpty {
             lines.append(String(decoding: pending, as: UTF8.self))

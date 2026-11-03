@@ -10,7 +10,9 @@ public struct POCatalog: Equatable, Sendable {
     public let headers: [String: String]
 
     /// Same number `len([k for k in translation._catalog if k != ''])` gives for a `.mo`.
-    public var entryCount: Int { entries.count }
+    public var entryCount: Int {
+        entries.count
+    }
 
     public func translate(_ msgid: String, context: String? = nil) -> String? {
         let key = context.map { $0 + "\u{4}" + msgid } ?? msgid
@@ -28,7 +30,7 @@ public struct POCatalog: Equatable, Sendable {
     // MARK: Parsing
 
     public static func parse(contentsOf url: URL) throws -> POCatalog {
-        parse(try String(contentsOf: url, encoding: .utf8))
+        try parse(String(contentsOf: url, encoding: .utf8))
     }
 
     public static func parse(_ text: String) -> POCatalog {
@@ -47,7 +49,11 @@ public struct POCatalog: Equatable, Sendable {
 
         func flush() {
             defer {
-                ctxt = nil; msgid = nil; msgidPlural = nil; msgstr = [:]; fuzzy = false
+                ctxt = nil
+                msgid = nil
+                msgidPlural = nil
+                msgstr = [:]
+                fuzzy = false
                 current = nil
             }
             guard let id = msgid else { return }
@@ -63,7 +69,9 @@ public struct POCatalog: Equatable, Sendable {
                 }
                 return
             }
-            if fuzzy { return }
+            if fuzzy {
+                return
+            }
             let base = ctxt.map { $0 + "\u{4}" + id } ?? id
             if msgidPlural != nil {
                 guard let first = msgstr[0], !first.isEmpty else { return }
@@ -77,43 +85,65 @@ public struct POCatalog: Equatable, Sendable {
 
         for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
-            if line.isEmpty { flush(); pendingFuzzy = false; continue }
-            if line.hasPrefix("#~") { continue }  // obsolete
+            if line.isEmpty {
+                flush()
+                pendingFuzzy = false
+                continue
+            }
+            if line.hasPrefix("#~") {
+                continue
+            } // obsolete
             if line.hasPrefix("#") {
-                if msgid != nil { flush() }
+                if msgid != nil {
+                    flush()
+                }
                 if line.hasPrefix("#,") {
                     let flags = line.dropFirst(2).split(separator: ",").map {
                         $0.trimmingCharacters(in: .whitespaces)
                     }
-                    if flags.contains("fuzzy") { pendingFuzzy = true }
+                    if flags.contains("fuzzy") {
+                        pendingFuzzy = true
+                    }
                 }
                 continue
             }
             if line.hasPrefix("msgctxt") {
-                if msgid != nil { flush() }
-                fuzzy = pendingFuzzy; pendingFuzzy = false
-                ctxt = unquote(line.dropFirst("msgctxt".count)); current = .ctxt
+                if msgid != nil {
+                    flush()
+                }
+                fuzzy = pendingFuzzy
+                pendingFuzzy = false
+                ctxt = unquote(line.dropFirst("msgctxt".count))
+                current = .ctxt
             } else if line.hasPrefix("msgid_plural") {
-                msgidPlural = unquote(line.dropFirst("msgid_plural".count)); current = .idPlural
+                msgidPlural = unquote(line.dropFirst("msgid_plural".count))
+                current = .idPlural
             } else if line.hasPrefix("msgid") {
-                if msgid != nil, !msgstr.isEmpty { flush() }
-                if msgid == nil, ctxt == nil { fuzzy = pendingFuzzy; pendingFuzzy = false }
-                msgid = unquote(line.dropFirst("msgid".count)); current = .id
+                if msgid != nil, !msgstr.isEmpty {
+                    flush()
+                }
+                if msgid == nil, ctxt == nil {
+                    fuzzy = pendingFuzzy
+                    pendingFuzzy = false
+                }
+                msgid = unquote(line.dropFirst("msgid".count))
+                current = .id
             } else if line.hasPrefix("msgstr[") {
                 guard let close = line.firstIndex(of: "]"),
-                    let n = Int(line[line.index(line.startIndex, offsetBy: 7)..<close])
+                      let n = Int(line[line.index(line.startIndex, offsetBy: 7) ..< close])
                 else { continue }
                 msgstr[n] = unquote(line[line.index(after: close)...])
                 current = .str(n)
             } else if line.hasPrefix("msgstr") {
-                msgstr[0] = unquote(line.dropFirst("msgstr".count)); current = .str(0)
+                msgstr[0] = unquote(line.dropFirst("msgstr".count))
+                current = .str(0)
             } else if line.hasPrefix("\"") {
                 let piece = unquote(Substring(line))
                 switch current {
                 case .ctxt?: ctxt = (ctxt ?? "") + piece
                 case .id?: msgid = (msgid ?? "") + piece
                 case .idPlural?: msgidPlural = (msgidPlural ?? "") + piece
-                case .str(let n)?: msgstr[n] = (msgstr[n] ?? "") + piece
+                case let .str(n)?: msgstr[n] = (msgstr[n] ?? "") + piece
                 case nil: break
                 }
             }
@@ -130,7 +160,9 @@ public struct POCatalog: Equatable, Sendable {
         var out = String.UnicodeScalarView()
         var it = inner.unicodeScalars.makeIterator()
         while let c = it.next() {
-            guard c == "\\" else { out.append(c); continue }
+            guard c == "\\" else { out.append(c)
+                continue
+            }
             guard let e = it.next() else { break }
             switch e {
             case "n": out.append("\n")
@@ -142,7 +174,8 @@ public struct POCatalog: Equatable, Sendable {
             case "b": out.append("\u{08}")
             case "f": out.append("\u{0C}")
             case "v": out.append("\u{0B}")
-            default: out.append("\\"); out.append(e)
+            default: out.append("\\")
+                out.append(e)
             }
         }
         return String(out)

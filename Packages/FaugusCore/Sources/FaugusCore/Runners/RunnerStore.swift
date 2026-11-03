@@ -10,7 +10,9 @@ public enum RunnerResolution: Equatable, Sendable {
 /// Installed Wine runners under `~/Library/Application Support/Faugus/runners`.
 public struct RunnerStore: Sendable {
     public let paths: FaugusPaths
-    public init(paths: FaugusPaths) { self.paths = paths }
+    public init(paths: FaugusPaths) {
+        self.paths = paths
+    }
 
     public func installed() -> [InstalledRunner] {
         let fm = FileManager.default
@@ -18,7 +20,9 @@ public struct RunnerStore: Sendable {
         return names.filter { !$0.hasPrefix(".") }
             .compactMap { find(name: $0) }
             .sorted { lhs, rhs in
-                if lhs.flavor != rhs.flavor { return (lhs.flavor?.rawValue ?? "~") < (rhs.flavor?.rawValue ?? "~") }
+                if lhs.flavor != rhs.flavor {
+                    return (lhs.flavor?.rawValue ?? "~") < (rhs.flavor?.rawValue ?? "~")
+                }
                 return VersionKey(lhs.version ?? lhs.name) > VersionKey(rhs.version ?? rhs.name)
             }
     }
@@ -28,12 +32,13 @@ public struct RunnerStore: Sendable {
         let dir = paths.runnersDir + "/" + name
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue,
-            let root = RunnerStore.locateWineRoot(in: dir)
+              let root = RunnerStore.locateWineRoot(in: dir)
         else { return nil }
         let (flavor, version) = RunnerStore.parseName(name)
         return InstalledRunner(
             name: name, directory: dir, wineRoot: root, flavor: flavor, version: version,
-            capabilities: RunnerStore.detectCapabilities(wineRoot: root, runnerDirectory: dir))
+            capabilities: RunnerStore.detectCapabilities(wineRoot: root, runnerDirectory: dir)
+        )
     }
 
     /// `Default` follows the configured default runner; `<Flavor> Latest` picks the highest
@@ -41,10 +46,14 @@ public struct RunnerStore: Sendable {
     public func resolve(_ identifier: String, defaultRunner: String) -> RunnerResolution {
         let id = identifier == "Default" ? defaultRunner : identifier
         for flavor in WineFlavor.allCases where id == flavor.latestIdentifier {
-            if let best = installed().filter({ $0.flavor == flavor }).first { return .installed(best) }
+            if let best = installed().filter({ $0.flavor == flavor }).first {
+                return .installed(best)
+            }
             return .missingLatest(flavor)
         }
-        if let r = find(name: id) { return .installed(r) }
+        if let r = find(name: id) {
+            return .installed(r)
+        }
         return .missing(id)
     }
 
@@ -54,17 +63,25 @@ public struct RunnerStore: Sendable {
     /// provided runners may be a plain tree with `bin/wine`.
     public static func locateWineRoot(in directory: String) -> String? {
         let fm = FileManager.default
-        func hasWine(_ root: String) -> Bool { fm.isExecutableFile(atPath: root + "/bin/wine") }
-        if hasWine(directory) { return directory }
+        func hasWine(_ root: String) -> Bool {
+            fm.isExecutableFile(atPath: root + "/bin/wine")
+        }
+        if hasWine(directory) {
+            return directory
+        }
         guard let entries = try? fm.contentsOfDirectory(atPath: directory) else { return nil }
         for entry in entries.sorted() where entry.hasSuffix(".app") {
             let root = directory + "/" + entry + "/Contents/Resources/wine"
-            if hasWine(root) { return root }
+            if hasWine(root) {
+                return root
+            }
         }
         // One level of nesting (e.g. `<dir>/wine/bin/wine`).
         for entry in entries.sorted() where !entry.hasPrefix(".") {
             let root = directory + "/" + entry
-            if hasWine(root) { return root }
+            if hasWine(root) {
+                return root
+            }
         }
         return nil
     }

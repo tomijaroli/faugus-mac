@@ -1,7 +1,6 @@
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 @Suite("JSON compatibility with Python json.dump(indent=4, ensure_ascii=False)")
 struct JSONTests {
@@ -10,7 +9,8 @@ struct JSONTests {
         arguments: [
             "config.default.json", "config.upstream.json", "game_fields.json",
             "games.upstream.json", "games.extra-fields.json", "games.empty.json",
-        ])
+        ]
+    )
     func roundTripIsByteIdentical(name: String) throws {
         let original = try TestSupport.fixtureData(name)
         let value = try JSONParser.parse(original)
@@ -34,20 +34,20 @@ struct JSONTests {
     @Test func emptyContainersAndNesting() {
         let v: JSONValue = ["a": [], "b": [:], "c": [[1, 2], ["x": nil]]]
         let expected = """
-            {
-                "a": [],
-                "b": {},
-                "c": [
-                    [
-                        1,
-                        2
-                    ],
-                    {
-                        "x": null
-                    }
-                ]
-            }
-            """
+        {
+            "a": [],
+            "b": {},
+            "c": [
+                [
+                    1,
+                    2
+                ],
+                {
+                    "x": null
+                }
+            ]
+        }
+        """
         #expect(JSONWriter.string(v) == expected)
     }
 
@@ -76,7 +76,8 @@ struct JSONTests {
 
     @Test(
         "Invalid documents are rejected",
-        arguments: ["", "{", "[1,]", "{\"a\":}", "{'a':1}", "01", "1.", "\"\\x\"", "[1] x", "nul", "{\"a\" 1}"])
+        arguments: ["", "{", "[1,]", "{\"a\":}", "{'a':1}", "01", "1.", "\"\\x\"", "[1] x", "nul", "{\"a\" 1}"]
+    )
     func rejectsInvalid(_ text: String) {
         #expect(throws: JSONParseError.self) { try JSONParser.parse(text) }
     }

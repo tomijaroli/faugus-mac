@@ -1,20 +1,26 @@
 import CoreGraphics
+@testable import FaugusCore
 import Foundation
 import Testing
-
-@testable import FaugusCore
 
 /// Builds a minimal PE32+ whose only section is `.rsrc` with an icon group, an icon and a
 /// version resource, so the parser is tested without shipping a binary.
 private enum FakePE {
-    static func le16(_ v: Int) -> [UInt8] { [UInt8(v & 0xFF), UInt8((v >> 8) & 0xFF)] }
-    static func le32(_ v: Int) -> [UInt8] { le16(v & 0xFFFF) + le16((v >> 16) & 0xFFFF) }
+    static func le16(_ v: Int) -> [UInt8] {
+        [UInt8(v & 0xFF), UInt8((v >> 8) & 0xFF)]
+    }
+
+    static func le32(_ v: Int) -> [UInt8] {
+        le16(v & 0xFFFF) + le16((v >> 16) & 0xFFFF)
+    }
 
     static func utf16(_ s: String, terminated: Bool = true) -> [UInt8] {
         (Array(s.utf16) + (terminated ? [0] : [])).flatMap { le16(Int($0)) }
     }
 
-    static func pad4(_ b: [UInt8]) -> [UInt8] { b + [UInt8](repeating: 0, count: (4 - b.count % 4) % 4) }
+    static func pad4(_ b: [UInt8]) -> [UInt8] {
+        b + [UInt8](repeating: 0, count: (4 - b.count % 4) % 4)
+    }
 
     /// `{ len, valLen, type, key, pad, value }` with children appended by the caller.
     static func node(key: String, valueWords: Int, type: Int, value: [UInt8], children: [[UInt8]] = []) -> [UInt8] {
@@ -25,9 +31,11 @@ private enum FakePE {
         var body = pad4(header)
         body += value
         body = pad4(body)
-        for c in children { body += pad4(c) }
+        for c in children {
+            body += pad4(c)
+        }
         var out = body
-        out.replaceSubrange(0..<2, with: le16(body.count))
+        out.replaceSubrange(0 ..< 2, with: le16(body.count))
         return out
     }
 
@@ -35,13 +43,20 @@ private enum FakePE {
         let entries = strings.map { node(key: $0.0, valueWords: $0.1.utf16.count + 1, type: 1, value: utf16($0.1)) }
         let table = node(key: "040904b0", valueWords: 0, type: 1, value: [], children: entries)
         let info = node(key: "StringFileInfo", valueWords: 0, type: 1, value: [], children: [table])
-        return node(key: "VS_VERSION_INFO", valueWords: 52, type: 0, value: [UInt8](repeating: 0, count: 52), children: [info])
+        return node(
+            key: "VS_VERSION_INFO",
+            valueWords: 52,
+            type: 0,
+            value: [UInt8](repeating: 0, count: 52),
+            children: [info]
+        )
     }
 
     static func pngIcon(size: Int) -> Data {
         let ctx = CGContext(
             data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
         ctx.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
         return ImageTools.png(ctx.makeImage()!)!
@@ -62,7 +77,9 @@ private enum FakePE {
             group += le16(1)
             blobs.append((14, group))
         }
-        if !strings.isEmpty { blobs.append((16, versionBlob(strings: strings))) }
+        if !strings.isEmpty {
+            blobs.append((16, versionBlob(strings: strings)))
+        }
         blobs.sort { $0.type < $1.type }
 
         let rootSize = 16 + blobs.count * 8
@@ -70,7 +87,9 @@ private enum FakePE {
         var dataStart = blocksStart + blobs.count * 64
         dataStart = (dataStart + 7) & ~7
         var rsrc = [UInt8](repeating: 0, count: dataStart)
-        func put(_ at: Int, _ bytes: [UInt8]) { rsrc.replaceSubrange(at..<(at + bytes.count), with: bytes) }
+        func put(_ at: Int, _ bytes: [UInt8]) {
+            rsrc.replaceSubrange(at ..< (at + bytes.count), with: bytes)
+        }
         put(12, le16(0) + le16(blobs.count))
         var cursor = dataStart
         for (i, b) in blobs.enumerated() {
@@ -90,8 +109,9 @@ private enum FakePE {
         }
 
         var file = [UInt8](repeating: 0, count: 0x40)
-        file[0] = 0x4D; file[1] = 0x5A
-        file.replaceSubrange(0x3C..<0x40, with: le32(0x40))
+        file[0] = 0x4D
+        file[1] = 0x5A
+        file.replaceSubrange(0x3C ..< 0x40, with: le32(0x40))
         file += [0x50, 0x45, 0, 0]
         file += le16(0x8664)
         file += le16(1)
@@ -101,15 +121,15 @@ private enum FakePE {
         file += le16(240)
         file += le16(0x22)
         var opt = [UInt8](repeating: 0, count: 240)
-        opt.replaceSubrange(0..<2, with: le16(0x20B))
-        opt.replaceSubrange((112 + 16)..<(112 + 24), with: le32(0x1000) + le32(rsrc.count))
+        opt.replaceSubrange(0 ..< 2, with: le16(0x20B))
+        opt.replaceSubrange((112 + 16) ..< (112 + 24), with: le32(0x1000) + le32(rsrc.count))
         file += opt
         var sec = [UInt8](repeating: 0, count: 40)
-        sec.replaceSubrange(0..<5, with: Array(".rsrc".utf8))
-        sec.replaceSubrange(8..<12, with: le32(rsrc.count))
-        sec.replaceSubrange(12..<16, with: le32(0x1000))
-        sec.replaceSubrange(16..<20, with: le32(rsrc.count))
-        sec.replaceSubrange(20..<24, with: le32(0x200))
+        sec.replaceSubrange(0 ..< 5, with: Array(".rsrc".utf8))
+        sec.replaceSubrange(8 ..< 12, with: le32(rsrc.count))
+        sec.replaceSubrange(12 ..< 16, with: le32(0x1000))
+        sec.replaceSubrange(16 ..< 20, with: le32(rsrc.count))
+        sec.replaceSubrange(20 ..< 24, with: le32(0x200))
         file += sec
         file += [UInt8](repeating: 0, count: 0x200 - file.count)
         file += rsrc
@@ -119,7 +139,7 @@ private enum FakePE {
 
 @Suite("Executable resources and artwork")
 struct ArtworkTests {
-    @Test func titlePrefersProductNameThenFileDescription() throws {
+    @Test func titlePrefersProductNameThenFileDescription() {
         let both = FakePE.build(strings: [("FileDescription", "Desc"), ("ProductName", "My Game")], icon: nil)
         #expect(PEResources(data: both)?.title() == "My Game")
         let onlyDesc = FakePE.build(strings: [("FileDescription", "Just Desc"), ("ProductName", "  ")], icon: nil)
@@ -150,7 +170,8 @@ struct ArtworkTests {
         #expect(info.iconPNG == nil)
 
         let withInfo = dir + "/x.exe"
-        try FakePE.build(strings: [("ProductName", "Real Title")], icon: FakePE.pngIcon(size: 32)).write(to: URL(fileURLWithPath: withInfo))
+        try FakePE.build(strings: [("ProductName", "Real Title")], icon: FakePE.pngIcon(size: 32))
+            .write(to: URL(fileURLWithPath: withInfo))
         let real = GameArtwork.inspect(executable: withInfo)
         #expect(real.title == "Real Title")
         #expect(real.iconPNG != nil)
@@ -164,7 +185,9 @@ struct ArtworkTests {
             _ = pe?.iconFile()
         }
         var junk = exe
-        for i in stride(from: 0x200, to: junk.count, by: 5) { junk[i] = junk[i] &+ 0x5B }
+        for i in stride(from: 0x200, to: junk.count, by: 5) {
+            junk[i] = junk[i] &+ 0x5B
+        }
         let pe = PEResources(data: junk)
         _ = pe?.title()
         _ = pe?.iconFile()
@@ -209,7 +232,8 @@ struct ArtworkTests {
     }
 
     @Test func urlValidationMatchesUpstreamRules() {
-        #expect(GameArtwork.validatedImageURL("https://example.com/a b.png")?.absoluteString == "https://example.com/a%20b.png")
+        #expect(GameArtwork.validatedImageURL("https://example.com/a b.png")?
+            .absoluteString == "https://example.com/a%20b.png")
         #expect(GameArtwork.validatedImageURL("ftp://example.com/a.png") == nil)
         #expect(GameArtwork.validatedImageURL("https://example.com/a.txt") == nil)
         #expect(GameArtwork.validatedImageURL("file:///etc/passwd.png") == nil)
@@ -227,7 +251,7 @@ struct ArtworkTests {
 /// (`FAUGUS_REAL_WINE_RUNNER=/tmp/gcenx/runner`).
 @Suite("Real PE files", .enabled(if: ProcessInfo.processInfo.environment["FAUGUS_REAL_WINE_RUNNER"] != nil))
 struct RealPETests {
-    @Test func wineNotepadHasTitleAndIcon() throws {
+    @Test func wineNotepadHasTitleAndIcon() {
         let root = ProcessInfo.processInfo.environment["FAUGUS_REAL_WINE_RUNNER"] ?? ""
         let dir = "\(root)/Wine Staging.app/Contents/Resources/wine/lib/wine"
         for arch in ["x86_64-windows", "i386-windows"] {

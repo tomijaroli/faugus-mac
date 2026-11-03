@@ -5,7 +5,9 @@ import SwiftUI
 /// Which image the editor is changing.
 enum ArtworkSlot: Hashable, Identifiable {
     case cover, icon
-    var id: Self { self }
+    var id: Self {
+        self
+    }
 }
 
 /// The images of the Add / Edit dialog before they are saved. Files live in a per-dialog
@@ -46,7 +48,9 @@ struct EditorArtworkDraft {
         }
     }
 
-    func cleanUp() { try? FileManager.default.removeItem(atPath: folder) }
+    func cleanUp() {
+        try? FileManager.default.removeItem(atPath: folder)
+    }
 }
 
 /// The popup upstream shows when an image is clicked (Refresh is for SteamGridDB, which this
@@ -106,7 +110,9 @@ struct ImageURLPrompt: View {
     }
 
     private func submit() {
-        guard let url = GameArtwork.validatedImageURL(text) else { invalid = true; return }
+        guard let url = GameArtwork.validatedImageURL(text) else { invalid = true
+            return
+        }
         busy = true
         invalid = false
         Task {
