@@ -165,6 +165,10 @@ public struct FaugusPaths: Equatable, Sendable {
         stateDirectory + "/stop-" + gameID
     }
 
+    public var launcherLockFile: String {
+        stateDirectory + "/launcher.lock"
+    }
+
     public var backupLockFile: String {
         stateDirectory + "/backup.lock"
     }

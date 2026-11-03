@@ -34,7 +34,7 @@ case let .runGame(gameID, logs, preLaunch, postLaunch):
 case let .runFile(path, target, logs, preLaunch, postLaunch):
     RunnerMode.run(target: target, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch, runFile: path)
 case let .createShortcut(file):
-    if SingleInstance.handOverToRunningInstance(shortcut: file) {
+    if SingleInstance.handOverToRunningInstance(shortcut: file, claimLock: false) {
         exit(0)
     }
     FileShortcutMode.run(file: file)
