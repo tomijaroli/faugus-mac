@@ -144,7 +144,7 @@ struct GameTile: View {
     let showsLabel: Bool
     let selected: Bool
 
-    private var installed: Bool { FileManager.default.fileExists(atPath: model.paths.expand(game.path)) }
+    private var installed: Bool { model.isInstalled(game) }
 
     var body: some View {
         VStack(spacing: 0) {

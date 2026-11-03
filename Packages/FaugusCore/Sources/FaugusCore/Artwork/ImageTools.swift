@@ -20,6 +20,17 @@ public enum ImageTools {
         return CGImageSourceCreateImageAtIndex(source, frame, nil)
     }
 
+    /// Pixel size from the file header, without decoding the image.
+    public static func pixelSize(atPath path: String) -> (width: Int, height: Int)? {
+        guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+            CGImageSourceGetCount(source) > 0,
+            let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+            let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
+            w > 0, h > 0
+        else { return nil }
+        return (w, h)
+    }
+
     public static func isValid(_ data: Data) -> Bool { !data.isEmpty && decode(data) != nil }
 
     public static func isValid(path: String) -> Bool {

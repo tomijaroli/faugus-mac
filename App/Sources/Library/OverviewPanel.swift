@@ -56,7 +56,7 @@ struct OverviewPanel: View {
         if running, let session, let start = session.start {
             seconds = session.baseline + Int(max(0, now.timeIntervalSince(start)))
         } else {
-            seconds = game.playtime
+            seconds = model.playtimeSeconds(game)
         }
         let playtime = GameFormatting.playtimeDisplay(seconds: seconds, t)
         let categories = GameFormatting.categoryLine(game.categoryNames)

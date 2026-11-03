@@ -40,6 +40,8 @@ final class AppModel {
     @ObservationIgnored var dragSourceID: String?
     @ObservationIgnored var playSessions: [String: (start: Date?, baseline: Int)] = [:]
     @ObservationIgnored private var restoredInterfaceState = false
+    @ObservationIgnored private var steamInstalledCache: [String: (at: Date, ids: Set<String>, names: Set<String>)] = [:]
+    @ObservationIgnored private var steamPlaytimeCache: [String: (at: Date, seconds: Int)] = [:]
 
     /// What the library draws with: the Settings draft while the dialog is open.
     var activeConfig: FaugusConfig? { previewConfig ?? config }
@@ -344,13 +346,56 @@ final class AppModel {
 
     // MARK: Finder
 
-    func revealGameLocation(_ game: Game) {
+    func gameLocation(_ game: Game) -> String? {
+        if game.runner == "Steam" { return steam.installFolder(appID: game.path) }
         let dir = (paths.expand(game.path) as NSString).deletingLastPathComponent
-        if !dir.isEmpty { NSWorkspace.shared.open(URL(fileURLWithPath: dir)) }
+        return dir.isEmpty ? nil : dir
+    }
+
+    /// Steam-type games have no prefix here (macOS Steam keeps no Proton prefixes).
+    func prefixLocation(_ game: Game) -> String? {
+        guard game.runner != "Steam" else { return nil }
+        let prefix = paths.expand(game.prefix)
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: prefix, isDirectory: &isDir) && isDir.boolValue ? prefix : nil
+    }
+
+    func revealGameLocation(_ game: Game) {
+        if let dir = gameLocation(game) { NSWorkspace.shared.open(URL(fileURLWithPath: dir)) }
     }
 
     func revealPrefix(_ game: Game) {
-        NSWorkspace.shared.open(URL(fileURLWithPath: paths.expand(game.prefix)))
+        if let dir = prefixLocation(game) { NSWorkspace.shared.open(URL(fileURLWithPath: dir)) }
+    }
+
+    // MARK: Steam
+
+    var steam: SteamLibrary { SteamLibrary(home: paths.home) }
+
+    /// Upstream's `is_game_installed`: the executable exists, or for Steam the app id (or the
+    /// title) is among Steam's installed games. Steam is re-read at most every 3 seconds.
+    func isInstalled(_ game: Game) -> Bool {
+        guard game.runner == "Steam" else { return FileManager.default.fileExists(atPath: paths.expand(game.path)) }
+        let user = game.steamUser.isEmpty ? "all" : game.steamUser
+        let now = Date()
+        var entry = steamInstalledCache[user]
+        if entry == nil || now.timeIntervalSince(entry!.at) > 3 {
+            let installed = steam.installedGames(accountID: user)
+            entry = (now, Set(installed.map(\.appID)), Set(installed.map { $0.name.lowercased() }))
+            steamInstalledCache[user] = entry
+        }
+        return entry!.ids.contains(game.path) || entry!.names.contains(game.title.lowercased())
+    }
+
+    /// Seconds played: Faugus's own count, or Steam's for Steam-type games.
+    func playtimeSeconds(_ game: Game) -> Int {
+        guard game.runner == "Steam" else { return game.playtime }
+        let key = game.path + "|" + game.steamUser
+        let now = Date()
+        if let hit = steamPlaytimeCache[key], now.timeIntervalSince(hit.at) <= 5 { return hit.seconds }
+        let seconds = steam.playtimeMinutes(appID: game.path, accountID: game.steamUser.isEmpty ? nil : game.steamUser) * 60
+        steamPlaytimeCache[key] = (now, seconds)
+        return seconds
     }
 
     func hasLogs(_ game: Game) -> Bool {

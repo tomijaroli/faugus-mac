@@ -4,8 +4,14 @@ import SwiftUI
 
 /// Draft for the Add / Edit dialog (Windows game type; the Steam type arrives later in P2).
 struct GameEditorState: Identifiable {
+    enum Kind: Hashable { case windows, steam }
+
     let id = UUID()
     var original: Game?
+    var kind: Kind = .windows
+    /// Steam type: the account whose games are listed ("" = all) and the chosen app id.
+    var steamUser = ""
+    var steamAppID = ""
     var title = ""
     var path = ""
     var prefix = ""
@@ -40,6 +46,11 @@ struct GameEditorState: Identifiable {
     @MainActor static func edit(_ game: Game, model: AppModel) -> GameEditorState {
         var s = GameEditorState()
         s.original = game
+        if game.runner == "Steam" {
+            s.kind = .steam
+            s.steamUser = game.steamUser
+            s.steamAppID = game.path
+        }
         s.title = game.title
         s.path = game.path
         s.prefix = game.prefix
@@ -86,6 +97,9 @@ struct GameEditorView: View {
     @State private var createdPrefixes: [String] = []
     @State private var discardPrompt = false
     @State private var runningFiles = 0
+    @State private var steamUsers: [SteamLibrary.User] = []
+    @State private var steamGames: [SteamLibrary.InstalledGame] = []
+    @State private var steamInvalid = false
 
     init(model: AppModel, state: GameEditorState, dismiss: @escaping () -> Void) {
         self.model = model
@@ -145,13 +159,15 @@ struct GameEditorView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(isEdit ? t.format("Edit %s", state.original?.title ?? "") : t("New Game/App"))
                 .font(.title2.weight(.semibold)).padding([.top, .horizontal], 20)
-            Picker("", selection: $page) {
-                Text(t("General")).tag(Page.general)
-                Text(t("Settings")).tag(Page.settings)
+            if state.kind == .windows {
+                Picker("", selection: $page) {
+                    Text(t("General")).tag(Page.general)
+                    Text(t("Settings")).tag(Page.settings)
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                .padding(.horizontal, 20).padding(.top, 12)
+                .accessibilityIdentifier("editor-pages")
             }
-            .pickerStyle(.segmented).labelsHidden()
-            .padding(.horizontal, 20).padding(.top, 12)
-            .accessibilityIdentifier("editor-pages")
 
             Group {
                 switch page {
@@ -162,10 +178,12 @@ struct GameEditorView: View {
             .frame(minHeight: 360)
 
             HStack {
-                Button(t("Run")) { runFileInPrefix() }
-                    .help(t("Run a file in the prefix"))
-                    .accessibilityIdentifier("editor-run")
-                if runningFiles > 0 { ProgressView().controlSize(.small) }
+                if state.kind == .windows {
+                    Button(t("Run")) { runFileInPrefix() }
+                        .help(t("Run a file in the prefix"))
+                        .accessibilityIdentifier("editor-run")
+                    if runningFiles > 0 { ProgressView().controlSize(.small) }
+                }
                 Spacer()
                 Button(t("Cancel"), role: .cancel) { cancel() }.keyboardShortcut(.cancelAction)
                 Button(t("Confirm")) { confirm() }
@@ -196,7 +214,9 @@ struct GameEditorView: View {
                 if let data { applyImage(data, to: slot) }
             }
         }
-        .task { prepareArtwork() }
+        .task { prepareArtwork(); loadSteamUsers() }
+        .task(id: state.kind == .steam ? state.steamUser : nil) { await loadSteamGames() }
+        .onChange(of: state.kind) { _, _ in page = .general }
         .onDisappear { state.artwork.cleanUp() }
     }
 
@@ -211,58 +231,70 @@ struct GameEditorView: View {
 
     private func generalForm(_ t: Translator) -> some View {
         Form {
-            TextField(t("Title"), text: $state.title)
-                .invalidMark(invalid.contains(.title))
-                .accessibilityIdentifier("editor-title")
-            HStack {
-                TextField(t("Path"), text: $state.path)
-                    .invalidMark(invalid.contains(.path))
-                    .help(t("Path to the game executable"))
-                    .accessibilityIdentifier("editor-path")
-                Menu {
-                    Button(t("Select an executable")) {
-                        let dir = state.path.isEmpty ? nil : (model.paths.expand(state.path) as NSString).deletingLastPathComponent
-                        if let p = FilePicker.choose(message: t("Select the game executable"), startIn: dir) {
-                            fillFromExecutable(p)
-                            state.path = p
+            if !isEditing {
+                Picker("Game type", selection: $state.kind) {
+                    Text(t("Windows Game")).tag(GameEditorState.Kind.windows)
+                    Text(t("Steam Game")).tag(GameEditorState.Kind.steam)
+                }
+                .labelsHidden()
+                .accessibilityIdentifier("editor-game-type")
+            }
+            if state.kind == .steam {
+                steamFields(t)
+            } else {
+                TextField(t("Title"), text: $state.title)
+                    .invalidMark(invalid.contains(.title))
+                    .accessibilityIdentifier("editor-title")
+                HStack {
+                    TextField(t("Path"), text: $state.path)
+                        .invalidMark(invalid.contains(.path))
+                        .help(t("Path to the game executable"))
+                        .accessibilityIdentifier("editor-path")
+                    Menu {
+                        Button(t("Select an executable")) {
+                            let dir = state.path.isEmpty ? nil : (model.paths.expand(state.path) as NSString).deletingLastPathComponent
+                            if let p = FilePicker.choose(message: t("Select the game executable"), startIn: dir) {
+                                fillFromExecutable(p)
+                                state.path = p
+                            }
+                        }
+                        Button(t("Run an installer")) { runInstaller() }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help(t("Select the game executable"))
+                    .accessibilityIdentifier("editor-path-menu")
+                }
+                HStack {
+                    TextField(t("Prefix"), text: Binding(
+                        get: { state.prefixEdited ? state.prefix : effectivePrefix },
+                        set: { state.prefix = $0; state.prefixEdited = true }))
+                    .invalidMark(invalid.contains(.prefix))
+                    .help(t("Path to the prefix"))
+                    .accessibilityIdentifier("editor-prefix")
+                    SearchButton {
+                        if let p = FilePicker.choose(message: t("Select a prefix location"), directories: true) {
+                            state.prefix = p
+                            state.prefixEdited = true
                         }
                     }
-                    Button(t("Run an installer")) { runInstaller() }
-                } label: {
-                    Image(systemName: "magnifyingglass")
+                    .help(t("Select a prefix location"))
                 }
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help(t("Select the game executable"))
-                .accessibilityIdentifier("editor-path-menu")
-            }
-            HStack {
-                TextField(t("Prefix"), text: Binding(
-                    get: { state.prefixEdited ? state.prefix : effectivePrefix },
-                    set: { state.prefix = $0; state.prefixEdited = true }))
-                .invalidMark(invalid.contains(.prefix))
-                .help(t("Path to the prefix"))
-                .accessibilityIdentifier("editor-prefix")
-                SearchButton {
-                    if let p = FilePicker.choose(message: t("Select a prefix location"), directories: true) {
-                        state.prefix = p
-                        state.prefixEdited = true
-                    }
+                Toggle(t("Specific Runner"), isOn: $state.customRunner)
+                    .accessibilityIdentifier("editor-custom-runner")
+                Picker("Runner", selection: Binding(
+                    get: { state.customRunner ? state.runner : defaultRunnerChoice },
+                    set: { state.runner = $0 })
+                ) {
+                    ForEach(runnerChoices, id: \.self) { Text($0).tag($0) }
                 }
-                .help(t("Select a prefix location"))
-            }
-            Toggle(t("Specific Runner"), isOn: $state.customRunner)
-                .accessibilityIdentifier("editor-custom-runner")
-            Picker("Runner", selection: Binding(
-                get: { state.customRunner ? state.runner : defaultRunnerChoice },
-                set: { state.runner = $0 })
-            ) {
-                ForEach(runnerChoices, id: \.self) { Text($0).tag($0) }
-            }
-            .labelsHidden()
-            .disabled(!state.customRunner)
-            Picker("Graphics", selection: $state.graphics) {
-                ForEach(graphicsChoices, id: \.self) { Text(graphicsLabel($0)).tag($0) }
+                .labelsHidden()
+                .disabled(!state.customRunner)
+                Picker("Graphics", selection: $state.graphics) {
+                    ForEach(graphicsChoices, id: \.self) { Text(graphicsLabel($0)).tag($0) }
+                }
             }
             LabeledContent(t("Icon")) {
                 ArtworkMenu(
@@ -286,6 +318,86 @@ struct GameEditorView: View {
                 state.runner = defaultRunnerChoice
             }
         }
+    }
+
+    private var isEditing: Bool { state.original != nil }
+
+    // MARK: Steam type
+
+    private func steamFields(_ t: Translator) -> some View {
+        Group {
+            Picker(t("Steam User"), selection: $state.steamUser) {
+                if steamUsers.isEmpty { Text("").tag("") }
+                ForEach(steamUsers, id: \.accountID) { Text($0.label).tag($0.accountID) }
+            }
+            .disabled(steamUsers.isEmpty)
+            .help(steamUsers.isEmpty ? t("No Steam users found") : "")
+            .accessibilityIdentifier("editor-steam-user")
+            Picker(t("Title"), selection: $state.steamAppID) {
+                Text("").tag("")
+                ForEach(steamChoices, id: \.appID) { Text($0.name).tag($0.appID) }
+            }
+            .invalidMark(steamInvalid)
+            .disabled(steamUsers.isEmpty && !isEditing)
+            .accessibilityIdentifier("editor-steam-title")
+        }
+        .onChange(of: state.steamAppID) { _, id in
+            steamInvalid = false
+            selectSteamGame(id)
+        }
+        .onChange(of: state.steamUser) { old, _ in
+            // `cleanup_fields`: another account lists other games, so the choice is dropped.
+            if !old.isEmpty, state.kind == .steam { clearSteamSelection() }
+        }
+    }
+
+    /// The listed games, plus the edited game when it is no longer installed.
+    private var steamChoices: [SteamLibrary.InstalledGame] {
+        var out = steamGames
+        if !state.steamAppID.isEmpty, !out.contains(where: { $0.appID == state.steamAppID }) {
+            out.append(.init(appID: state.steamAppID, name: state.title))
+        }
+        return out
+    }
+
+    private func loadSteamUsers() {
+        guard state.kind == .steam || !isEditing else { return }
+        let steam = model.steam
+        Task {
+            let users = await Task.detached { steam.users() }.value
+            steamUsers = users
+            if !isEditing, state.steamUser.isEmpty, let first = users.first { state.steamUser = first.accountID }
+            if isEditing, !state.steamUser.isEmpty, !users.contains(where: { $0.accountID == state.steamUser }) {
+                steamUsers.append(.init(accountID: state.steamUser, name: state.steamUser))
+            }
+        }
+    }
+
+    private func loadSteamGames() async {
+        guard state.kind == .steam else { return }
+        let steam = model.steam
+        let user = state.steamUser.isEmpty ? nil : state.steamUser
+        steamGames = await Task.detached { steam.pickerGames(accountID: user) }.value
+    }
+
+    private func clearSteamSelection() {
+        state.steamAppID = ""
+        state.title = ""
+        state.path = ""
+        state.artwork.clear(.icon)
+    }
+
+    /// `on_combobox_steam_changed`: the title, the app id as the path, and Steam's own icon.
+    private func selectSteamGame(_ appID: String) {
+        guard !appID.isEmpty, let game = steamChoices.first(where: { $0.appID == appID }) else { return }
+        state.title = game.name
+        state.path = appID
+        if let icon = model.steam.iconPath(appID: appID), let data = FileManager.default.contents(atPath: icon),
+            state.artwork.setIcon(data: data)
+        {
+            return
+        }
+        state.artwork.clear(.icon)
     }
 
     /// `default-runner` when it is installed, else the first listed runner.
@@ -526,6 +638,11 @@ struct GameEditorView: View {
         let t = model.translator
         let title = state.title
         let prefix = GameEditing.normalizedPath(effectivePrefix)
+        let isSteam = state.kind == .steam
+        if isSteam, GameEditing.steamSelectionMissing(appID: state.steamAppID) {
+            steamInvalid = true
+            return
+        }
         invalid = Set(GameEditing.invalidFields(title: title, path: state.path, prefix: prefix))
         if !invalid.isEmpty {
             page = .general
@@ -556,6 +673,7 @@ struct GameEditorView: View {
         draft.addAppPath = state.addAppPath
         draft.addAppDelay = state.addAppDelay
         draft.addAppFirst = state.addAppFirst
+        if isSteam { draft.steamUser = state.steamUser }
         let applied = GameEditing.apply(
             draft, to: state.original ?? Game(gameID: suggestedID, title: title), paths: model.paths)
 
@@ -566,7 +684,7 @@ struct GameEditorView: View {
 
         do {
             try? PresetsStore(paths: model.paths).save(state.presets.map(\.text))
-            if game.addAppEnabled { try GameEditing.writeAddAppBat(for: game, paths: model.paths) }
+            if game.addAppEnabled, !isSteam { try GameEditing.writeAddAppBat(for: game, paths: model.paths) }
         } catch {
             warning = "\(error)"
             return

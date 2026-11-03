@@ -55,6 +55,14 @@ public struct SupervisorOptions: Sendable {
     public var playtimeSaveInterval: Double = 30
     public var stopGrace: Duration = .seconds(3)
     public var baseEnvironment: [String: String] = ProcessInfo.processInfo.environment
+    /// Opens a `steam://` URL (Steam-type games). Returns false when it could not be started.
+    public var openSteamURL: @Sendable (String) -> Bool = { url in
+        (try? ProcessSpawner.spawn(
+            argv: ["/usr/bin/open", url],
+            options: .init(environment: ["PATH": "/usr/bin:/bin"], newSession: true))) != nil
+    }
+    /// How long the splash stays up after handing a game to Steam (upstream: 5 s).
+    public var steamSplashDuration: Duration = .seconds(5)
     public var feed: @Sendable () async throws -> [RemoteRunner] = { try await GcenxFeed.fetchAll() }
 
     public init() {}
@@ -125,6 +133,7 @@ public actor GameSupervisor {
             guard let found = games.first(where: { $0.gameID == gameID }) else { return .gameNotFound(gameID) }
             game = found
         }
+        if game.runner == "Steam", options.runFile == nil { return await runSteamGame(game) }
         let isFileRun = options.runFile != nil
         emit(.preparing(title: game.title))
         log.write(isFileRun ? "running \(options.runFile ?? "") in the prefix of \(game.title) (\(gameID))"
@@ -331,6 +340,23 @@ public actor GameSupervisor {
         }
         if case .installed(let r) = resolution { return (r, nil) }
         return (nil, .runnerNotFound(identifier))
+    }
+
+    /// A Steam-type game: Steam starts and owns it, so there is no Wine, no prefix, no running
+    /// state, no stop and no playtime (Steam keeps its own; upstream behaves the same).
+    private func runSteamGame(_ game: Game) async -> SupervisorFailure? {
+        emit(.preparing(title: game.title))
+        guard let url = SteamLaunch.url(appID: game.path, gameArguments: game.gameArguments) else {
+            return .launchFailed("\"\(game.path)\" is not a Steam app id")
+        }
+        guard SteamLibrary(home: paths.home).isSteamInstalled(home: paths.home) else {
+            return .launchFailed("Steam is not installed")
+        }
+        try? PlaytimeStore(paths: paths).touchLastPlayed(gameID: game.gameID)
+        guard options.openSteamURL(url) else { return .launchFailed("Could not start Steam") }
+        emit(.running(pid: 0))
+        try? await Task.sleep(for: options.steamSplashDuration)
+        return nil
     }
 
     private func gameProcessExited(_ status: Int32) {

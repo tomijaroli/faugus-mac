@@ -6,6 +6,11 @@ public enum GameEditing {
 
     public enum InvalidField: Equatable, Sendable { case title, path, prefix }
 
+    /// `validate_fields` for the Steam type: a game must be chosen (its app id is the path).
+    public static func steamSelectionMissing(appID: String) -> Bool {
+        appID.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     /// `validate_fields("path+prefix")`: the title and its formatted ID, the path and the prefix
     /// must be non-empty.
     public static func invalidFields(title: String, path: String, prefix: String) -> [InvalidField] {
@@ -41,8 +46,11 @@ public enum GameEditing {
 
     // MARK: Save
 
-    /// What the Add / Edit dialog collects (Windows game type).
+    /// What the Add / Edit dialog collects (Windows or Steam game type).
     public struct Draft: Sendable {
+        /// Non-nil makes it a Steam-type game for that Steam account ("" when none is chosen);
+        /// `path` is then the Steam app id.
+        public var steamUser: String?
         public var title = ""
         public var path = ""
         public var prefix = ""
@@ -84,6 +92,22 @@ public enum GameEditing {
         g.addAppDelay = String(d.addAppDelay)
         g.addAppFirst = d.addAppFirst
         g.addAppBat = addAppBatPath(gamePath: g.path, gameID: g.gameID, paths: paths)
+        if let user = d.steamUser {
+            // Steam owns the game: Wine-side options are cleared, as upstream does.
+            g.runner = "Steam"
+            g.graphics = nil
+            g.steamUser = user
+            g.mangohud = false
+            g.gamemode = false
+            g.sdlEnabled = false
+            g.noSleep = false
+            g.discordRPC = false
+            g.addAppEnabled = false
+            g.addApp = ""
+            g.addAppBat = ""
+        } else {
+            g.steamUser = ""
+        }
         return g
     }
 

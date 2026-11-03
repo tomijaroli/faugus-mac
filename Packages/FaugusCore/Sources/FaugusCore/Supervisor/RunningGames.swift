@@ -84,6 +84,19 @@ public struct PlaytimeStore: Sendable {
         return 0
     }
 
+    /// Steam-type games keep their playtime in Steam; Faugus only records when it launched one.
+    public func touchLastPlayed(gameID: String, now: Date = Date()) throws {
+        guard !gameID.isEmpty else { return }
+        var entries = try JSONFile.loadOrThrow(paths.gamesJSON).arrayValue ?? []
+        for i in entries.indices {
+            guard var o = entries[i].objectValue, o["gameid"]?.stringValue == gameID else { continue }
+            o["last_played"] = .string(PlaytimeStore.isoNow(now))
+            entries[i] = .object(o)
+            break
+        }
+        try JSONFile.save(.array(entries), to: paths.gamesJSON)
+    }
+
     /// Writes `playtime` and `last_played` for one game, leaving every other entry and field
     /// byte for byte as it was, and bumps the global config total.
     public func save(

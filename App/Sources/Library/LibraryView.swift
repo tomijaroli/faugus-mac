@@ -209,13 +209,13 @@ private struct GameRow: View {
 
     private func subtitle(_ t: Translator) -> String? {
         var parts: [String] = []
-        if let p = GameFormatting.playtimeDisplay(seconds: game.playtime, t) {
+        if let p = GameFormatting.playtimeDisplay(seconds: model.playtimeSeconds(game), t) {
             parts.append(t.format("Playtime: {}", p))
         }
         if model.isRunning(game) { return parts.joined(separator: " · ") }
         if let l = GameFormatting.lastPlayed(iso: game.lastPlayed, t) {
             parts.append(t.format("Last played: {}", l))
-        } else if game.playtime == 0 {
+        } else if model.playtimeSeconds(game) == 0 {
             parts.append(t("Never played"))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")

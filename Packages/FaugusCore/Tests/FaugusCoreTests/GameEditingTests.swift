@@ -168,3 +168,53 @@ struct GameEditingTests {
         #expect(LaunchArgumentLines.join(["A=1", "", "B=2"]) == "A=1\nB=2")
     }
 }
+
+@Suite("Steam game type editing")
+struct SteamEditingTests {
+    @Test func steamDraftClearsWineOptions() throws {
+        let paths = try TestSupport.makeTempHome()
+        defer { TestSupport.cleanup(paths) }
+        var d = GameEditing.Draft()
+        d.title = "Celeste"
+        d.path = "504230"
+        d.prefix = paths.home + "/Faugus/celeste"
+        d.steamUser = "1034930219"
+        d.noSleep = true
+        d.sdl = true
+        d.discordRPC = true
+        d.addAppEnabled = true
+        d.addAppPath = "/x.exe"
+        d.customRunner = true
+        d.runner = "Wine-Staging-11.21"
+        d.graphics = .dxvk
+        var base = Game(gameID: "celeste", title: "Celeste")
+        base.mangohud = true
+        let g = GameEditing.apply(d, to: base, paths: paths)
+        #expect(g.runner == "Steam")
+        #expect(g.path == "504230")
+        #expect(g.steamUser == "1034930219")
+        #expect(g.graphics == nil)
+        #expect(!g.sdlEnabled && !g.noSleep && !g.discordRPC && !g.addAppEnabled && !g.mangohud)
+        #expect(g.addApp.isEmpty && g.addAppBat.isEmpty)
+    }
+
+    @Test func windowsDraftLeavesSteamUserEmpty() throws {
+        let paths = try TestSupport.makeTempHome()
+        defer { TestSupport.cleanup(paths) }
+        var d = GameEditing.Draft()
+        d.title = "A"
+        d.path = "/a.exe"
+        d.prefix = "/p"
+        var base = Game(gameID: "a", title: "A")
+        base.steamUser = "1"
+        let g = GameEditing.apply(d, to: base, paths: paths)
+        #expect(g.steamUser.isEmpty)
+        #expect(g.runner == "Default")
+    }
+
+    @Test func steamSelectionIsRequired() {
+        #expect(GameEditing.steamSelectionMissing(appID: ""))
+        #expect(GameEditing.steamSelectionMissing(appID: "  "))
+        #expect(!GameEditing.steamSelectionMissing(appID: "504230"))
+    }
+}

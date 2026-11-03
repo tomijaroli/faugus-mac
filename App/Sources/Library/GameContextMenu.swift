@@ -11,19 +11,26 @@ struct GameContextMenu: View {
     var body: some View {
         let t = model.translator
         let running = model.isRunning(game)
-        Button(running ? t("Stop") : t("Play with logs")) { model.play(game, withLogs: true) }
+        let supportsLogs = game.runner != "Steam" && game.runner != "Linux-Native"
+        Button(running ? t("Stop") : supportsLogs ? t("Play with logs") : t("Play")) {
+            model.play(game, withLogs: supportsLogs)
+        }
         Button(t("Edit")) { actions.edit(game) }
         Button(t("Delete")) { actions.delete(game) }
-        Button(t("Duplicate")) { actions.duplicate(game) }
+        if game.runner != "Steam" { Button(t("Duplicate")) { actions.duplicate(game) } }
         Button(game.hidden ? t("Remove from hidden") : t("Hide")) { model.toggleHidden(game) }
         categoryMenu(t)
         Divider()
         Button(t("Open game location")) { model.revealGameLocation(game) }
-            .disabled(model.paths.expand(game.path).isEmpty)
-        Button(t("Open prefix location")) { model.revealPrefix(game) }
-            .disabled(!FileManager.default.fileExists(atPath: model.paths.expand(game.prefix)))
-        Button(t("Show logs")) { LogsWindowController.show(game: game, model: model) }
-            .disabled(!model.hasLogs(game))
+            .disabled(model.gameLocation(game) == nil)
+        if game.runner != "Linux-Native" {
+            Button(t("Open prefix location")) { model.revealPrefix(game) }
+                .disabled(model.prefixLocation(game) == nil)
+        }
+        if supportsLogs {
+            Button(t("Show logs")) { LogsWindowController.show(game: game, model: model) }
+                .disabled(!model.hasLogs(game))
+        }
         runFileMenu(t)
     }
 

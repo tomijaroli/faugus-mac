@@ -11,6 +11,7 @@ final class RunnerMode {
     private var translator: Translator = .identity
     private var windowTimer: Timer?
     private var gameID = ""
+    private var isSteam = false
     private var splashShownAt = Date()
 
     static func run(gameID: String, logs: Bool, preLaunch: String, postLaunch: String, runFile: String? = nil, adhocGame: Game? = nil) -> Never {
@@ -49,6 +50,7 @@ final class RunnerMode {
         let splashEnabled = runFile == nil && (config?.bool("splash-window-enabled") ?? true)
 
         let game = adhocGame ?? (try? GamesStore(paths: paths).loadAll())?.first { $0.gameID == gameID }
+        isSteam = game?.runner == "Steam"
         if splashEnabled {
             splash.model.title = game?.title ?? gameID
             splash.model.status = translator("Loading...")
@@ -97,7 +99,7 @@ final class RunnerMode {
             splash.model.status = t("Creating prefix...")
         case .starting, .running:
             splash.model.progress = nil
-            splash.model.status = t("Starting game...")
+            splash.model.status = isSteam ? t("Starting Steam game...") : t("Starting game...")
         case .stopping, .exited, .failed: break
         }
     }
