@@ -15,9 +15,9 @@ struct CategoryManagerView: View {
     private enum Field { case new, edit }
 
     var body: some View {
-        let t = model.translator
+        let translate = model.translator
         VStack(alignment: .leading, spacing: 12) {
-            Text(t("Manage Categories")).font(.title3.weight(.semibold))
+            Text(translate("Manage Categories")).font(.title3.weight(.semibold))
             List(selection: $selected) {
                 ForEach(model.categoryNames, id: \.self) { name in
                     if editing == name {
@@ -46,28 +46,28 @@ struct CategoryManagerView: View {
             }
 
             HStack {
-                Button(t("Add")) {
+                Button(translate("Add")) {
                     newName = ""
                     editing = ""
                     error = nil
                     focus = .new
                 }
-                Button(t("Edit")) {
-                    guard let s = selected else { return }
-                    editName = s
-                    editing = s
+                Button(translate("Edit")) {
+                    guard let selectedName = selected else { return }
+                    editName = selectedName
+                    editing = selectedName
                     error = nil
                     focus = .edit
                 }
                 .disabled(selected == nil)
-                Button(t("Remove"), role: .destructive) {
-                    guard let s = selected else { return }
-                    _ = model.removeCategory(s)
+                Button(translate("Remove"), role: .destructive) {
+                    guard let selectedName = selected else { return }
+                    _ = model.removeCategory(selectedName)
                     selected = nil
                 }
                 .disabled(selected == nil)
                 Spacer()
-                Button(t("Close")) { dismiss() }.keyboardShortcut(.defaultAction)
+                Button(translate("Close")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(16)
@@ -83,11 +83,11 @@ struct CategoryManagerView: View {
         }
     }
 
-    private func commitEdit(_ old: String) {
-        let new = editName
+    private func commitEdit(_ oldName: String) {
+        let renamedName = editName
         editing = nil
-        if model.renameCategory(old, to: new) == nil {
-            selected = new.trimmingCharacters(in: .whitespacesAndNewlines)
+        if model.renameCategory(oldName, to: renamedName) == nil {
+            selected = renamedName.trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }
 }

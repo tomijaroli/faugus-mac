@@ -5,8 +5,8 @@ public indirect enum VDFValue: Equatable, Sendable {
     case string(String)
     case object([(key: String, value: VDFValue)])
 
-    public static func == (a: VDFValue, b: VDFValue) -> Bool {
-        switch (a, b) {
+    public static func == (left: VDFValue, right: VDFValue) -> Bool {
+        switch (left, right) {
         case let (.string(x), .string(y)): x == y
         case let (.object(x), .object(y)):
             x.count == y.count && zip(x, y).allSatisfy { $0.key == $1.key && $0.value == $1.value }
@@ -15,15 +15,15 @@ public indirect enum VDFValue: Equatable, Sendable {
     }
 
     public var string: String? {
-        if case let .string(s) = self {
-            return s
+        if case let .string(text) = self {
+            return text
         }
         return nil
     }
 
     public var entries: [(key: String, value: VDFValue)] {
-        if case let .object(e) = self {
-            return e
+        if case let .object(objectEntries) = self {
+            return objectEntries
         }
         return []
     }
@@ -37,8 +37,8 @@ public indirect enum VDFValue: Equatable, Sendable {
 
     public func path(_ keys: String...) -> VDFValue? {
         var current: VDFValue? = self
-        for k in keys {
-            current = current?[k]
+        for key in keys {
+            current = current?[key]
         }
         return current
     }
@@ -48,9 +48,9 @@ public indirect enum VDFValue: Equatable, Sendable {
 /// brace ends the object at end of input, `//` comments are skipped. Never traps on bad input.
 public enum VDF {
     public static func parse(_ text: String) -> VDFValue? {
-        var p = Parser(Array(text.unicodeScalars))
-        let entries = p.parseEntries(topLevel: true)
-        return p.failed ? nil : .object(entries)
+        var parser = Parser(Array(text.unicodeScalars))
+        let entries = parser.parseEntries(topLevel: true)
+        return parser.failed ? nil : .object(entries)
     }
 
     public static func parse(file path: String) -> VDFValue? {
@@ -61,21 +61,21 @@ public enum VDF {
     }
 
     private struct Parser {
-        let s: [Unicode.Scalar]
-        var i = 0
+        let scalars: [Unicode.Scalar]
+        var position = 0
         var failed = false
         var depth = 0
-        init(_ s: [Unicode.Scalar]) {
-            self.s = s
+        init(_ scalars: [Unicode.Scalar]) {
+            self.scalars = scalars
         }
 
         mutating func skipSpace() {
-            while i < s.count {
-                if s[i].properties.isWhitespace || s[i] == "\u{FEFF}" {
-                    i += 1
-                } else if s[i] == "/", i + 1 < s.count, s[i + 1] == "/" {
-                    while i < s.count, s[i] != "\n" {
-                        i += 1
+            while position < scalars.count {
+                if scalars[position].properties.isWhitespace || scalars[position] == "\u{FEFF}" {
+                    position += 1
+                } else if scalars[position] == "/", position + 1 < scalars.count, scalars[position + 1] == "/" {
+                    while position < scalars.count, scalars[position] != "\n" {
+                        position += 1
                     }
                 } else {
                     break
@@ -86,39 +86,41 @@ public enum VDF {
         /// A quoted or bare token; nil at `}` / end of input.
         mutating func token() -> String? {
             skipSpace()
-            guard i < s.count, s[i] != "}" else { return nil }
-            var out = String.UnicodeScalarView()
-            if s[i] == "\"" {
-                i += 1
-                while i < s.count, s[i] != "\"" {
-                    if s[i] == "\\", i + 1 < s.count {
-                        switch s[i + 1] {
-                        case "n": out.append("\n")
-                        case "t": out.append("\t")
-                        case "\\": out.append("\\")
-                        case "\"": out.append("\"")
-                        default: out.append(s[i])
-                            out.append(s[i + 1])
+            guard position < scalars.count, scalars[position] != "}" else { return nil }
+            var tokenScalars = String.UnicodeScalarView()
+            if scalars[position] == "\"" {
+                position += 1
+                while position < scalars.count, scalars[position] != "\"" {
+                    if scalars[position] == "\\", position + 1 < scalars.count {
+                        switch scalars[position + 1] {
+                        case "n": tokenScalars.append("\n")
+                        case "t": tokenScalars.append("\t")
+                        case "\\": tokenScalars.append("\\")
+                        case "\"": tokenScalars.append("\"")
+                        default: tokenScalars.append(scalars[position])
+                            tokenScalars.append(scalars[position + 1])
                         }
-                        i += 2
+                        position += 2
                     } else {
-                        out.append(s[i])
-                        i += 1
+                        tokenScalars.append(scalars[position])
+                        position += 1
                     }
                 }
-                i += 1 // closing quote
+                position += 1 // closing quote
             } else {
-                while i < s.count, !s[i].properties.isWhitespace, s[i] != "{", s[i] != "}", s[i] != "\"" {
-                    out.append(s[i])
-                    i += 1
+                while position < scalars.count, !scalars[position].properties.isWhitespace, scalars[position] != "{",
+                      scalars[position] != "}", scalars[position] != "\""
+                {
+                    tokenScalars.append(scalars[position])
+                    position += 1
                 }
-                if out.isEmpty {
-                    i += 1
+                if tokenScalars.isEmpty {
+                    position += 1
                     failed = true
                     return nil
                 }
             }
-            return String(out)
+            return String(tokenScalars)
         }
 
         mutating func parseEntries(topLevel: Bool) -> [(key: String, value: VDFValue)] {
@@ -132,15 +134,15 @@ public enum VDF {
             while !failed {
                 guard let key = token() else { break }
                 skipSpace()
-                guard i < s.count else { failed = true
+                guard position < scalars.count else { failed = true
                     break
                 }
-                if s[i] == "{" {
-                    i += 1
+                if scalars[position] == "{" {
+                    position += 1
                     result.append((key, .object(parseEntries(topLevel: false))))
                     skipSpace()
-                    if i < s.count, s[i] == "}" {
-                        i += 1
+                    if position < scalars.count, scalars[position] == "}" {
+                        position += 1
                     }
                 } else if let value = token() {
                     result.append((key, .string(value)))
@@ -148,7 +150,7 @@ public enum VDF {
                     failed = true
                 }
             }
-            if topLevel, i < s.count, s[i] == "}" {
+            if topLevel, position < scalars.count, scalars[position] == "}" {
                 failed = true
             }
             return result

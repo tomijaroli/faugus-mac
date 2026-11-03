@@ -38,8 +38,8 @@ struct GameGridView: View {
     private var tile: CGSize {
         switch mode {
         case .covers:
-            let w = (230 * Double(model.coverSize) / 100).rounded(.down)
-            return CGSize(width: w, height: (w * 1.5).rounded(.down) + (labels ? 50 : 0))
+            let tileWidth = (230 * Double(model.coverSize) / 100).rounded(.down)
+            return CGSize(width: tileWidth, height: (tileWidth * 1.5).rounded(.down) + (labels ? 50 : 0))
         default:
             return CGSize(width: 200, height: 170)
         }
@@ -59,18 +59,23 @@ struct GameGridView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
+        GeometryReader { geometry in
             ScrollViewReader { proxy in
                 ScrollView(horizontal ? .horizontal : .vertical) {
                     VStack(spacing: 0) {
-                        if config.bool("overview-enabled"), let g = model.selectedGame {
-                            OverviewPanel(model: model, game: g, appearance: appearance, width: geo.size.width)
+                        if config.bool("overview-enabled"), let selectedGame = model.selectedGame {
+                            OverviewPanel(
+                                model: model,
+                                game: selectedGame,
+                                appearance: appearance,
+                                width: geometry.size.width
+                            )
                         }
                         grid
                     }
                     .frame(
-                        minWidth: horizontal ? nil : geo.size.width,
-                        minHeight: geo.size.height, alignment: alignment
+                        minWidth: horizontal ? nil : geometry.size.width,
+                        minHeight: geometry.size.height, alignment: alignment
                     )
                 }
                 .onChange(of: model.selection) { _, id in
@@ -79,8 +84,8 @@ struct GameGridView: View {
                     }
                 }
             }
-            .onAppear { viewport = geo.size }
-            .onChange(of: geo.size) { _, new in viewport = new }
+            .onAppear { viewport = geometry.size }
+            .onChange(of: geometry.size) { _, newSize in viewport = newSize }
         }
         .focusable()
         .focusEffectDisabled()
@@ -92,8 +97,8 @@ struct GameGridView: View {
     private var lanes: Int {
         let available = horizontal ? viewport.height : viewport.width
         let cell = (horizontal ? tile.height : tile.width) + spacing
-        let fit = Int((available - inset * 2 + spacing) / cell)
-        return max(1, min(maxChildren, fit, max(1, games.count)))
+        let fittingCount = Int((available - inset * 2 + spacing) / cell)
+        return max(1, min(maxChildren, fittingCount, max(1, games.count)))
     }
 
     @ViewBuilder

@@ -34,13 +34,14 @@ struct WindowConfigurator: NSViewRepresentable {
         }
 
         @MainActor private func apply(to window: NSWindow) {
-            guard let cfg = model?.config,
-                  InterfaceMode(configValue: cfg.string("interface-mode")) != .list else { return }
-            switch cfg.string("startup-window-size") {
+            guard let configuration = model?.config,
+                  InterfaceMode(configValue: configuration.string("interface-mode")) != .list else { return }
+            switch configuration.string("startup-window-size") {
             case "Remember":
-                let w = CGFloat(cfg.int("width", default: 1280)), h = CGFloat(cfg.int("height", default: 720))
-                if w >= 480, h >= 320 {
-                    window.setContentSize(NSSize(width: w, height: h))
+                let width = CGFloat(configuration.int("width", default: 1280))
+                let height = CGFloat(configuration.int("height", default: 720))
+                if width >= 480, height >= 320 {
+                    window.setContentSize(NSSize(width: width, height: height))
                 }
             case "Maximized":
                 if !window.isZoomed {

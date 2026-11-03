@@ -12,9 +12,10 @@ struct RunnerCatalogTests {
     }
 
     private func installed(_ name: String) -> InstalledRunner {
-        let (f, v) = RunnerStore.parseName(name)
+        let (flavor, version) = RunnerStore.parseName(name)
         return InstalledRunner(
-            name: name, directory: "/r/\(name)", wineRoot: "/r/\(name)", flavor: f, version: v, capabilities: .init()
+            name: name, directory: "/r/\(name)", wineRoot: "/r/\(name)", flavor: flavor, version: version,
+            capabilities: .init()
         )
     }
 

@@ -24,11 +24,11 @@ enum TestSupport {
         repoRoot.appendingPathComponent("upstream/languages")
     }
 
-    static func makeTempHome() throws -> FaugusPaths {
-        let dir = FileManager.default.temporaryDirectory
+    static func makeTemporaryHome() throws -> FaugusPaths {
+        let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("faugus-tests-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return FaugusPaths(home: dir.path)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return FaugusPaths(home: directory.path)
     }
 
     static func cleanup(_ paths: FaugusPaths) {

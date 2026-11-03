@@ -35,7 +35,7 @@ extension AppModel {
     /// Keeps the selection on a visible game, like `select_first_visible_child`.
     func ensureSelection() {
         let visible = visibleGames
-        if let s = selection, visible.contains(where: { $0.gameID == s }) {
+        if let currentSelection = selection, visible.contains(where: { $0.gameID == currentSelection }) {
             return
         }
         selection = visible.first?.gameID
@@ -45,7 +45,7 @@ extension AppModel {
         switch selection {
         case .all: translator("All")
         case .uncategorized: translator("Uncategorized")
-        case let .named(n): n
+        case let .named(categoryName): categoryName
         }
     }
 
@@ -71,8 +71,8 @@ extension AppModel {
     @discardableResult
     func addCategory(_ name: String) -> CategoryStore.Failure? {
         do { _ = try CategoryStore(paths: paths).add(name, reserved: reservedCategoryNames)
-        } catch let f as CategoryStore.Failure {
-            return f
+        } catch let failure as CategoryStore.Failure {
+            return failure
         } catch { actionError = "\(error)" }
         categoryNames = CategoryStore(paths: paths).load()
         return nil
@@ -81,8 +81,8 @@ extension AppModel {
     @discardableResult
     func renameCategory(_ old: String, to new: String) -> CategoryStore.Failure? {
         do { _ = try CategoryStore(paths: paths).rename(old, to: new, reserved: reservedCategoryNames)
-        } catch let f as CategoryStore.Failure {
-            return f
+        } catch let failure as CategoryStore.Failure {
+            return failure
         } catch { actionError = "\(error)" }
         if category == .named(old) {
             category = .named(new.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -93,8 +93,8 @@ extension AppModel {
 
     @discardableResult
     func removeCategory(_ name: String) -> CategoryStore.Failure? {
-        do { _ = try CategoryStore(paths: paths).remove(name) } catch let f as CategoryStore.Failure {
-            return f
+        do { _ = try CategoryStore(paths: paths).remove(name) } catch let failure as CategoryStore.Failure {
+            return failure
         } catch { actionError = "\(error)" }
         if category == .named(name) {
             category = .all
@@ -127,8 +127,8 @@ extension AppModel {
             playSessions[game.gameID] = nil
             return nil
         }
-        if let s = playSessions[game.gameID] {
-            return s
+        if let existingSession = playSessions[game.gameID] {
+            return existingSession
         }
         let session = (start: ProcessScanner.startDate(of: pid), baseline: game.playtime)
         playSessions[game.gameID] = session

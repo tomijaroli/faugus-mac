@@ -8,37 +8,37 @@ public enum ShellWordsError: Error, Equatable {
 /// `shlex.split(s, posix=True)` and `shlex.quote`, which upstream uses to turn the launch
 /// command string back into argv (`launch_arguments` and `game_arguments` are free text).
 public enum ShellWords {
-    public static func split(_ s: String) throws -> [String] {
+    public static func split(_ text: String) throws -> [String] {
         var words: [String] = []
-        var cur = String.UnicodeScalarView()
+        var current = String.UnicodeScalarView()
         var inWord = false
-        var it = s.unicodeScalars.makeIterator()
+        var iterator = text.unicodeScalars.makeIterator()
 
         func endWord() {
             if inWord {
-                words.append(String(cur))
-                cur = String.UnicodeScalarView()
+                words.append(String(current))
+                current = String.UnicodeScalarView()
                 inWord = false
             }
         }
 
-        while let c = it.next() {
-            switch c {
+        while let scalar = iterator.next() {
+            switch scalar {
             case " ", "\t", "\n", "\r":
                 endWord()
             case "\\":
-                guard let n = it.next() else { throw ShellWordsError.noEscapedCharacter }
-                cur.append(n)
+                guard let nextScalar = iterator.next() else { throw ShellWordsError.noEscapedCharacter }
+                current.append(nextScalar)
                 inWord = true
             case "'":
                 inWord = true
                 var closed = false
-                while let n = it.next() {
-                    if n == "'" {
+                while let nextScalar = iterator.next() {
+                    if nextScalar == "'" {
                         closed = true
                         break
                     }
-                    cur.append(n)
+                    current.append(nextScalar)
                 }
                 if !closed {
                     throw ShellWordsError.noClosingQuotation
@@ -46,27 +46,27 @@ public enum ShellWords {
             case "\"":
                 inWord = true
                 var closed = false
-                while let n = it.next() {
-                    if n == "\"" {
+                while let nextScalar = iterator.next() {
+                    if nextScalar == "\"" {
                         closed = true
                         break
                     }
-                    if n == "\\" {
-                        guard let e = it.next() else { throw ShellWordsError.noClosingQuotation }
+                    if nextScalar == "\\" {
+                        guard let escaped = iterator.next() else { throw ShellWordsError.noClosingQuotation }
                         // Inside double quotes a backslash only escapes `"` and `\`.
-                        if e != "\"", e != "\\" {
-                            cur.append("\\")
+                        if escaped != "\"", escaped != "\\" {
+                            current.append("\\")
                         }
-                        cur.append(e)
+                        current.append(escaped)
                     } else {
-                        cur.append(n)
+                        current.append(nextScalar)
                     }
                 }
                 if !closed {
                     throw ShellWordsError.noClosingQuotation
                 }
             default:
-                cur.append(c)
+                current.append(scalar)
                 inWord = true
             }
         }
@@ -76,14 +76,14 @@ public enum ShellWords {
 
     private static let safe = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@%+=:,./-_")
 
-    public static func quote(_ s: String) -> String {
-        if s.isEmpty {
+    public static func quote(_ text: String) -> String {
+        if text.isEmpty {
             return "''"
         }
-        if s.allSatisfy({ safe.contains($0) }) {
-            return s
+        if text.allSatisfy({ safe.contains($0) }) {
+            return text
         }
-        return "'" + s.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
+        return "'" + text.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
     }
 
     public static func join(_ words: [String]) -> String {
@@ -91,25 +91,27 @@ public enum ShellWords {
     }
 
     /// `str.isidentifier()` for ASCII env names.
-    public static func isIdentifier(_ s: String) -> Bool {
-        guard let first = s.unicodeScalars.first,
+    public static func isIdentifier(_ text: String) -> Bool {
+        guard let first = text.unicodeScalars.first,
               first == "_" || (first.isASCII && CharacterSet.letters.contains(first))
         else { return false }
-        return s.unicodeScalars.allSatisfy { $0 == "_" || ($0.isASCII && CharacterSet.alphanumerics.contains($0)) }
+        return text.unicodeScalars.allSatisfy { $0 == "_" || ($0.isASCII && CharacterSet.alphanumerics.contains($0)) }
     }
 
     /// `extract_env_from_message`: leading-or-anywhere `KEY=value` tokens become environment
-    /// entries (in order), everything else stays argv.
-    public static func extractEnvironment(from words: [String]) -> (env: [(String, String)], argv: [String]) {
-        var env: [(String, String)] = []
-        var argv: [String] = []
-        for w in words {
-            if let eq = w.firstIndex(of: "="), isIdentifier(String(w[..<eq])) {
-                env.append((String(w[..<eq]), String(w[w.index(after: eq)...])))
+    /// entries (in order), everything else stays a command-line argument.
+    public static func extractEnvironment(from words: [String])
+        -> (environment: [(String, String)], arguments: [String])
+    {
+        var environment: [(String, String)] = []
+        var arguments: [String] = []
+        for word in words {
+            if let equalsIndex = word.firstIndex(of: "="), isIdentifier(String(word[..<equalsIndex])) {
+                environment.append((String(word[..<equalsIndex]), String(word[word.index(after: equalsIndex)...])))
             } else {
-                argv.append(w)
+                arguments.append(word)
             }
         }
-        return (env, argv)
+        return (environment, arguments)
     }
 }

@@ -102,7 +102,7 @@ public struct FaugusPaths: Equatable, Sendable {
     }
 
     public var environmentVariablesFile: String {
-        configDirectory + "/environmentVariable.json"
+        configDirectory + "/envar.json"
     }
 
     // MARK: Data dir files and folders
@@ -174,60 +174,67 @@ public struct FaugusPaths: Equatable, Sendable {
     /// `expand_path`: `~` and `$VARS`.
     public func expand(_ value: String) -> String {
         guard !value.isEmpty else { return value }
-        var s = value
-        if s == "~" {
-            s = home
-        } else if s.hasPrefix("~/") {
-            s = home + String(s.dropFirst(1))
+        var expanded = value
+        if expanded == "~" {
+            expanded = home
+        } else if expanded.hasPrefix("~/") {
+            expanded = home + String(expanded.dropFirst(1))
         }
-        return expandEnvironmentVariables(s)
+        return expandEnvironmentVariables(expanded)
     }
 
-    private func expandEnvironmentVariables(_ s: String) -> String {
-        guard s.contains("$") else { return s }
-        let env = ProcessInfo.processInfo.environment
+    private func expandEnvironmentVariables(_ text: String) -> String {
+        guard text.contains("$") else { return text }
+        let environment = ProcessInfo.processInfo.environment
         var out = ""
-        var i = s.startIndex
-        while i < s.endIndex {
-            let c = s[i]
-            guard c == "$" else { out.append(c)
-                i = s.index(after: i)
+        var position = text.startIndex
+        while position < text.endIndex {
+            let character = text[position]
+            guard character == "$" else { out.append(character)
+                position = text.index(after: position)
                 continue
             }
-            var j = s.index(after: i)
+            var lookahead = text.index(after: position)
             var name = ""
             var braced = false
-            if j < s.endIndex, s[j] == "{" {
+            if lookahead < text.endIndex, text[lookahead] == "{" {
                 braced = true
-                j = s.index(after: j)
+                lookahead = text.index(after: lookahead)
             }
-            while j < s.endIndex, s[j].isLetter || s[j].isNumber || s[j] == "_", s[j].isASCII {
-                name.append(s[j])
-                j = s.index(after: j)
+            while lookahead < text.endIndex,
+                  text[lookahead].isLetter || text[lookahead].isNumber || text[lookahead] == "_",
+                  text[lookahead].isASCII
+            {
+                name.append(text[lookahead])
+                lookahead = text.index(after: lookahead)
             }
             if braced {
-                if j < s.endIndex, s[j] == "}", !name.isEmpty {
-                    j = s.index(after: j)
+                if lookahead < text.endIndex, text[lookahead] == "}", !name.isEmpty {
+                    lookahead = text.index(after: lookahead)
                 } else {
                     name = ""
                 }
             }
-            if !name.isEmpty, let v = env[name] {
-                out += v
-                i = j
+            if !name.isEmpty, let variableValue = environment[name] {
+                out += variableValue
+                position = lookahead
             } else {
                 // Python's expandvars leaves unknown variables untouched.
-                out.append(c)
-                i = s.index(after: i)
+                out.append(character)
+                position = text.index(after: position)
             }
         }
         return out
     }
 
     public func ensureDirectories() throws {
-        let fm = FileManager.default
-        for dir in [configDirectory, dataDirectory, stateDirectory, runnersDirectory, componentsDirectory, tempDirectory, logsDirectory] {
-            try fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let fileManager = FileManager.default
+        let directories = [
+            configDirectory, dataDirectory, stateDirectory, runnersDirectory,
+            componentsDirectory, tempDirectory, logsDirectory,
+        ]
+        for directory in directories {
+            try fileManager.createDirectory(atPath: directory, withIntermediateDirectories: true)
         }
     }
 }

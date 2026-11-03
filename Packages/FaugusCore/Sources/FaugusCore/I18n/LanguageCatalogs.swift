@@ -32,13 +32,14 @@ public struct LanguageCatalogs: Sendable {
     /// `scan_translation_completions`: percentage of the best-translated language's entry
     /// count, per language.
     public func completions(domain: String = LanguageCatalogs.upstreamDomain) -> [String: Double] {
-        guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: localeDirectory.path) else {
+        guard let languageDirectories = try? FileManager.default.contentsOfDirectory(atPath: localeDirectory.path)
+        else {
             return [:]
         }
         var counts: [String: Int] = [:]
-        for lang in dirs {
-            if let c = catalog(language: lang, domain: domain) {
-                counts[lang] = c.entryCount
+        for language in languageDirectories {
+            if let languageCatalog = catalog(language: language, domain: domain) {
+                counts[language] = languageCatalog.entryCount
             }
         }
         let total = counts.values.max() ?? 0
@@ -50,11 +51,11 @@ public struct LanguageCatalogs: Sendable {
     public func selectableLanguages(
         minPercent: Double = LanguageCatalogs.minTranslationPercent
     ) -> [String] {
-        var langs = ["en_US"]
-        for (lang, pct) in completions() where lang != "en_US" && pct >= minPercent {
-            langs.append(lang)
+        var languages = ["en_US"]
+        for (language, percent) in completions() where language != "en_US" && percent >= minPercent {
+            languages.append(language)
         }
-        return langs.sorted()
+        return languages.sorted()
     }
 
     /// Builds a translator for `language`, trying `pt_BR` then `pt`. The Mac-only domain wins
@@ -62,11 +63,11 @@ public struct LanguageCatalogs: Sendable {
     public func translator(for language: String) -> Translator {
         for candidate in SystemLocale.candidates(for: language) {
             var catalogs: [POCatalog] = []
-            if let mac = catalog(language: candidate, domain: LanguageCatalogs.macDomain) {
-                catalogs.append(mac)
+            if let macCatalog = catalog(language: candidate, domain: LanguageCatalogs.macDomain) {
+                catalogs.append(macCatalog)
             }
-            if let up = catalog(language: candidate, domain: LanguageCatalogs.upstreamDomain) {
-                catalogs.append(up)
+            if let upstreamCatalog = catalog(language: candidate, domain: LanguageCatalogs.upstreamDomain) {
+                catalogs.append(upstreamCatalog)
             }
             if !catalogs.isEmpty {
                 return Translator(languageCode: candidate, catalogs: catalogs)

@@ -8,17 +8,17 @@ import UniformTypeIdentifiers
 @Suite("Steam", .serialized)
 struct SteamTests {
     private func makeJPEG(_ side: Int) -> Data {
-        let ctx = CGContext(
+        let context = CGContext(
             data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0,
             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
         )!
-        ctx.setFillColor(CGColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1))
-        ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
-        let out = NSMutableData()
-        let dest = CGImageDestinationCreateWithData(out, UTType.jpeg.identifier as CFString, 1, nil)!
-        CGImageDestinationAddImage(dest, ctx.makeImage()!, nil)
-        CGImageDestinationFinalize(dest)
-        return out as Data
+        context.setFillColor(CGColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: side, height: side))
+        let jpegData = NSMutableData()
+        let destination = CGImageDestinationCreateWithData(jpegData, UTType.jpeg.identifier as CFString, 1, nil)!
+        CGImageDestinationAddImage(destination, context.makeImage()!, nil)
+        CGImageDestinationFinalize(destination)
+        return jpegData as Data
     }
 
     // MARK: VDF
@@ -76,16 +76,16 @@ struct SteamTests {
     // MARK: Library
 
     private func makeSteam(_ paths: FaugusPaths) throws -> SteamLibrary {
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         let steam = SteamLibrary(home: paths.home)
         let root = steam.root
         let second = paths.home + "/Disk/SteamLibrary"
-        for d in [
+        for directory in [
             root + "/steamapps/common/Celeste", root + "/config", root + "/userdata/1034930219/config",
             root + "/userdata/42/config", root + "/userdata/0/config", root + "/userdata/notanumber",
             second + "/steamapps/common/Hades", root + "/appcache/librarycache/504230/abc",
         ] {
-            try fm.createDirectory(atPath: d, withIntermediateDirectories: true)
+            try fileManager.createDirectory(atPath: directory, withIntermediateDirectories: true)
         }
 
         func write(_ path: String, _ text: String) throws {
@@ -130,7 +130,7 @@ struct SteamTests {
     }
 
     @Test func listsUsersLibrariesAndGames() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let steam = try makeSteam(paths)
 
@@ -148,7 +148,7 @@ struct SteamTests {
     }
 
     @Test func symlinkedLibraryIsNotListedTwice() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let steam = try makeSteam(paths)
         let alias = paths.home + "/steam-alias"
@@ -160,7 +160,7 @@ struct SteamTests {
     }
 
     @Test func accountFilterFollowsOwnershipAndFamilySharing() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let steam = try makeSteam(paths)
         // Tomi owns Celeste and Proton; Hades is owned by account 42, a family member of Tomi.
@@ -170,7 +170,7 @@ struct SteamTests {
     }
 
     @Test func playtimeAndInstallFolder() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let steam = try makeSteam(paths)
         #expect(steam.playtimeMinutes(appID: "504230", accountID: "1034930219") == 125)
@@ -184,7 +184,7 @@ struct SteamTests {
     }
 
     @Test func installDirectoryCannotEscapeTheLibrary() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let steam = try makeSteam(paths)
         try Data("\"AppState\" { \"name\" \"Evil\" \"installdir\" \"../../../..\" }".utf8)
@@ -193,24 +193,24 @@ struct SteamTests {
     }
 
     @Test func iconIsTheSmallestNonHeaderImage() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let steam = try makeSteam(paths)
-        let dir = steam.root + "/appcache/librarycache/504230"
-        func jpg(_ rel: String, _ side: Int) throws {
-            try makeJPEG(side).write(to: URL(fileURLWithPath: dir + "/" + rel))
+        let artworkDirectory = steam.root + "/appcache/librarycache/504230"
+        func writeJPEG(_ relativePath: String, _ side: Int) throws {
+            try makeJPEG(side).write(to: URL(fileURLWithPath: artworkDirectory + "/" + relativePath))
         }
-        try jpg("header.jpg", 8)
-        try jpg("library_600x900.jpg", 8)
-        try jpg("abc/big.jpg", 64)
-        try jpg("abc/icon.jpg", 16)
-        try Data("not an image".utf8).write(to: URL(fileURLWithPath: dir + "/broken.jpg"))
-        #expect(steam.iconPath(appID: "504230") == dir + "/abc/icon.jpg")
+        try writeJPEG("header.jpg", 8)
+        try writeJPEG("library_600x900.jpg", 8)
+        try writeJPEG("abc/big.jpg", 64)
+        try writeJPEG("abc/icon.jpg", 16)
+        try Data("not an image".utf8).write(to: URL(fileURLWithPath: artworkDirectory + "/broken.jpg"))
+        #expect(steam.iconPath(appID: "504230") == artworkDirectory + "/abc/icon.jpg")
         #expect(steam.iconPath(appID: "nothing") == nil)
     }
 
     @Test func steamInstalledDetection() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let steam = SteamLibrary(home: paths.home)
         #expect(!steam.isSteamInstalled(home: paths.home, bundles: []))
@@ -232,24 +232,24 @@ struct SteamTests {
     }
 
     @Test func supervisorHandsSteamGamesToSteam() async throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         _ = try makeSteam(paths)
-        var g = Game(gameID: "celeste", title: "Celeste")
-        g.runner = "Steam"
-        g.path = "504230"
-        g.gameArguments = "-windowed"
-        try GamesStore(paths: paths).save(games: [g])
+        var game = Game(gameID: "celeste", title: "Celeste")
+        game.runner = "Steam"
+        game.path = "504230"
+        game.gameArguments = "-windowed"
+        try GamesStore(paths: paths).save(games: [game])
 
         final class Box: @unchecked Sendable { var urls: [String] = [] }
         let box = Box()
-        var o = SupervisorOptions()
-        o.steamSplashDuration = .milliseconds(10)
-        o.openSteamURL = { box.urls.append($0)
+        var options = SupervisorOptions()
+        options.steamSplashDuration = .milliseconds(10)
+        options.openSteamURL = { box.urls.append($0)
             return true
         }
         let events = EventLog()
-        let failure = await GameSupervisor(paths: paths, gameID: "celeste", options: o) { events.add($0) }.run()
+        let failure = await GameSupervisor(paths: paths, gameID: "celeste", options: options) { events.add($0) }.run()
         #expect(failure == nil)
         #expect(box.urls == ["steam://run/504230//-windowed/"])
         #expect(events.all.contains(.running(pid: 0)))
@@ -264,22 +264,22 @@ struct SteamTests {
     }
 
     @Test func supervisorRejectsABadAppIDAndFailedOpen() async throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         _ = try makeSteam(paths)
-        var g = Game(gameID: "bad", title: "Bad")
-        g.runner = "Steam"
-        g.path = "not-an-id"
-        var h = Game(gameID: "ok", title: "Ok")
-        h.runner = "Steam"
-        h.path = "1"
-        try GamesStore(paths: paths).save(games: [g, h])
-        var o = SupervisorOptions()
-        o.steamSplashDuration = .zero
-        o.openSteamURL = { _ in false }
-        let bad = await GameSupervisor(paths: paths, gameID: "bad", options: o).run()
-        #expect(bad == .launchFailed("\"not-an-id\" is not a Steam app id"))
-        let ok = await GameSupervisor(paths: paths, gameID: "ok", options: o).run()
-        #expect(ok == .launchFailed("Could not start Steam"))
+        var badGame = Game(gameID: "bad", title: "Bad")
+        badGame.runner = "Steam"
+        badGame.path = "not-an-id"
+        var okGame = Game(gameID: "ok", title: "Ok")
+        okGame.runner = "Steam"
+        okGame.path = "1"
+        try GamesStore(paths: paths).save(games: [badGame, okGame])
+        var options = SupervisorOptions()
+        options.steamSplashDuration = .zero
+        options.openSteamURL = { _ in false }
+        let badAppIDFailure = await GameSupervisor(paths: paths, gameID: "bad", options: options).run()
+        #expect(badAppIDFailure == .launchFailed("\"not-an-id\" is not a Steam app id"))
+        let failedOpenFailure = await GameSupervisor(paths: paths, gameID: "ok", options: options).run()
+        #expect(failedOpenFailure == .launchFailed("Could not start Steam"))
     }
 }

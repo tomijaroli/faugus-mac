@@ -5,7 +5,7 @@ import Testing
 @Suite("i18n")
 struct I18nTests {
     @Test func parsesBasicEntriesContinuationsAndEscapes() {
-        let po = #"""
+        let catalogSource = #"""
         # comment
         msgid ""
         msgstr ""
@@ -38,33 +38,33 @@ struct I18nTests {
         #~ msgid "Obsolete"
         #~ msgstr "Veraltet"
         """#
-        let c = POCatalog.parse(po)
-        #expect(c.headers["Language"] == "de")
-        #expect(c.translate("Hello") == "Hallo")
-        #expect(c.translate("Multiline") == "Mehrzeilig\n")
-        #expect(c.translate("Open", context: "menu") == "Öffnen")
-        #expect(c.translate("Open") == nil)
-        #expect(c.translate("Quote \"x\" \\ tab\t") == "Zitat \"x\" \\ tab\t")
-        #expect(c.translate("Fuzzy") == nil)
-        #expect(c.translate("Untranslated") == nil)
-        #expect(c.translate("Obsolete") == nil)
-        #expect(c.entryCount == 4)
+        let catalog = POCatalog.parse(catalogSource)
+        #expect(catalog.headers["Language"] == "de")
+        #expect(catalog.translate("Hello") == "Hallo")
+        #expect(catalog.translate("Multiline") == "Mehrzeilig\n")
+        #expect(catalog.translate("Open", context: "menu") == "Öffnen")
+        #expect(catalog.translate("Open") == nil)
+        #expect(catalog.translate("Quote \"x\" \\ tab\t") == "Zitat \"x\" \\ tab\t")
+        #expect(catalog.translate("Fuzzy") == nil)
+        #expect(catalog.translate("Untranslated") == nil)
+        #expect(catalog.translate("Obsolete") == nil)
+        #expect(catalog.entryCount == 4)
     }
 
     @Test func pluralEntries() {
-        let po = """
+        let catalogSource = """
         msgid "file"
         msgid_plural "files"
         msgstr[0] "Datei"
         msgstr[1] "Dateien"
         """
-        let c = POCatalog.parse(po)
-        #expect(c.translate("file") == "Datei")
-        #expect(c.entryCount == 2)
+        let catalog = POCatalog.parse(catalogSource)
+        #expect(catalog.translate("file") == "Datei")
+        #expect(catalog.entryCount == 2)
     }
 
     @Test func fuzzyFlagAppliesOnlyToTheNextEntry() {
-        let po = """
+        let catalogSource = """
         #, fuzzy, python-format
         msgid "A"
         msgstr "a"
@@ -72,19 +72,22 @@ struct I18nTests {
         msgid "B"
         msgstr "b"
         """
-        let c = POCatalog.parse(po)
-        #expect(c.translate("A") == nil)
-        #expect(c.translate("B") == "b")
+        let catalog = POCatalog.parse(catalogSource)
+        #expect(catalog.translate("A") == nil)
+        #expect(catalog.translate("B") == "b")
     }
 
     @Test func translatorFallsBackToMsgidAndFormats() {
-        let t = Translator(languageCode: "de", catalogs: [POCatalog.parse("msgid \"Latest\"\nmsgstr \"Neueste\"")])
-        #expect(t("Latest") == "Neueste")
-        #expect(t("Unknown") == "Unknown")
-        #expect(Translator.fill("Proton {} ({})", args: ["A", "B"]) == "Proton A (B)")
-        #expect(Translator.fill("{1} then {0}", args: ["a", "b"]) == "b then a")
-        #expect(Translator.fill("100%% of %s", args: ["x"]) == "100% of x")
-        #expect(Translator.fill("{{literal}}", args: []) == "{literal}")
+        let translator = Translator(
+            languageCode: "de",
+            catalogs: [POCatalog.parse("msgid \"Latest\"\nmsgstr \"Neueste\"")]
+        )
+        #expect(translator("Latest") == "Neueste")
+        #expect(translator("Unknown") == "Unknown")
+        #expect(Translator.fill("Proton {} ({})", arguments: ["A", "B"]) == "Proton A (B)")
+        #expect(Translator.fill("{1} then {0}", arguments: ["a", "b"]) == "b then a")
+        #expect(Translator.fill("100%% of %s", arguments: ["x"]) == "100% of x")
+        #expect(Translator.fill("{{literal}}", arguments: []) == "{literal}")
         #expect(Translator.identity("anything") == "anything")
     }
 
@@ -95,17 +98,18 @@ struct I18nTests {
     }
 
     @Test func upstreamHasTwentySevenLanguages() throws {
-        let dirs = try FileManager.default.contentsOfDirectory(atPath: TestSupport.upstreamLanguagesDirectory.path)
+        let directories = try FileManager.default
+            .contentsOfDirectory(atPath: TestSupport.upstreamLanguagesDirectory.path)
             .filter { catalogs.poURL(language: $0, domain: "faugus-launcher") != nil }
-        #expect(dirs.count == 27)
+        #expect(directories.count == 27)
     }
 
     @Test func germanTranslatesCoreStrings() {
-        let t = catalogs.translator(for: "de")
-        #expect(t("Prefix") == "Präfix")
-        #expect(t("Game") == "Spiel")
-        #expect(t("Settings") != "Settings")
-        #expect(t("A string that does not exist") == "A string that does not exist")
+        let translator = catalogs.translator(for: "de")
+        #expect(translator("Prefix") == "Präfix")
+        #expect(translator("Game") == "Spiel")
+        #expect(translator("Settings") != "Settings")
+        #expect(translator("A string that does not exist") == "A string that does not exist")
     }
 
     @Test func regionFallsBackToLanguage() {
@@ -121,9 +125,9 @@ struct I18nTests {
         let truth = try JSONParser.parse(TestSupport.fixtureData("translation-counts.json")).objectValue!
         let counts = truth["counts"]!.objectValue!
         #expect(counts.count == 27)
-        for (lang, expected) in counts.pairs {
-            let cat = catalogs.catalog(language: lang, domain: "faugus-launcher")
-            #expect(cat?.entryCount == Int(expected.intValue!), "entry count for \(lang)")
+        for (language, expected) in counts.pairs {
+            let catalog = catalogs.catalog(language: language, domain: "faugus-launcher")
+            #expect(catalog?.entryCount == Int(expected.intValue!), "entry count for \(language)")
         }
     }
 
@@ -132,29 +136,29 @@ struct I18nTests {
         let percent = truth["percent"]!.objectValue!
         let ours = catalogs.completions()
         #expect(ours.count == percent.count)
-        for (lang, expected) in percent.pairs {
-            #expect(abs(ours[lang]! - expected.doubleValue!) < 1e-9, "percent for \(lang)")
+        for (language, expected) in percent.pairs {
+            #expect(abs(ours[language]! - expected.doubleValue!) < 1e-9, "percent for \(language)")
         }
     }
 
     @Test func completionsAndThreshold() {
-        let c = catalogs.completions()
-        #expect(c.count == 27)
-        #expect(c.values.max()! == 100.0)
-        #expect(c.values.allSatisfy { $0 >= 0 && $0 <= 100 })
+        let completions = catalogs.completions()
+        #expect(completions.count == 27)
+        #expect(completions.values.max()! == 100.0)
+        #expect(completions.values.allSatisfy { $0 >= 0 && $0 <= 100 })
         // Known gaps in 2.5.6: these fall below the 70% line and are not offered in Settings.
-        for lang in ["ar", "cs", "ta", "fi", "nl", "nb"] {
-            #expect(!catalogs.selectableLanguages().contains(lang))
+        for language in ["ar", "cs", "ta", "fi", "nl", "nb"] {
+            #expect(!catalogs.selectableLanguages().contains(language))
         }
 
         let selectable = catalogs.selectableLanguages()
         #expect(selectable.contains("en_US"))
         #expect(selectable.contains("de"))
-        for lang in selectable where lang != "en_US" {
-            #expect(c[lang]! >= 70)
+        for language in selectable where language != "en_US" {
+            #expect(completions[language]! >= 70)
         }
-        for (lang, pct) in c where pct < 70 {
-            #expect(!selectable.contains(lang))
+        for (language, percent) in completions where percent < 70 {
+            #expect(!selectable.contains(language))
         }
     }
 

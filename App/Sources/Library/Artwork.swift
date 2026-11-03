@@ -28,18 +28,18 @@ final class ArtworkCache: @unchecked Sendable {
     @MainActor
     func load(path: String, maxPixel: Int) async -> NSImage? {
         let key = Self.key(path: path, maxPixel: maxPixel)
-        if let hit = cache.object(forKey: key as NSString) {
-            return hit
+        if let cachedImage = cache.object(forKey: key as NSString) {
+            return cachedImage
         }
         let decoded = await Task.detached(priority: .utility) { () -> CGImage? in
             let url = URL(fileURLWithPath: path) as CFURL
-            guard let src = CGImageSourceCreateWithURL(url, nil) else { return nil }
+            guard let imageSource = CGImageSourceCreateWithURL(url, nil) else { return nil }
             let options: [CFString: Any] = [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceCreateThumbnailWithTransform: true,
                 kCGImageSourceThumbnailMaxPixelSize: maxPixel,
             ]
-            return CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary)
+            return CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary)
         }.value
         let image = decoded.map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
         if let image {
@@ -81,8 +81,8 @@ struct ArtworkView<Placeholder: View>: View {
             guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { image = nil
                 return
             }
-            if let hit = ArtworkCache.shared.cached(path: path, maxPixel: maxPixel) {
-                image = hit
+            if let cachedImage = ArtworkCache.shared.cached(path: path, maxPixel: maxPixel) {
+                image = cachedImage
                 return
             }
             image = await ArtworkCache.shared.load(path: path, maxPixel: maxPixel)

@@ -7,8 +7,8 @@ struct LibraryAppearance {
     let config: FaugusConfig
     let customAccent: ConfigColor?
 
-    static func swiftUI(_ c: ConfigColor) -> Color {
-        Color(.sRGB, red: Double(c.red) / 255, green: Double(c.green) / 255, blue: Double(c.blue) / 255)
+    static func swiftUI(_ color: ConfigColor) -> Color {
+        Color(.sRGB, red: Double(color.red) / 255, green: Double(color.green) / 255, blue: Double(color.blue) / 255)
     }
 
     var accent: Color {

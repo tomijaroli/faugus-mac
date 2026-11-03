@@ -15,21 +15,21 @@ public enum JSONWriter {
         String(decoding: serialize(value, indent: indent), as: UTF8.self)
     }
 
-    private static func write(_ v: JSONValue, level: Int, indent: Int, into out: inout [UInt8]) {
-        switch v {
+    private static func write(_ jsonValue: JSONValue, level: Int, indent: Int, into out: inout [UInt8]) {
+        switch jsonValue {
         case .null: out.append(contentsOf: "null".utf8)
-        case let .bool(b): out.append(contentsOf: (b ? "true" : "false").utf8)
-        case let .int(i): out.append(contentsOf: String(i).utf8)
-        case let .double(d): out.append(contentsOf: formatDouble(d).utf8)
-        case let .string(s): writeString(s, into: &out)
-        case let .array(a):
-            if a.isEmpty {
+        case let .bool(flag): out.append(contentsOf: (flag ? "true" : "false").utf8)
+        case let .int(integer): out.append(contentsOf: String(integer).utf8)
+        case let .double(number): out.append(contentsOf: formatDouble(number).utf8)
+        case let .string(text): writeString(text, into: &out)
+        case let .array(elements):
+            if elements.isEmpty {
                 out.append(contentsOf: "[]".utf8)
                 return
             }
             out.append(UInt8(ascii: "["))
-            for (n, item) in a.enumerated() {
-                if n > 0 {
+            for (index, item) in elements.enumerated() {
+                if index > 0 {
                     out.append(UInt8(ascii: ","))
                 }
                 newline(level + 1, indent, &out)
@@ -37,14 +37,14 @@ public enum JSONWriter {
             }
             newline(level, indent, &out)
             out.append(UInt8(ascii: "]"))
-        case let .object(o):
-            if o.isEmpty {
+        case let .object(object):
+            if object.isEmpty {
                 out.append(contentsOf: "{}".utf8)
                 return
             }
             out.append(UInt8(ascii: "{"))
-            for (n, pair) in o.pairs.enumerated() {
-                if n > 0 {
+            for (index, pair) in object.pairs.enumerated() {
+                if index > 0 {
                     out.append(UInt8(ascii: ","))
                 }
                 newline(level + 1, indent, &out)
@@ -62,20 +62,20 @@ public enum JSONWriter {
         out.append(contentsOf: repeatElement(UInt8(ascii: " "), count: level * indent))
     }
 
-    private static func formatDouble(_ d: Double) -> String {
-        if d.isNaN {
+    private static func formatDouble(_ number: Double) -> String {
+        if number.isNaN {
             return "NaN"
         }
-        if d.isInfinite {
-            return d < 0 ? "-Infinity" : "Infinity"
+        if number.isInfinite {
+            return number < 0 ? "-Infinity" : "Infinity"
         }
-        return "\(d)"
+        return "\(number)"
     }
 
-    private static func writeString(_ s: String, into out: inout [UInt8]) {
+    private static func writeString(_ text: String, into out: inout [UInt8]) {
         out.append(UInt8(ascii: "\""))
-        for b in s.utf8 {
-            switch b {
+        for byte in text.utf8 {
+            switch byte {
             case 0x22: out.append(contentsOf: "\\\"".utf8)
             case 0x5C: out.append(contentsOf: "\\\\".utf8)
             case 0x08: out.append(contentsOf: "\\b".utf8)
@@ -84,9 +84,9 @@ public enum JSONWriter {
             case 0x0D: out.append(contentsOf: "\\r".utf8)
             case 0x09: out.append(contentsOf: "\\t".utf8)
             case 0x00 ..< 0x20:
-                let hex = String(b, radix: 16)
+                let hex = String(byte, radix: 16)
                 out.append(contentsOf: ("\\u" + String(repeating: "0", count: 4 - hex.count) + hex).utf8)
-            default: out.append(b)
+            default: out.append(byte)
             }
         }
         out.append(UInt8(ascii: "\""))

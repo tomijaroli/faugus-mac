@@ -25,19 +25,19 @@ public enum ArchiveSafety {
     /// Walks an extracted tree and rejects symlinks whose target resolves outside `root`
     /// (absolute targets are rejected too).
     public static func validateTree(root: String) throws {
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         let rootURL = URL(fileURLWithPath: root).standardizedFileURL
-        guard let walker = fm.enumerator(atPath: root) else { return }
-        for case let rel as String in walker {
-            let full = root + "/" + rel
-            guard let dest = try? fm.destinationOfSymbolicLink(atPath: full) else { continue }
-            if dest.hasPrefix("/") {
-                throw RunnerError.unsafeArchive("\(rel) -> \(dest)")
+        guard let walker = fileManager.enumerator(atPath: root) else { return }
+        for case let relativePath as String in walker {
+            let full = root + "/" + relativePath
+            guard let linkTarget = try? fileManager.destinationOfSymbolicLink(atPath: full) else { continue }
+            if linkTarget.hasPrefix("/") {
+                throw RunnerError.unsafeArchive("\(relativePath) -> \(linkTarget)")
             }
             let parent = URL(fileURLWithPath: full).deletingLastPathComponent()
-            let resolved = URL(fileURLWithPath: dest, relativeTo: parent).standardizedFileURL
+            let resolved = URL(fileURLWithPath: linkTarget, relativeTo: parent).standardizedFileURL
             if !isInside(resolved.path, root: rootURL.path) {
-                throw RunnerError.unsafeArchive("\(rel) -> \(dest)")
+                throw RunnerError.unsafeArchive("\(relativePath) -> \(linkTarget)")
             }
         }
     }

@@ -37,7 +37,7 @@ struct WinetricksView: View {
     @State private var cabextract = Winetricks.cabextractPath() != nil
 
     var body: some View {
-        let t = model.translator
+        let translate = model.translator
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Winetricks").font(.title2.weight(.semibold))
@@ -55,8 +55,8 @@ struct WinetricksView: View {
                 .padding(8)
                 .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
             }
-            content(t)
-            footer(t)
+            content(translate)
+            footer(translate)
         }
         .padding(20)
         .frame(width: 640, height: 560)
@@ -67,7 +67,7 @@ struct WinetricksView: View {
     // MARK: Content
 
     @ViewBuilder
-    private func content(_ t: Translator) -> some View {
+    private func content(_ translate: Translator) -> some View {
         switch phase {
         case .preparing:
             VStack(spacing: 10) {
@@ -91,20 +91,20 @@ struct WinetricksView: View {
             }
             .frame(maxWidth: .infinity)
         case .picking:
-            picker(t)
+            picker(translate)
         case .running, .finished:
             logView
         }
     }
 
-    private func picker(_ t: Translator) -> some View {
+    private func picker(_ translate: Translator) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Picker("", selection: $category) {
                 ForEach(categories) { Text($0.name.capitalized).tag($0.name) }
             }
             .pickerStyle(.segmented).labelsHidden()
             .accessibilityIdentifier("winetricks-category")
-            TextField("", text: $search, prompt: Text(t("Search")))
+            TextField("", text: $search, prompt: Text(translate("Search")))
                 .textFieldStyle(.roundedBorder).labelsHidden()
                 .accessibilityIdentifier("winetricks-search")
             let verbs = visibleVerbs
@@ -139,8 +139,8 @@ struct WinetricksView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(lines.enumerated()), id: \.offset) { i, line in
-                        Text(line).font(.system(.caption, design: .monospaced)).textSelection(.enabled).id(i)
+                    ForEach(Array(lines.enumerated()), id: \.offset) { lineIndex, line in
+                        Text(line).font(.system(.caption, design: .monospaced)).textSelection(.enabled).id(lineIndex)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -156,13 +156,13 @@ struct WinetricksView: View {
         }
     }
 
-    private func footer(_ t: Translator) -> some View {
+    private func footer(_ translate: Translator) -> some View {
         HStack {
             switch phase {
             case .picking:
                 Text(selected.isEmpty ? "" : "\(selected.count) selected").foregroundStyle(.secondary)
                 Spacer()
-                Button(t("Close")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(translate("Close")) { dismiss() }.keyboardShortcut(.cancelAction)
                 Button("Install") { Task { await install() } }
                     .keyboardShortcut(.defaultAction)
                     .disabled(selected.isEmpty)
@@ -171,7 +171,7 @@ struct WinetricksView: View {
                 ProgressView().controlSize(.small)
                 Text(selected.sorted().joined(separator: ", ")).foregroundStyle(.secondary).lineLimit(1)
                 Spacer()
-                Button(t("Cancel")) { cancel() }.disabled(cancelRequested)
+                Button(translate("Cancel")) { cancel() }.disabled(cancelRequested)
             case let .finished(status, cancelled):
                 Image(systemName: status == 0 ? "checkmark.circle.fill" : "xmark.octagon.fill")
                     .foregroundStyle(status == 0 ? .green : .red)
@@ -180,10 +180,10 @@ struct WinetricksView: View {
                 Button("Back") { selected = []
                     phase = .picking
                 }
-                Button(t("Close")) { dismiss() }.keyboardShortcut(.defaultAction)
+                Button(translate("Close")) { dismiss() }.keyboardShortcut(.defaultAction)
             case .preparing, .failed:
                 Spacer()
-                Button(t("Close")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(translate("Close")) { dismiss() }.keyboardShortcut(.cancelAction)
             }
         }
     }
@@ -217,11 +217,11 @@ struct WinetricksView: View {
 
     private var runner: InstalledRunner? {
         let store = RunnerStore(paths: model.paths)
-        if case let .installed(r) = store.resolve(
+        if case let .installed(installedRunner) = store.resolve(
             runnerName,
             defaultRunner: model.config?.defaultRunner ?? FaugusConfig.defaultRunner
         ) {
-            return r
+            return installedRunner
         }
         return nil
     }
@@ -236,15 +236,16 @@ struct WinetricksView: View {
         do {
             if !component.isInstalled {
                 downloadProgress = 0
-                try await component.install { p in Task { @MainActor in downloadProgress = p } }
+                try await component.install { fraction in Task { @MainActor in downloadProgress = fraction } }
                 downloadProgress = nil
             }
             if let cached = model.winetricksCatalog {
                 categories = cached
             } else {
-                let inv = WinetricksInvocation.listAll(prefix: prefix, runner: runner, paths: model.paths)
+                let invocation = WinetricksInvocation.listAll(prefix: prefix, runner: runner, paths: model.paths)
                 let result = try await ProcessRunner.run(
-                    inv.argv[0], Array(inv.argv.dropFirst()), environment: inv.environment,
+                    invocation.commandLine[0], Array(invocation.commandLine.dropFirst()),
+                    environment: invocation.environment,
                     currentDirectory: model.paths.tempDirectory
                 )
                 let parsed = Winetricks.parseList(result.stdout)
@@ -287,23 +288,23 @@ struct WinetricksView: View {
             }
         }
 
-        let inv = WinetricksInvocation.install(
+        let invocation = WinetricksInvocation.install(
             verbs: verbs, prefix: prefix, runner: runner, paths: model.paths, logName: logName
         )
         try? FileManager.default.createDirectory(
-            atPath: (inv.logFile as NSString).deletingLastPathComponent, withIntermediateDirectories: true
+            atPath: (invocation.logFile as NSString).deletingLastPathComponent, withIntermediateDirectories: true
         )
-        try? FileManager.default.removeItem(atPath: inv.logFile)
+        try? FileManager.default.removeItem(atPath: invocation.logFile)
         lines.append("winetricks -q " + verbs.joined(separator: " "))
 
         let child: pid_t
         do {
             child = try ProcessSpawner.spawn(
-                argv: inv.argv,
+                commandLine: invocation.commandLine,
                 options: .init(
-                    workingDirectory: inv.workingDirectory,
-                    environment: inv.environment,
-                    outputFile: inv.logFile
+                    workingDirectory: invocation.workingDirectory,
+                    environment: invocation.environment,
+                    outputFile: invocation.logFile
                 )
             )
         } catch {
@@ -312,23 +313,23 @@ struct WinetricksView: View {
             return
         }
         pid = child
-        let tail = LogTail(path: inv.logFile)
-        let exit = ExitBox()
-        Task { await exit.set(ProcessSpawner.waitForExit(pid: child)) }
-        while exit.status == nil {
+        let tail = LogTail(path: invocation.logFile)
+        let exitBox = ExitBox()
+        Task { await exitBox.set(ProcessSpawner.waitForExit(pid: child)) }
+        while exitBox.status == nil {
             append(tail.poll())
             try? await Task.sleep(for: .milliseconds(250))
         }
-        let status = exit.status
+        let status = exitBox.status
         append(tail.poll(flush: true))
         pid = 0
         installedVerbs = Winetricks.installedVerbs(prefix: prefix)
         phase = .finished(status ?? -1, cancelled: cancelRequested)
     }
 
-    private func append(_ new: [String]) {
-        guard !new.isEmpty else { return }
-        lines.append(contentsOf: new)
+    private func append(_ newLines: [String]) {
+        guard !newLines.isEmpty else { return }
+        lines.append(contentsOf: newLines)
         if lines.count > 5000 {
             lines.removeFirst(lines.count - 5000)
         }
@@ -349,12 +350,12 @@ struct WinetricksView: View {
                 kill(-target, SIGKILL)
             }
             if let runner {
-                var env = ProcessInfo.processInfo.environment
-                env["WINEPREFIX"] = prefix
+                var environment = ProcessInfo.processInfo.environment
+                environment["WINEPREFIX"] = prefix
                 _ = try? await ProcessRunner.run(
                     runner.wineserverBinary,
                     ["-k"],
-                    environment: env,
+                    environment: environment,
                     currentDirectory: prefix
                 )
             }
@@ -371,9 +372,9 @@ private final class ExitBox: @unchecked Sendable {
         return value
     }
 
-    func set(_ v: Int32) {
+    func set(_ exitStatus: Int32) {
         lock.lock()
-        value = v
+        value = exitStatus
         lock.unlock()
     }
 }

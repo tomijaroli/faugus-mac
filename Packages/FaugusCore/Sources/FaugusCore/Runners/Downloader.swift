@@ -18,14 +18,14 @@ public final class Downloader: NSObject, URLSessionDownloadDelegate, @unchecked 
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
         )
-        var req = URLRequest(url: url)
-        req.setValue("Faugus-for-Mac", forHTTPHeaderField: "User-Agent")
+        var request = URLRequest(url: url)
+        request.setValue("Faugus-for-Mac", forHTTPHeaderField: "User-Agent")
         let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                setContinuation(cont)
-                session.downloadTask(with: req).resume()
+            try await withCheckedThrowingContinuation { (checkedContinuation: CheckedContinuation<Void, Error>) in
+                setContinuation(checkedContinuation)
+                session.downloadTask(with: request).resume()
             }
         } onCancel: {
             session.invalidateAndCancel()
@@ -33,18 +33,18 @@ public final class Downloader: NSObject, URLSessionDownloadDelegate, @unchecked 
     }
 
     /// Lock helpers are synchronous: NSLock cannot be used directly from async contexts.
-    private func setContinuation(_ cont: CheckedContinuation<Void, Error>) {
+    private func setContinuation(_ newContinuation: CheckedContinuation<Void, Error>) {
         lock.lock()
         defer { lock.unlock() }
-        continuation = cont
+        continuation = newContinuation
     }
 
     private func takeContinuation() -> CheckedContinuation<Void, Error>? {
         lock.lock()
         defer { lock.unlock() }
-        let c = continuation
+        let taken = continuation
         continuation = nil
-        return c
+        return taken
     }
 
     private func setMoveError(_ error: Error) {
@@ -83,13 +83,13 @@ public final class Downloader: NSObject, URLSessionDownloadDelegate, @unchecked 
     }
 
     public func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: Error?) {
-        let cont = takeContinuation()
+        let pendingContinuation = takeContinuation()
         if let error {
-            cont?.resume(throwing: RunnerError.downloadFailed(error.localizedDescription))
+            pendingContinuation?.resume(throwing: RunnerError.downloadFailed(error.localizedDescription))
         } else if let moved = currentMoveError() {
-            cont?.resume(throwing: moved)
+            pendingContinuation?.resume(throwing: moved)
         } else {
-            cont?.resume()
+            pendingContinuation?.resume()
         }
     }
 

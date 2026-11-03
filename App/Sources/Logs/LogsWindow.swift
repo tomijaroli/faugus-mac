@@ -13,10 +13,10 @@ enum LogsWindowController {
             existing.makeKeyAndOrderFront(nil)
             return
         }
-        let dir = model.paths.gameLogsDirectory(gameID: game.gameID)
+        let directory = model.paths.gameLogsDirectory(gameID: game.gameID)
         let view = LogsView(
             title: model.translator.format("%s Logs", game.title),
-            directory: dir,
+            directory: directory,
             translator: model.translator
         )
         let window = NSWindow(
@@ -61,8 +61,8 @@ struct LogsView: View {
             .background(Color(nsColor: .textBackgroundColor))
             HStack {
                 Button(translator("Clear Logs")) {
-                    for f in files {
-                        try? FileManager.default.removeItem(atPath: directory + "/" + f)
+                    for logFileName in files {
+                        try? FileManager.default.removeItem(atPath: directory + "/" + logFileName)
                     }
                     refresh()
                 }
@@ -80,20 +80,20 @@ struct LogsView: View {
     }
 
     private func refresh() {
-        for f in files {
-            let path = directory + "/" + f
+        for logFileName in files {
+            let path = directory + "/" + logFileName
             // Wine's debug log can reach hundreds of MB; show only the tail.
-            contents[f] = Self.tail(path: path, maxBytes: 512 * 1024)
+            contents[logFileName] = Self.tail(path: path, maxBytes: 512 * 1024)
         }
     }
 
     static func tail(path: String, maxBytes: Int) -> String {
-        guard let h = FileHandle(forReadingAtPath: path) else { return "" }
-        defer { try? h.close() }
-        let size = (try? h.seekToEnd()) ?? 0
+        guard let fileHandle = FileHandle(forReadingAtPath: path) else { return "" }
+        defer { try? fileHandle.close() }
+        let size = (try? fileHandle.seekToEnd()) ?? 0
         let start = size > UInt64(maxBytes) ? size - UInt64(maxBytes) : 0
-        try? h.seek(toOffset: start)
-        let data = (try? h.readToEnd()) ?? Data()
+        try? fileHandle.seek(toOffset: start)
+        let data = (try? fileHandle.readToEnd()) ?? Data()
         return String(decoding: data, as: UTF8.self)
     }
 }

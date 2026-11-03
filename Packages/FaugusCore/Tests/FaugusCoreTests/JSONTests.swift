@@ -19,20 +19,20 @@ struct JSONTests {
     }
 
     @Test func preservesKeyOrderAndOverwriteKeepsPosition() throws {
-        var o = JSONObject()
-        o["b"] = 1
-        o["a"] = 2
-        o["b"] = 3
-        #expect(o.keys == ["b", "a"])
-        o["b"] = nil
-        #expect(o.keys == ["a"])
+        var object = JSONObject()
+        object["b"] = 1
+        object["a"] = 2
+        object["b"] = 3
+        #expect(object.keys == ["b", "a"])
+        object["b"] = nil
+        #expect(object.keys == ["a"])
         let parsed = try JSONParser.parse(#"{"z":1,"y":2,"z":3}"#)
         #expect(parsed.objectValue?.keys == ["z", "y"])
         #expect(parsed.objectValue?["z"] == .int(3))
     }
 
     @Test func emptyContainersAndNesting() {
-        let v: JSONValue = ["a": [], "b": [:], "c": [[1, 2], ["x": nil]]]
+        let value: JSONValue = ["a": [], "b": [:], "c": [[1, 2], ["x": nil]]]
         let expected = """
         {
             "a": [],
@@ -48,14 +48,14 @@ struct JSONTests {
             ]
         }
         """
-        #expect(JSONWriter.string(v) == expected)
+        #expect(JSONWriter.string(value) == expected)
     }
 
     @Test func stringEscapingMatchesPython() throws {
-        let s = "q\" b\\ n\n r\r t\t bs\u{08} ff\u{0C} nul\u{01} é 日本 😀 del\u{7f}"
-        let out = JSONWriter.string(.string(s))
+        let text = "q\" b\\ n\n r\r t\t bs\u{08} ff\u{0C} nul\u{01} é 日本 😀 del\u{7f}"
+        let out = JSONWriter.string(.string(text))
         #expect(out == "\"q\\\" b\\\\ n\\n r\\r t\\t bs\\b ff\\f nul\\u0001 é 日本 😀 del\u{7f}\"")
-        #expect(try JSONParser.parse(out) == .string(s))
+        #expect(try JSONParser.parse(out) == .string(text))
     }
 
     @Test func parsesUnicodeEscapesAndSurrogatePairs() throws {
@@ -82,8 +82,8 @@ struct JSONTests {
         #expect(throws: JSONParseError.self) { try JSONParser.parse(text) }
     }
 
-    @Test func atomicWriteCreatesParentsAndLeavesNoTemp() throws {
-        let paths = try TestSupport.makeTempHome()
+    @Test func atomicWriteCreatesParentsAndLeavesNoTemporaryFile() throws {
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let target = paths.home + "/a/b/c.json"
         try JSONFile.save(["k": "v"], to: target)
@@ -94,7 +94,7 @@ struct JSONTests {
     }
 
     @Test func loadFallbacks() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let missing = paths.home + "/nope.json"
         #expect(JSONFile.load(missing) == .array([]))

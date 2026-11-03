@@ -14,26 +14,26 @@ public enum GcenxFeed {
     public static func parse(_ json: JSONValue) -> [RemoteRunner] {
         guard let releases = json.arrayValue else { return [] }
         var out: [RemoteRunner] = []
-        for rel in releases.compactMap(\.objectValue) {
-            if rel["draft"]?.boolValue == true || rel["prerelease"]?.boolValue == true {
+        for release in releases.compactMap(\.objectValue) {
+            if release["draft"]?.boolValue == true || release["prerelease"]?.boolValue == true {
                 continue
             }
-            guard let tag = rel["tag_name"]?.stringValue else { continue }
-            let published = rel["published_at"]?.stringValue ?? ""
-            for asset in (rel["assets"]?.arrayValue ?? []).compactMap(\.objectValue) {
+            guard let tag = release["tag_name"]?.stringValue else { continue }
+            let published = release["published_at"]?.stringValue ?? ""
+            for asset in (release["assets"]?.arrayValue ?? []).compactMap(\.objectValue) {
                 guard let name = asset["name"]?.stringValue,
                       let flavor = flavor(fromAsset: name),
                       let urlString = asset["browser_download_url"]?.stringValue,
                       let url = URL(string: urlString)
                 else { continue }
-                var sha: String?
+                var sha256Digest: String?
                 if let digest = asset["digest"]?.stringValue, digest.hasPrefix("sha256:") {
-                    sha = String(digest.dropFirst("sha256:".count))
+                    sha256Digest = String(digest.dropFirst("sha256:".count))
                 }
                 out.append(
                     RemoteRunner(
                         flavor: flavor, version: tag, assetName: name, downloadURL: url,
-                        size: asset["size"]?.intValue ?? 0, sha256: sha, publishedAt: published
+                        size: asset["size"]?.intValue ?? 0, sha256: sha256Digest, publishedAt: published
                     )
                 )
             }
@@ -50,8 +50,8 @@ public enum GcenxFeed {
     static func flavor(fromAsset name: String) -> WineFlavor? {
         guard name.hasPrefix("wine-"), name.hasSuffix("-osx64.tar.xz") else { return nil }
         let rest = name.dropFirst("wine-".count)
-        for f in WineFlavor.allCases where rest.hasPrefix(f.rawValue + "-") {
-            return f
+        for candidate in WineFlavor.allCases where rest.hasPrefix(candidate.rawValue + "-") {
+            return candidate
         }
         return nil
     }
@@ -65,11 +65,11 @@ public enum GcenxFeed {
         var all: [RemoteRunner] = []
         var page = 1
         while true {
-            var req = URLRequest(url: releasesURL(page: page))
-            req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            req.setValue("Faugus-for-Mac", forHTTPHeaderField: "User-Agent")
-            let (data, response) = try await session.data(for: req)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            var request = URLRequest(url: releasesURL(page: page))
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            request.setValue("Faugus-for-Mac", forHTTPHeaderField: "User-Agent")
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                 throw RunnerError
                     .downloadFailed("GitHub API returned \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             }

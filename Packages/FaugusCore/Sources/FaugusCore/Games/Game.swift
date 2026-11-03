@@ -37,22 +37,22 @@ public struct Game: Equatable, Sendable, Identifiable {
 
     /// `Game(**prepare_game_kwargs(data))`
     public init(json: JSONObject) {
-        var o = json
-        for f in gameFields where o[f] == nil {
-            o[f] = Game.defaultValue(for: f)
+        var object = json
+        for field in gameFields where object[field] == nil {
+            object[field] = Game.defaultValue(for: field)
         }
-        raw = o
+        raw = object
     }
 
     public init(gameID: String, title: String) {
-        var o = JSONObject()
-        for f in gameFields {
-            o[f] = Game.defaultValue(for: f)
+        var object = JSONObject()
+        for field in gameFields {
+            object[field] = Game.defaultValue(for: field)
         }
-        o["gameid"] = .string(gameID)
-        o["title"] = .string(title)
-        o["runner"] = "Default"
-        raw = o
+        object["gameid"] = .string(gameID)
+        object["title"] = .string(title)
+        object["runner"] = "Default"
+        raw = object
     }
 
     static func defaultValue(for field: String) -> JSONValue {
@@ -65,11 +65,11 @@ public struct Game: Equatable, Sendable, Identifiable {
 
     // MARK: String fields
 
-    private func str(_ key: String) -> String {
+    private func stringField(_ key: String) -> String {
         switch raw[key] {
-        case let .string(s)?: s
-        case let .int(i)?: String(i)
-        case let .double(d)?: "\(d)"
+        case let .string(text)?: text
+        case let .int(integer)?: String(integer)
+        case let .double(double)?: "\(double)"
         default: ""
         }
     }
@@ -79,75 +79,75 @@ public struct Game: Equatable, Sendable, Identifiable {
     }
 
     public var gameID: String {
-        get { str("gameid") } set { set("gameid", newValue) }
+        get { stringField("gameid") } set { set("gameid", newValue) }
     }
 
     public var title: String {
-        get { str("title") } set { set("title", newValue) }
+        get { stringField("title") } set { set("title", newValue) }
     }
 
     public var path: String {
-        get { str("path") } set { set("path", newValue) }
+        get { stringField("path") } set { set("path", newValue) }
     }
 
     public var prefix: String {
-        get { str("prefix") } set { set("prefix", newValue) }
+        get { stringField("prefix") } set { set("prefix", newValue) }
     }
 
     public var launchArguments: String {
-        get { str("launch_arguments") } set { set("launch_arguments", newValue) }
+        get { stringField("launch_arguments") } set { set("launch_arguments", newValue) }
     }
 
     public var gameArguments: String {
-        get { str("game_arguments") } set { set("game_arguments", newValue) }
+        get { stringField("game_arguments") } set { set("game_arguments", newValue) }
     }
 
     public var runner: String {
-        get { str("runner") } set { set("runner", newValue) }
+        get { stringField("runner") } set { set("runner", newValue) }
     }
 
     public var addApp: String {
-        get { str("addapp") } set { set("addapp", newValue) }
+        get { stringField("addapp") } set { set("addapp", newValue) }
     }
 
     public var addAppBat: String {
-        get { str("addapp_bat") } set { set("addapp_bat", newValue) }
+        get { stringField("addapp_bat") } set { set("addapp_bat", newValue) }
     }
 
     public var addAppDelay: String {
-        get { str("addapp_delay") } set { set("addapp_delay", newValue) }
+        get { stringField("addapp_delay") } set { set("addapp_delay", newValue) }
     }
 
     public var cover: String {
-        get { str("cover") } set { set("cover", newValue) }
+        get { stringField("cover") } set { set("cover", newValue) }
     }
 
     public var icon: String {
-        get { str("icon") } set { set("icon", newValue) }
+        get { stringField("icon") } set { set("icon", newValue) }
     }
 
     public var steamGridDBID: String {
-        get { str("steamgriddb_id") } set { set("steamgriddb_id", newValue) }
+        get { stringField("steamgriddb_id") } set { set("steamgriddb_id", newValue) }
     }
 
     public var preLaunch: String {
-        get { str("pre_launch") } set { set("pre_launch", newValue) }
+        get { stringField("pre_launch") } set { set("pre_launch", newValue) }
     }
 
     public var postLaunch: String {
-        get { str("post_launch") } set { set("post_launch", newValue) }
+        get { stringField("post_launch") } set { set("post_launch", newValue) }
     }
 
     public var steamUser: String {
-        get { str("steam_user") } set { set("steam_user", newValue) }
+        get { stringField("steam_user") } set { set("steam_user", newValue) }
     }
 
     public var runtime: String {
-        get { str("runtime") } set { set("runtime", newValue) }
+        get { stringField("runtime") } set { set("runtime", newValue) }
     }
 
     public var lastPlayed: String {
-        get { str("last_played") } set { set("last_played", newValue) }
+        get { stringField("last_played") } set { set("last_played", newValue) }
     }
 
     // MARK: Flags (Python truthiness on loosely typed JSON)
@@ -196,9 +196,9 @@ public struct Game: Equatable, Sendable, Identifiable {
     public var playtime: Int {
         get {
             switch raw["playtime"] {
-            case let .int(i)?: Int(i)
-            case let .double(d)?: Int(d)
-            case let .string(s)?: Int(s) ?? 0
+            case let .int(integer)?: Int(integer)
+            case let .double(double)?: Int(double)
+            case let .string(text)?: Int(text) ?? 0
             default: 0
             }
         }
@@ -231,8 +231,8 @@ public struct Game: Equatable, Sendable, Identifiable {
     /// followed by any extra fields in their original order.
     public func saveObject(hidden hiddenOverride: Bool? = nil) -> JSONObject {
         var out = JSONObject()
-        for f in gameFields {
-            out[f] = raw[f] ?? Game.defaultValue(for: f)
+        for field in gameFields {
+            out[field] = raw[field] ?? Game.defaultValue(for: field)
         }
         out["mangohud"] = mangohud ? .bool(true) : ""
         out["gamemode"] = gamemode ? .bool(true) : ""
@@ -243,8 +243,8 @@ public struct Game: Equatable, Sendable, Identifiable {
         if let hiddenOverride {
             out["hidden"] = .bool(hiddenOverride)
         }
-        for (k, v) in raw.pairs where out[k] == nil {
-            out[k] = v
+        for (key, value) in raw.pairs where out[key] == nil {
+            out[key] = value
         }
         return out
     }

@@ -7,10 +7,10 @@ let launchMode = LaunchMode.parse(Array(CommandLine.arguments.dropFirst()))
 switch launchMode {
 case .launcher:
     FaugusLauncherApp.main()
-case let .runGame(id, logs, pre, post):
-    RunnerMode.run(gameID: id, logs: logs, preLaunch: pre, postLaunch: post)
-case let .runFile(path, target, logs, pre, post):
-    RunnerMode.run(target: target, logs: logs, preLaunch: pre, postLaunch: post, runFile: path)
+case let .runGame(gameID, logs, preLaunch, postLaunch):
+    RunnerMode.run(gameID: gameID, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch)
+case let .runFile(path, target, logs, preLaunch, postLaunch):
+    RunnerMode.run(target: target, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch, runFile: path)
 case let .invalid(message):
     FileHandle.standardError.write(Data("Faugus: \(message)\n".utf8))
     exit(2)

@@ -11,13 +11,13 @@ public struct PrefixMarker: Equatable, Sendable {
     public var dxvk: String?
 
     public func json() -> JSONValue {
-        var o = JSONObject()
-        o["version"] = .int(Int64(version))
-        o["runner"] = .string(runner)
-        o["wine"] = .string(wine)
-        o["created"] = .string(created)
-        o["dxvk"] = dxvk.map(JSONValue.string) ?? .null
-        return .object(o)
+        var object = JSONObject()
+        object["version"] = .int(Int64(version))
+        object["runner"] = .string(runner)
+        object["wine"] = .string(wine)
+        object["created"] = .string(created)
+        object["dxvk"] = dxvk.map(JSONValue.string) ?? .null
+        return .object(object)
     }
 
     public init(runner: String, wine: String, created: String, dxvk: String? = nil) {
@@ -28,12 +28,12 @@ public struct PrefixMarker: Equatable, Sendable {
     }
 
     public init?(json: JSONValue) {
-        guard let o = json.objectValue, let runner = o["runner"]?.stringValue else { return nil }
+        guard let object = json.objectValue, let runner = object["runner"]?.stringValue else { return nil }
         self.init(
-            runner: runner, wine: o["wine"]?.stringValue ?? "", created: o["created"]?.stringValue ?? "",
-            dxvk: o["dxvk"]?.stringValue
+            runner: runner, wine: object["wine"]?.stringValue ?? "", created: object["created"]?.stringValue ?? "",
+            dxvk: object["dxvk"]?.stringValue
         )
-        version = Int(o["version"]?.intValue ?? 1)
+        version = Int(object["version"]?.intValue ?? 1)
     }
 }
 
@@ -41,7 +41,7 @@ public enum PrefixError: Error, Equatable, CustomStringConvertible {
     case creationFailed(String)
     public var description: String {
         switch self {
-        case let .creationFailed(m): "Prefix creation failed: \(m)"
+        case let .creationFailed(message): "Prefix creation failed: \(message)"
         }
     }
 }
@@ -58,14 +58,15 @@ public struct PrefixManager: Sendable {
     }
 
     public func marker(prefix: String) -> PrefixMarker? {
-        let v = JSONFile.load(markerPath(prefix), default: .null)
-        return PrefixMarker(json: v)
+        let markerJSON = JSONFile.load(markerPath(prefix), default: .null)
+        return PrefixMarker(json: markerJSON)
     }
 
     /// A prefix is ready when Wine initialised it (`system.reg`) and Faugus recorded it.
     public func isCreated(prefix: String) -> Bool {
-        let fm = FileManager.default
-        return fm.fileExists(atPath: prefix + "/system.reg") && fm.fileExists(atPath: markerPath(prefix))
+        let fileManager = FileManager.default
+        return fileManager.fileExists(atPath: prefix + "/system.reg") && fileManager
+            .fileExists(atPath: markerPath(prefix))
     }
 
     public func windowsDirectory(_ prefix: String) -> String {
@@ -80,24 +81,29 @@ public struct PrefixManager: Sendable {
         baseEnvironment: [String: String] = ProcessInfo.processInfo.environment
     ) async throws {
         try FileManager.default.createDirectory(atPath: prefix, withIntermediateDirectories: true)
-        var env = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: baseEnvironment)
-        env["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d;mscoree,mshtml="
-        env["WINEDEBUG"] = "-all"
+        var environment = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: baseEnvironment)
+        environment["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d;mscoree,mshtml="
+        environment["WINEDEBUG"] = "-all"
 
         let boot = try await ProcessRunner.run(
             runner.wineBinary,
             ["wineboot", "-u"],
-            environment: env,
+            environment: environment,
             currentDirectory: prefix
         )
         // Let wineserver finish writing the registry before anyone touches the prefix.
-        _ = try? await ProcessRunner.run(runner.wineserverBinary, ["-w"], environment: env, currentDirectory: prefix)
+        _ = try? await ProcessRunner.run(
+            runner.wineserverBinary,
+            ["-w"],
+            environment: environment,
+            currentDirectory: prefix
+        )
 
         guard boot.succeeded, FileManager.default.fileExists(atPath: prefix + "/system.reg") else {
             throw PrefixError.creationFailed(boot.stderr.isEmpty ? "wineboot exited with \(boot.status)" : boot.stderr)
         }
 
-        let version = await (try? ProcessRunner.run(runner.wineBinary, ["--version"], environment: env))?.stdout
+        let version = await (try? ProcessRunner.run(runner.wineBinary, ["--version"], environment: environment))?.stdout
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let marker = PrefixMarker(
             runner: runner.name, wine: version, created: ISO8601DateFormatter().string(from: Date())
@@ -114,7 +120,7 @@ public struct PrefixManager: Sendable {
         dxvk: DXVKComponent
     ) throws {
         guard var marker = marker(prefix: prefix) else { return }
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         let system32 = windowsDirectory(prefix) + "/system32"
         let syswow64 = windowsDirectory(prefix) + "/syswow64"
 
@@ -127,20 +133,20 @@ public struct PrefixManager: Sendable {
             }
             for dll in DXVKComponent.dllNames {
                 try copyReplacing(from: dxvk.x64Directory + "/" + dll, to: system32 + "/" + dll)
-                if fm.fileExists(atPath: syswow64) {
+                if fileManager.fileExists(atPath: syswow64) {
                     try copyReplacing(from: dxvk.x32Directory + "/" + dll, to: syswow64 + "/" + dll)
                 }
             }
             marker.dxvk = DXVKComponent.tag
         } else if marker.dxvk != nil {
             for dll in DXVKComponent.dllNames {
-                let b64 = runner.wineRoot + "/lib/wine/x86_64-windows/" + dll
-                let b32 = runner.wineRoot + "/lib/wine/i386-windows/" + dll
-                if fm.fileExists(atPath: b64) {
-                    try copyReplacing(from: b64, to: system32 + "/" + dll)
+                let builtin64Path = runner.wineRoot + "/lib/wine/x86_64-windows/" + dll
+                let builtin32Path = runner.wineRoot + "/lib/wine/i386-windows/" + dll
+                if fileManager.fileExists(atPath: builtin64Path) {
+                    try copyReplacing(from: builtin64Path, to: system32 + "/" + dll)
                 }
-                if fm.fileExists(atPath: b32), fm.fileExists(atPath: syswow64) {
-                    try copyReplacing(from: b32, to: syswow64 + "/" + dll)
+                if fileManager.fileExists(atPath: builtin32Path), fileManager.fileExists(atPath: syswow64) {
+                    try copyReplacing(from: builtin32Path, to: syswow64 + "/" + dll)
                 }
             }
             marker.dxvk = nil
@@ -151,16 +157,19 @@ public struct PrefixManager: Sendable {
     }
 
     private func dllsPresent(dxvk _: DXVKComponent, system32: String, syswow64 _: String) -> Bool {
-        let fm = FileManager.default
-        return DXVKComponent.dllNames.allSatisfy { fm.fileExists(atPath: system32 + "/" + $0) }
+        let fileManager = FileManager.default
+        return DXVKComponent.dllNames.allSatisfy { fileManager.fileExists(atPath: system32 + "/" + $0) }
     }
 
-    private func copyReplacing(from src: String, to dst: String) throws {
-        let fm = FileManager.default
-        try fm.createDirectory(atPath: (dst as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
-        if fm.fileExists(atPath: dst) {
-            try fm.removeItem(atPath: dst)
+    private func copyReplacing(from source: String, to destination: String) throws {
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(
+            atPath: (destination as NSString).deletingLastPathComponent,
+            withIntermediateDirectories: true
+        )
+        if fileManager.fileExists(atPath: destination) {
+            try fileManager.removeItem(atPath: destination)
         }
-        try fm.copyItem(atPath: src, toPath: dst)
+        try fileManager.copyItem(atPath: source, toPath: destination)
     }
 }

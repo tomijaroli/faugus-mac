@@ -10,14 +10,14 @@ public struct JSONObject: Equatable, Sendable, ExpressibleByDictionaryLiteral {
     public init() {}
 
     public init(dictionaryLiteral elements: (String, JSONValue)...) {
-        for (k, v) in elements {
-            self[k] = v
+        for (key, value) in elements {
+            self[key] = value
         }
     }
 
     public init(pairs: [(String, JSONValue)]) {
-        for (k, v) in pairs {
-            self[k] = v
+        for (key, value) in pairs {
+            self[key] = value
         }
     }
 
@@ -102,45 +102,45 @@ extension JSONValue: ExpressibleByStringLiteral, ExpressibleByBooleanLiteral,
 
 extension JSONValue {
     public var stringValue: String? {
-        if case let .string(s) = self {
-            return s
+        if case let .string(string) = self {
+            return string
         }
         return nil
     }
 
     public var boolValue: Bool? {
-        if case let .bool(b) = self {
-            return b
+        if case let .bool(bool) = self {
+            return bool
         }
         return nil
     }
 
     public var intValue: Int64? {
         switch self {
-        case let .int(i): i
-        case let .double(d) where d == d.rounded() && abs(d) < 9e18: Int64(d)
+        case let .int(integer): integer
+        case let .double(number) where number == number.rounded() && abs(number) < 9e18: Int64(number)
         default: nil
         }
     }
 
     public var doubleValue: Double? {
         switch self {
-        case let .int(i): Double(i)
-        case let .double(d): d
+        case let .int(integer): Double(integer)
+        case let .double(number): number
         default: nil
         }
     }
 
     public var arrayValue: [JSONValue]? {
-        if case let .array(a) = self {
-            return a
+        if case let .array(array) = self {
+            return array
         }
         return nil
     }
 
     public var objectValue: JSONObject? {
-        if case let .object(o) = self {
-            return o
+        if case let .object(object) = self {
+            return object
         }
         return nil
     }
@@ -156,12 +156,12 @@ extension JSONValue {
     public var isTruthy: Bool {
         switch self {
         case .null: false
-        case let .bool(b): b
-        case let .int(i): i != 0
-        case let .double(d): d != 0
-        case let .string(s): !s.isEmpty
-        case let .array(a): !a.isEmpty
-        case let .object(o): !o.isEmpty
+        case let .bool(bool): bool
+        case let .int(integer): integer != 0
+        case let .double(number): number != 0
+        case let .string(string): !string.isEmpty
+        case let .array(array): !array.isEmpty
+        case let .object(object): !object.isEmpty
         }
     }
 }

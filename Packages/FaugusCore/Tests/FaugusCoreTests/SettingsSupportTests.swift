@@ -5,12 +5,15 @@ import Testing
 @Suite("Settings support", .serialized)
 struct SettingsSupportTests {
     @Test func environmentVariablesFileDropsBlankLinesAndKeepsOrder() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let store = EnvironmentVariableStore(paths: paths)
         #expect(store.load().isEmpty)
         try store.save(["A=1", "", "  ", "B=two words"])
         #expect(store.load() == ["A=1", "B=two words"])
+        // The on-disk name is shared with upstream Faugus (`envar.json`); renaming the Swift property must not rename
+        // it.
+        #expect(paths.environmentVariablesFile == paths.configDirectory + "/envar.json")
         // The launch plan reads the same file.
         #expect(JSONFile.load(paths.environmentVariablesFile) == .array(["A=1", "B=two words"]))
     }
@@ -40,9 +43,10 @@ struct SettingsSupportTests {
     }
 
     @Test func clearingLogsEmptiesTheFolderButKeepsIt() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        #expect(LogsMaintenance.size(of: paths.logsDirectory) == nil || LogsMaintenance.size(of: paths.logsDirectory) == 0)
+        #expect(LogsMaintenance.size(of: paths.logsDirectory) == nil || LogsMaintenance
+            .size(of: paths.logsDirectory) == 0)
         try FileManager.default.createDirectory(
             atPath: paths.gameLogsDirectory(gameID: "g"),
             withIntermediateDirectories: true
@@ -53,7 +57,8 @@ struct SettingsSupportTests {
         try LogsMaintenance.clear(paths: paths)
         #expect(LogsMaintenance.size(of: paths.logsDirectory) == 0)
         var isDirectory: ObjCBool = false
-        #expect(FileManager.default.fileExists(atPath: paths.logsDirectory, isDirectory: &isDirectory) && isDirectory.boolValue)
+        #expect(FileManager.default.fileExists(atPath: paths.logsDirectory, isDirectory: &isDirectory) && isDirectory
+            .boolValue)
     }
 }
 

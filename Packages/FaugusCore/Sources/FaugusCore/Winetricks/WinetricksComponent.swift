@@ -35,10 +35,10 @@ public struct WinetricksComponent: Sendable {
         if isInstalled {
             return
         }
-        let fm = FileManager.default
-        try fm.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
         let part = URL(fileURLWithPath: paths.tempDirectory).appendingPathComponent("winetricks-\(Self.version).part")
-        defer { try? fm.removeItem(at: part) }
+        defer { try? fileManager.removeItem(at: part) }
         let downloader = Downloader(destination: part) { done, total in
             if total > 0 {
                 progress(min(1, Double(done) / Double(total)))
@@ -51,20 +51,20 @@ public struct WinetricksComponent: Sendable {
 
     /// Verifies a local copy and installs it atomically.
     public func installScript(at path: String, expectedSHA256: String?) throws {
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         if let expected = expectedSHA256 {
             let actual = try Downloader.sha256(ofFileAt: path)
             guard actual == expected else { throw RunnerError.checksumMismatch(expected: expected, actual: actual) }
         }
-        try fm.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        try fileManager.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let staged = directory + "/.winetricks-" + UUID().uuidString.lowercased()
-        try fm.copyItem(atPath: path, toPath: staged)
-        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: staged)
+        try fileManager.copyItem(atPath: path, toPath: staged)
+        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: staged)
         // A downloaded file is never quarantined by URLSession, but a manually supplied one may be.
         removexattr(staged, "com.apple.quarantine", 0)
-        if fm.fileExists(atPath: scriptPath) {
-            try fm.removeItem(atPath: scriptPath)
+        if fileManager.fileExists(atPath: scriptPath) {
+            try fileManager.removeItem(atPath: scriptPath)
         }
-        try fm.moveItem(atPath: staged, toPath: scriptPath)
+        try fileManager.moveItem(atPath: staged, toPath: scriptPath)
     }
 }

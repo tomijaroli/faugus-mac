@@ -4,8 +4,8 @@ import Testing
 
 @Suite("Installed executable detection")
 struct InstalledExecutableTests {
-    private func le32(_ v: Int) -> [UInt8] {
-        (0 ..< 4).map { UInt8((v >> ($0 * 8)) & 0xFF) }
+    private func littleEndianBytes(_ value: Int) -> [UInt8] {
+        (0 ..< 4).map { UInt8((value >> ($0 * 8)) & 0xFF) }
     }
 
     /// A minimal shell link: header, no ID list, a LinkInfo with a local base path.
@@ -13,10 +13,10 @@ struct InstalledExecutableTests {
         var header = [UInt8](repeating: 0, count: 76)
         header[0] = 0x4C
         let flags = 0x02 | (idList ? 0x01 : 0)
-        header.replaceSubrange(20 ..< 24, with: le32(flags))
-        var out = header
+        header.replaceSubrange(20 ..< 24, with: littleEndianBytes(flags))
+        var linkBytes = header
         if idList {
-            out += [3, 0, 1, 2, 3]
+            linkBytes += [3, 0, 1, 2, 3]
         } // size 3 + 3 bytes of "item ids"
 
         let headerSize = unicode ? 0x24 : 0x1C
@@ -25,17 +25,17 @@ struct InstalledExecutableTests {
             : Array(target.utf8) + [0]
         var info: [UInt8] = []
         let size = headerSize + pathBytes.count
-        info += le32(size)
-        info += le32(headerSize)
-        info += le32(1) // VolumeIDAndLocalBasePath
-        info += le32(0) // VolumeIDOffset
-        info += le32(unicode ? 0 : headerSize) // LocalBasePathOffset
-        info += le32(0) + le32(0) // network, suffix
+        info += littleEndianBytes(size)
+        info += littleEndianBytes(headerSize)
+        info += littleEndianBytes(1) // VolumeIDAndLocalBasePath
+        info += littleEndianBytes(0) // VolumeIDOffset
+        info += littleEndianBytes(unicode ? 0 : headerSize) // LocalBasePathOffset
+        info += littleEndianBytes(0) + littleEndianBytes(0) // network, suffix
         if unicode {
-            info += le32(headerSize) + le32(0)
+            info += littleEndianBytes(headerSize) + littleEndianBytes(0)
         } // local base unicode, suffix unicode
         info += pathBytes
-        return Data(out + info)
+        return Data(linkBytes + info)
     }
 
     @Test func parsesAnsiAndUnicodeTargets() {
@@ -55,8 +55,8 @@ struct InstalledExecutableTests {
             _ = InstalledExecutable.targetPath(inLink: good.prefix(cut))
         }
         var corrupt = good
-        for i in 76 ..< corrupt.count where i.isMultiple(of: 5) {
-            corrupt[i] = 0xFF
+        for byteIndex in 76 ..< corrupt.count where byteIndex.isMultiple(of: 5) {
+            corrupt[byteIndex] = 0xFF
         }
         _ = InstalledExecutable.targetPath(inLink: corrupt)
     }
@@ -69,7 +69,7 @@ struct InstalledExecutableTests {
         #expect(InstalledExecutable.prefixPath(forWindowsPath: "relative\\a.exe", prefix: "/p") == nil)
         #expect(InstalledExecutable.prefixPath(forWindowsPath: "Q:\\a.exe", prefix: "/nonexistent") == nil)
 
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let prefix = paths.home + "/pfx"
         let drive = paths.home + "/Disk"
@@ -88,15 +88,15 @@ struct InstalledExecutableTests {
     }
 
     @Test func detectsTheNewGameShortcut() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         let prefix = paths.home + "/pfx"
         let desktop = prefix + "/drive_c/users/crossover/Desktop"
         let menu = prefix + "/drive_c/ProgramData/Microsoft/Windows/Start Menu/Programs/Foo"
         let gameDirectory = prefix + "/drive_c/Program Files/Foo"
-        for d in [desktop, menu, gameDirectory] {
-            try fm.createDirectory(atPath: d, withIntermediateDirectories: true)
+        for directory in [desktop, menu, gameDirectory] {
+            try fileManager.createDirectory(atPath: directory, withIntermediateDirectories: true)
         }
         try Data("MZ".utf8).write(to: URL(fileURLWithPath: gameDirectory + "/Foo.EXE"))
         try Data("MZ".utf8).write(to: URL(fileURLWithPath: gameDirectory + "/unins000.exe"))

@@ -21,10 +21,10 @@ final class SplashPanel {
 
     func show(iconPath: String?, fallbackIconPath: String?) {
         guard panel == nil else { return }
-        if let p = iconPath, FileManager.default.fileExists(atPath: p) {
-            model.image = NSImage(contentsOfFile: p)
-        } else if let p = fallbackIconPath {
-            model.image = NSImage(contentsOfFile: p)
+        if let iconPath, FileManager.default.fileExists(atPath: iconPath) {
+            model.image = NSImage(contentsOfFile: iconPath)
+        } else if let fallbackIconPath {
+            model.image = NSImage(contentsOfFile: fallbackIconPath)
         }
 
         let host = NSHostingView(rootView: SplashView(model: model))
@@ -73,8 +73,8 @@ private struct SplashView: View {
             Text(model.title).font(.title3.weight(.semibold)).lineLimit(1)
             Text(model.status).font(.callout).foregroundStyle(.secondary).lineLimit(2)
                 .multilineTextAlignment(.center)
-            if let p = model.progress {
-                ProgressView(value: p).frame(width: 260)
+            if let progress = model.progress {
+                ProgressView(value: progress).frame(width: 260)
             } else {
                 ProgressView().controlSize(.small)
             }

@@ -52,32 +52,34 @@ public enum LaunchMode: Equatable, Sendable {
             "--ui-child",
         ]
 
-        var i = 0
-        while i < arguments.count {
-            let a = arguments[i]
-            if isSystemInjected(a) {
+        var argumentIndex = 0
+        while argumentIndex < arguments.count {
+            let argument = arguments[argumentIndex]
+            if isSystemInjected(argument) {
                 // `-NSDocumentRevisionsDebugMode YES`, `-ApplePersistenceIgnoreState YES`, ...
-                i += a.hasPrefix("-psn_") ? 1 : 2
+                argumentIndex += argument.hasPrefix("-psn_") ? 1 : 2
                 continue
             }
-            if let eq = a.firstIndex(of: "="), a.hasPrefix("--"), valueOptions.contains(String(a[..<eq])) {
-                options[String(a[..<eq])] = String(a[a.index(after: eq)...])
-            } else if valueOptions.contains(a) {
-                guard i + 1 < arguments.count else { return .invalid("\(a) requires a value") }
-                options[a] = arguments[i + 1]
-                i += 1
-            } else if flagOptions.contains(a) {
-                flags.insert(a)
-            } else if a.hasPrefix("--") {
-                return .invalid("unrecognized argument \(a)")
+            if let equalsIndex = argument.firstIndex(of: "="), argument.hasPrefix("--"),
+               valueOptions.contains(String(argument[..<equalsIndex]))
+            {
+                options[String(argument[..<equalsIndex])] = String(argument[argument.index(after: equalsIndex)...])
+            } else if valueOptions.contains(argument) {
+                guard argumentIndex + 1 < arguments.count else { return .invalid("\(argument) requires a value") }
+                options[argument] = arguments[argumentIndex + 1]
+                argumentIndex += 1
+            } else if flagOptions.contains(argument) {
+                flags.insert(argument)
+            } else if argument.hasPrefix("--") {
+                return .invalid("unrecognized argument \(argument)")
             } else {
-                positionals.append(a)
+                positionals.append(argument)
             }
-            i += 1
+            argumentIndex += 1
         }
 
-        let pre = options["--pre-launch"] ?? ""
-        let post = options["--post-launch"] ?? ""
+        let preLaunch = options["--pre-launch"] ?? ""
+        let postLaunch = options["--post-launch"] ?? ""
         let logs = flags.contains("--logs")
 
         // Same precedence as upstream's runner `main()`.
@@ -100,17 +102,23 @@ public enum LaunchMode: Equatable, Sendable {
             return .createShortcut(file: file)
         }
         if let id = options["--game"] {
-            return .runGame(id: id, logs: logs, preLaunch: pre, postLaunch: post)
+            return .runGame(id: id, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch)
         }
         if let path = options["--run"] {
             if let game = options["--in-game"], !game.isEmpty {
-                return .runFile(path: path, target: .game(id: game), logs: logs, preLaunch: pre, postLaunch: post)
+                return .runFile(
+                    path: path,
+                    target: .game(id: game),
+                    logs: logs,
+                    preLaunch: preLaunch,
+                    postLaunch: postLaunch
+                )
             }
             if let prefix = options["--in-prefix"], !prefix.isEmpty {
                 let target = RunFileTarget.prefix(
                     path: prefix, runner: options["--runner"] ?? "", logID: options["--log-id"] ?? ""
                 )
-                return .runFile(path: path, target: target, logs: logs, preLaunch: pre, postLaunch: post)
+                return .runFile(path: path, target: target, logs: logs, preLaunch: preLaunch, postLaunch: postLaunch)
             }
             return .invalid("--run requires --in-game <id> or --in-prefix <dir>")
         }
@@ -126,9 +134,9 @@ public enum LaunchMode: Equatable, Sendable {
         )
     }
 
-    private static func isSystemInjected(_ a: String) -> Bool {
-        a.hasPrefix("-NS") || a.hasPrefix("-Apple") || a.hasPrefix("-psn_")
-            || a == "-AppleLanguages" || a == "-AppleLocale"
+    private static func isSystemInjected(_ argument: String) -> Bool {
+        argument.hasPrefix("-NS") || argument.hasPrefix("-Apple") || argument.hasPrefix("-psn_")
+            || argument == "-AppleLanguages" || argument == "-AppleLocale"
     }
 
     /// Modes that start a GUI event loop as a regular (Dock) app.

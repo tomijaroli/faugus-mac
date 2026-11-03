@@ -8,11 +8,11 @@ public enum InstalledExecutable {
     /// Every `.lnk` under the prefix's user profiles and ProgramData.
     public static func shortcuts(inPrefix prefix: String) -> Set<String> {
         var found: Set<String> = []
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         for root in [prefix + "/drive_c/users", prefix + "/drive_c/ProgramData"] {
-            guard let walker = fm.enumerator(atPath: root) else { continue }
-            for case let rel as String in walker where rel.lowercased().hasSuffix(".lnk") {
-                found.insert(root + "/" + rel)
+            guard let walker = fileManager.enumerator(atPath: root) else { continue }
+            for case let relativePath as String in walker where relativePath.lowercased().hasSuffix(".lnk") {
+                found.insert(root + "/" + relativePath)
             }
         }
         return found
@@ -28,87 +28,91 @@ public enum InstalledExecutable {
     }
 
     public static func targetPath(inLink data: Data) -> String? {
-        let r = Reader(data)
-        guard r.count >= 76, r.bytes(0, 4) == [0x4C, 0, 0, 0] else { return nil }
-        guard let flags = r.u32(20) else { return nil }
+        let reader = Reader(data)
+        guard reader.count >= 76, reader.bytes(0, 4) == [0x4C, 0, 0, 0] else { return nil }
+        guard let flags = reader.readUInt32(20) else { return nil }
         let hasIDList: UInt32 = 0x01
         let hasLinkInfo: UInt32 = 0x02
 
         var offset = 76
         if flags & hasIDList != 0 {
-            guard let size = r.u16(offset) else { return nil }
+            guard let size = reader.readUInt16(offset) else { return nil }
             offset += 2 + Int(size)
         }
-        guard flags & hasLinkInfo != 0, offset + 8 <= r.count else { return nil }
+        guard flags & hasLinkInfo != 0, offset + 8 <= reader.count else { return nil }
 
         let start = offset
-        guard let headerSize = r.u32(start + 4), let infoFlags = r.u32(start + 8) else { return nil }
+        guard let headerSize = reader.readUInt32(start + 4),
+              let infoFlags = reader.readUInt32(start + 8) else { return nil }
         let volumeIDAndLocalBasePath: UInt32 = 0x01
         guard infoFlags & volumeIDAndLocalBasePath != 0 else { return nil }
 
-        guard let localBase = r.u32(start + 16) else { return nil }
+        guard let localBase = reader.readUInt32(start + 16) else { return nil }
         var localBaseUnicode: UInt32 = 0
-        if headerSize >= 0x24, start + 32 <= r.count {
-            localBaseUnicode = r.u32(start + 28) ?? 0
+        if headerSize >= 0x24, start + 32 <= reader.count {
+            localBaseUnicode = reader.readUInt32(start + 28) ?? 0
         }
 
         if localBaseUnicode != 0 {
-            let from = start + Int(localBaseUnicode)
-            guard from <= r.count, let end = r.utf16TerminatorOffset(from) else { return nil }
-            return String(data: data[from ..< end], encoding: .utf16LittleEndian)
+            let stringStart = start + Int(localBaseUnicode)
+            guard stringStart <= reader.count,
+                  let stringEnd = reader.utf16TerminatorOffset(stringStart) else { return nil }
+            return String(data: data[stringStart ..< stringEnd], encoding: .utf16LittleEndian)
         }
         if localBase != 0 {
-            let from = start + Int(localBase)
-            guard from <= r.count, let end = r.byteTerminatorOffset(from) else { return nil }
+            let stringStart = start + Int(localBase)
+            guard stringStart <= reader.count,
+                  let stringEnd = reader.byteTerminatorOffset(stringStart) else { return nil }
             // cp1252 maps bytes 0x80-0x9F differently from Latin-1; windowsCP1252 handles it.
-            return String(data: data[from ..< end], encoding: .windowsCP1252)
+            return String(data: data[stringStart ..< stringEnd], encoding: .windowsCP1252)
         }
         return nil
     }
 
     private struct Reader {
         let data: Data
-        init(_ d: Data) {
-            data = d
+        init(_ data: Data) {
+            self.data = data
         }
 
         var count: Int {
             data.count
         }
 
-        func bytes(_ at: Int, _ n: Int) -> [UInt8]? {
-            guard at >= 0, n >= 0, at + n <= count else { return nil }
-            return Array(data[data.startIndex + at ..< data.startIndex + at + n])
+        func bytes(_ offset: Int, _ length: Int) -> [UInt8]? {
+            guard offset >= 0, length >= 0, offset + length <= count else { return nil }
+            return Array(data[data.startIndex + offset ..< data.startIndex + offset + length])
         }
 
-        func u16(_ at: Int) -> UInt16? {
-            guard let b = bytes(at, 2) else { return nil }
-            return UInt16(b[0]) | UInt16(b[1]) << 8
+        func readUInt16(_ offset: Int) -> UInt16? {
+            guard let byteValues = bytes(offset, 2) else { return nil }
+            return UInt16(byteValues[0]) | UInt16(byteValues[1]) << 8
         }
 
-        func u32(_ at: Int) -> UInt32? {
-            guard let b = bytes(at, 4) else { return nil }
-            return UInt32(b[0]) | UInt32(b[1]) << 8 | UInt32(b[2]) << 16 | UInt32(b[3]) << 24
+        func readUInt32(_ offset: Int) -> UInt32? {
+            guard let byteValues = bytes(offset, 4) else { return nil }
+            return UInt32(byteValues[0]) | UInt32(byteValues[1]) << 8 | UInt32(byteValues[2]) << 16 |
+                UInt32(byteValues[3]) << 24
         }
 
-        func byteTerminatorOffset(_ from: Int) -> Int? {
-            var i = from
-            while i < count {
-                if data[data.startIndex + i] == 0 {
-                    return i
+        func byteTerminatorOffset(_ startOffset: Int) -> Int? {
+            var offset = startOffset
+            while offset < count {
+                if data[data.startIndex + offset] == 0 {
+                    return offset
                 }
-                i += 1
+                offset += 1
             }
             return nil
         }
 
-        func utf16TerminatorOffset(_ from: Int) -> Int? {
-            var i = from
-            while i + 1 < count {
-                if data[data.startIndex + i] == 0, data[data.startIndex + i + 1] == 0 {
-                    return i
+        func utf16TerminatorOffset(_ startOffset: Int) -> Int? {
+            var offset = startOffset
+            while offset + 1 < count {
+                if data[data.startIndex + offset] == 0, data[data.startIndex + offset + 1] == 0 {
+                    return offset
                 }
-                i += 2
+                offset += 2
             }
             return nil
         }
@@ -117,12 +121,13 @@ public enum InstalledExecutable {
     // MARK: Path mapping
 
     /// `C:\Games\Foo\foo.exe` to a path inside the prefix (`drive_c`, or a `dosdevices` drive).
-    public static func prefixPath(forWindowsPath win: String, prefix: String) -> String? {
-        let trimmed = win.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        let chars = Array(trimmed)
-        guard chars.count >= 2, chars[1] == ":" else { return nil }
-        let drive = String(chars[0]).lowercased()
-        var rest = String(chars.dropFirst(2)).replacingOccurrences(of: "\\", with: "/")
+    public static func prefixPath(forWindowsPath windowsPath: String, prefix: String) -> String? {
+        let trimmed = windowsPath.trimmingCharacters(in: .whitespaces)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        let characters = Array(trimmed)
+        guard characters.count >= 2, characters[1] == ":" else { return nil }
+        let drive = String(characters[0]).lowercased()
+        var rest = String(characters.dropFirst(2)).replacingOccurrences(of: "\\", with: "/")
         while rest.hasPrefix("/") {
             rest.removeFirst()
         }
@@ -130,10 +135,10 @@ public enum InstalledExecutable {
             return prefix + "/drive_c/" + rest
         }
         let device = prefix + "/dosdevices/" + drive + ":"
-        let fm = FileManager.default
-        if (try? fm.destinationOfSymbolicLink(atPath: device)) != nil {
-            let real = URL(fileURLWithPath: device).resolvingSymlinksInPath().path
-            return (real as NSString).appendingPathComponent(rest)
+        let fileManager = FileManager.default
+        if (try? fileManager.destinationOfSymbolicLink(atPath: device)) != nil {
+            let resolvedPath = URL(fileURLWithPath: device).resolvingSymlinksInPath().path
+            return (resolvedPath as NSString).appendingPathComponent(rest)
         }
         return nil
     }
@@ -141,20 +146,20 @@ public enum InstalledExecutable {
     /// The file at `path`, or a file in the same folder whose name differs only by case
     /// (Windows paths do not care about case, APFS volumes may).
     public static func resolveCaseInsensitive(_ path: String) -> String? {
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         var isDirectory: ObjCBool = false
-        if fm.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue {
+        if fileManager.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue {
             // On a case-insensitive volume the lookup succeeds with any spelling; report the real one.
             let url = URL(fileURLWithPath: path)
             return (try? url.resourceValues(forKeys: [.canonicalPathKey]))?.canonicalPath ?? path
         }
-        let dir = (path as NSString).deletingLastPathComponent
+        let directory = (path as NSString).deletingLastPathComponent
         let name = (path as NSString).lastPathComponent.lowercased()
-        guard let entries = try? fm.contentsOfDirectory(atPath: dir) else { return nil }
+        guard let entries = try? fileManager.contentsOfDirectory(atPath: directory) else { return nil }
         for entry in entries where entry.lowercased() == name {
-            let full = dir + "/" + entry
-            if fm.fileExists(atPath: full, isDirectory: &isDirectory), !isDirectory.boolValue {
-                return full
+            let fullPath = directory + "/" + entry
+            if fileManager.fileExists(atPath: fullPath, isDirectory: &isDirectory), !isDirectory.boolValue {
+                return fullPath
             }
         }
         return nil
@@ -181,8 +186,8 @@ public enum InstalledExecutable {
     /// config tools, readmes) excluded. Shortcuts with the same file name are grouped.
     public static func resolveNew(_ newShortcuts: Set<String>, prefix: String) -> [Shortcut] {
         var byName: [String: [String]] = [:]
-        for p in newShortcuts.sorted() {
-            byName[(p as NSString).lastPathComponent.lowercased(), default: []].append(p)
+        for shortcutPath in newShortcuts.sorted() {
+            byName[(shortcutPath as NSString).lastPathComponent.lowercased(), default: []].append(shortcutPath)
         }
         var results: [Shortcut] = []
         for (_, paths) in byName.sorted(by: { $0.key < $1.key }) {
@@ -192,21 +197,21 @@ public enum InstalledExecutable {
                 continue
             }
             var target: String?
-            for lnk in paths {
-                guard let win = targetPath(ofLink: lnk),
-                      let candidate = prefixPath(forWindowsPath: win, prefix: prefix),
+            for linkPath in paths {
+                guard let windowsPath = targetPath(ofLink: linkPath),
+                      let candidate = prefixPath(forWindowsPath: windowsPath, prefix: prefix),
                       let resolved = resolveCaseInsensitive(candidate), resolved.lowercased().hasSuffix(".exe")
                 else { continue }
                 target = resolved
                 break
             }
             guard let target else { continue }
-            let dirs = paths.map { ($0 as NSString).deletingLastPathComponent }
+            let directories = paths.map { ($0 as NSString).deletingLastPathComponent }
             results.append(
                 Shortcut(
                     name: name, target: target,
-                    onDesktop: dirs.contains { $0.contains("/Desktop") },
-                    onStartMenu: dirs.contains { $0.contains("/Start Menu") },
+                    onDesktop: directories.contains { $0.contains("/Desktop") },
+                    onStartMenu: directories.contains { $0.contains("/Start Menu") },
                     shortcutPath: paths[0]
                 )
             )

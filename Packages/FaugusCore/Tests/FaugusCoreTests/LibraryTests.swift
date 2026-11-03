@@ -5,11 +5,11 @@ import Testing
 private func game(
     _ id: String, _ title: String, playtime: Int = 0, lastPlayed: String = "", category: JSONValue = .bool(false)
 ) -> Game {
-    var g = Game(gameID: id, title: title)
-    g.playtime = playtime
-    g.lastPlayed = lastPlayed
-    g.category = category
-    return g
+    var newGame = Game(gameID: id, title: title)
+    newGame.playtime = playtime
+    newGame.lastPlayed = lastPlayed
+    newGame.category = category
+    return newGame
 }
 
 @Suite("Library ordering and filtering")
@@ -53,32 +53,33 @@ struct LibraryOrderingTests {
     }
 
     @Test func searchIsCaseInsensitiveSubstring() {
-        let r = LibraryOrdering.visible(games, mode: .alpha, search: "AN")
-        #expect(r.map(\.gameID) == ["b"])
+        let visibleGames = LibraryOrdering.visible(games, mode: .alpha, search: "AN")
+        #expect(visibleGames.map(\.gameID) == ["b"])
         #expect(LibraryOrdering.visible(games, mode: .alpha, search: "e").map(\.gameID) == ["a", "c", "d", "e"])
     }
 
     @Test func categoriesAreIgnoredWhenDisabledOrAll() {
-        let g = [game("x", "X", category: .array(["RPG"])), game("y", "Y")]
-        #expect(LibraryOrdering.visible(g, mode: .alpha, category: .named("RPG"), categoriesEnabled: false).count == 2)
-        #expect(LibraryOrdering.visible(g, mode: .alpha, category: .all, categoriesEnabled: true).count == 2)
-        #expect(LibraryOrdering.visible(g, mode: .alpha, category: .named("RPG"), categoriesEnabled: true)
+        let sampleGames = [game("x", "X", category: .array(["RPG"])), game("y", "Y")]
+        #expect(LibraryOrdering.visible(sampleGames, mode: .alpha, category: .named("RPG"), categoriesEnabled: false)
+            .count == 2)
+        #expect(LibraryOrdering.visible(sampleGames, mode: .alpha, category: .all, categoriesEnabled: true).count == 2)
+        #expect(LibraryOrdering.visible(sampleGames, mode: .alpha, category: .named("RPG"), categoriesEnabled: true)
             .map(\.gameID) == ["x"])
     }
 
     @Test func categoryValuesOfEveryShape() {
         let none = game("n", "n") // upstream stores `false`
-        let str = game("s", "s", category: "RPG")
+        let stringGame = game("s", "s", category: "RPG")
         let list = game("l", "l", category: .array(["RPG", "Indie"]))
         let literalNone = game("z", "z", category: .array(["None"]))
         #expect(none.categoryNames.isEmpty)
-        #expect(str.categoryNames == ["RPG"])
+        #expect(stringGame.categoryNames == ["RPG"])
         #expect(list.categoryNames == ["RPG", "Indie"])
 
         #expect(LibraryOrdering.gameInCategory(none, .uncategorized))
         #expect(LibraryOrdering.gameInCategory(literalNone, .uncategorized))
-        #expect(!LibraryOrdering.gameInCategory(str, .uncategorized))
-        #expect(LibraryOrdering.gameInCategory(str, .named("RPG")))
+        #expect(!LibraryOrdering.gameInCategory(stringGame, .uncategorized))
+        #expect(LibraryOrdering.gameInCategory(stringGame, .named("RPG")))
         #expect(LibraryOrdering.gameInCategory(list, .named("Indie")))
         // An uncategorized game "is in" the category named None, like upstream's `or [_("None")]`.
         #expect(LibraryOrdering.gameInCategory(none, .named("None")))
@@ -86,10 +87,10 @@ struct LibraryOrderingTests {
     }
 
     @Test func categoryCountsMatchThePicker() {
-        let g = [game("x", "X", category: .array(["RPG"])), game("y", "Y"), game("z", "Z", category: "RPG")]
-        #expect(LibraryOrdering.count(g, in: .all) == 3)
-        #expect(LibraryOrdering.count(g, in: .named("RPG")) == 2)
-        #expect(LibraryOrdering.count(g, in: .uncategorized) == 1)
+        let sampleGames = [game("x", "X", category: .array(["RPG"])), game("y", "Y"), game("z", "Z", category: "RPG")]
+        #expect(LibraryOrdering.count(sampleGames, in: .all) == 3)
+        #expect(LibraryOrdering.count(sampleGames, in: .named("RPG")) == 2)
+        #expect(LibraryOrdering.count(sampleGames, in: .uncategorized) == 1)
     }
 
     @Test func categorySelectionRoundTripsThroughConfig() {
@@ -108,25 +109,25 @@ struct LibraryStoreTests {
     }
 
     private func entry(_ id: String, category: JSONValue? = nil, extra: Bool = false) -> JSONValue {
-        var o = JSONObject()
-        o["gameid"] = .string(id)
-        o["title"] = .string(id.uppercased())
+        var object = JSONObject()
+        object["gameid"] = .string(id)
+        object["title"] = .string(id.uppercased())
         if let category {
-            o["category"] = category
+            object["category"] = category
         }
         if extra {
-            o["unknown_future_field"] = .int(7)
+            object["unknown_future_field"] = .int(7)
         }
-        return .object(o)
+        return .object(object)
     }
 
     private func categories(of id: String, _ paths: FaugusPaths) throws -> JSONValue? {
-        guard case let .array(a) = try JSONFile.loadOrThrow(paths.gamesJSON) else { return nil }
-        return a.compactMap(\.objectValue).first { $0["gameid"]?.stringValue == id }?["category"]
+        guard case let .array(items) = try JSONFile.loadOrThrow(paths.gamesJSON) else { return nil }
+        return items.compactMap(\.objectValue).first { $0["gameid"]?.stringValue == id }?["category"]
     }
 
     @Test func categoryListIsSortedStrippedAndValidated() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let store = CategoryStore(paths: paths)
         let reserved = ["None", "All", "Uncategorized"]
@@ -144,7 +145,7 @@ struct LibraryStoreTests {
     }
 
     @Test func toggleAddsRemovesAndClearsLikeTheContextMenu() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         try writeGames(paths, [entry("a", extra: true), entry("b", category: "Legacy")])
         let assign = CategoryAssignments(paths: paths)
@@ -168,7 +169,7 @@ struct LibraryStoreTests {
     }
 
     @Test func renameAndRemoveRewriteEveryGame() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         try writeGames(paths, [
             entry("a", category: "RPG"), entry("b", category: .array(["RPG", "Indie"])),
@@ -205,7 +206,7 @@ struct LibraryStoreTests {
         #expect(CustomOrderStore.move(ordered: ["a", "b"], source: "a", target: "a") == nil)
         #expect(CustomOrderStore.move(ordered: ["a", "b"], source: "a", target: "zzz") == nil)
 
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let store = CustomOrderStore(paths: paths)
         #expect(store.load().isEmpty)
@@ -216,19 +217,19 @@ struct LibraryStoreTests {
     }
 
     @Test func recentRunFilesKeepFiveNewestAndSkipMissingOnes() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        let dir = paths.home + "/files"
-        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let directory = paths.home + "/files"
+        try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         var files: [String] = []
-        for i in 0 ..< 7 {
-            let f = dir + "/f\(i).exe"
-            FileManager.default.createFile(atPath: f, contents: Data())
-            files.append(f)
+        for index in 0 ..< 7 {
+            let file = directory + "/f\(index).exe"
+            FileManager.default.createFile(atPath: file, contents: Data())
+            files.append(file)
         }
         let recent = RecentRunFiles(paths: paths)
-        for f in files {
-            try recent.record(gameID: "g", file: f)
+        for file in files {
+            try recent.record(gameID: "g", file: file)
         }
         #expect(recent.files(gameID: "g") == [files[6], files[5], files[4], files[3], files[2]])
 

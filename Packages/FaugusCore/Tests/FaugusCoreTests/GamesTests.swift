@@ -10,7 +10,7 @@ struct GamesTests {
     }
 
     @Test func upstreamFileResavesByteIdentical() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         try TestSupport.install(fixture: "games.upstream.json", at: paths.gamesJSON)
         let before = try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))
@@ -27,17 +27,17 @@ struct GamesTests {
 
         let after = try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))
         // Order differs by design (visible first, hidden last, as upstream); content is equal.
-        let a = try JSONParser.parse(before).arrayValue!
-        let b = try JSONParser.parse(after).arrayValue!
-        #expect(a.count == b.count)
-        for entry in a {
-            #expect(b.contains(entry))
+        let originalEntries = try JSONParser.parse(before).arrayValue!
+        let resavedEntries = try JSONParser.parse(after).arrayValue!
+        #expect(originalEntries.count == resavedEntries.count)
+        for entry in originalEntries {
+            #expect(resavedEntries.contains(entry))
         }
         #expect(!String(decoding: after, as: UTF8.self).contains("\"graphics\""))
     }
 
     @Test func savingEveryGameKeepsFileByteIdentical() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         try TestSupport.install(fixture: "games.upstream.json", at: paths.gamesJSON)
         let before = try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))
@@ -47,7 +47,7 @@ struct GamesTests {
     }
 
     @Test func extraFieldsSurvive() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         try TestSupport.install(fixture: "games.extra-fields.json", at: paths.gamesJSON)
         let before = try Data(contentsOf: URL(fileURLWithPath: paths.gamesJSON))
@@ -60,30 +60,30 @@ struct GamesTests {
     }
 
     @Test func missingGraphicsIsNeverBackfilled() {
-        var g = Game(gameID: "x", title: "X")
-        #expect(g.graphics == nil)
-        #expect(g.saveObject()["graphics"] == nil)
-        g.graphics = .dxvk
-        #expect(g.saveObject()["graphics"] == "dxvk")
-        g.graphics = nil
-        #expect(g.saveObject()["graphics"] == nil)
+        var game = Game(gameID: "x", title: "X")
+        #expect(game.graphics == nil)
+        #expect(game.saveObject()["graphics"] == nil)
+        game.graphics = .dxvk
+        #expect(game.saveObject()["graphics"] == "dxvk")
+        game.graphics = nil
+        #expect(game.saveObject()["graphics"] == nil)
     }
 
     @Test func prepareGameKwargsDefaultsAndSaveNormalisation() {
-        let g = Game(json: ["gameid": "a", "title": "A", "mangohud": 1, "addapp_enabled": true])
-        #expect(g.playtime == 0)
-        #expect(g.hidden == false)
-        #expect(g.category == .bool(false))
-        let s = g.saveObject()
-        #expect(s.keys == gameFields)
-        #expect(s["mangohud"] == .bool(true))
-        #expect(s["gamemode"] == "")
-        #expect(s["addapp_enabled"] == "addapp_enabled")
-        #expect(s["path"] == "")
+        let game = Game(json: ["gameid": "a", "title": "A", "mangohud": 1, "addapp_enabled": true])
+        #expect(game.playtime == 0)
+        #expect(game.hidden == false)
+        #expect(game.category == .bool(false))
+        let savedObject = game.saveObject()
+        #expect(savedObject.keys == gameFields)
+        #expect(savedObject["mangohud"] == .bool(true))
+        #expect(savedObject["gamemode"] == "")
+        #expect(savedObject["addapp_enabled"] == "addapp_enabled")
+        #expect(savedObject["path"] == "")
     }
 
     @Test func deleteRemovesGameAndHiddenEntries() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         try TestSupport.install(fixture: "games.upstream.json", at: paths.gamesJSON)
         let store = GamesStore(paths: paths)
@@ -101,7 +101,7 @@ struct GamesTests {
     }
 
     @Test func showHiddenAndSortByLowercasedTitle() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         try TestSupport.install(fixture: "games.upstream.json", at: paths.gamesJSON)
         let store = GamesStore(paths: paths)
@@ -111,7 +111,7 @@ struct GamesTests {
     }
 
     @Test func corruptFileIsNeverOverwritten() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         try FileManager.default.createDirectory(atPath: paths.dataDirectory, withIntermediateDirectories: true)
         try Data("[{oops".utf8).write(to: URL(fileURLWithPath: paths.gamesJSON))
@@ -123,7 +123,7 @@ struct GamesTests {
     }
 
     @Test func missingFileMeansEmptyAndFirstSaveCreatesIt() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let store = GamesStore(paths: paths)
         #expect(try store.loadAll().isEmpty)
@@ -134,13 +134,16 @@ struct GamesTests {
     }
 
     @Test func backupsAreRotatedToTwenty() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let store = GamesStore(paths: paths)
         try store.save(games: [Game(gameID: "a", title: "A")])
         let start = Date(timeIntervalSince1970: 1_800_000_000)
-        for i in 0 ..< 25 {
-            try store.save(games: [Game(gameID: "a", title: "A\(i)")], now: start.addingTimeInterval(Double(i)))
+        for saveIndex in 0 ..< 25 {
+            try store.save(
+                games: [Game(gameID: "a", title: "A\(saveIndex)")],
+                now: start.addingTimeInterval(Double(saveIndex))
+            )
         }
         let files = try FileManager.default.contentsOfDirectory(atPath: paths.gamesBackupDirectory).sorted()
         #expect(files.count == 20)

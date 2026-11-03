@@ -14,10 +14,10 @@ enum GameWindowWatcher {
         guard let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
             as? [[String: Any]]
         else { return false }
-        for w in info {
-            guard let owner = w[kCGWindowOwnerPID as String] as? Int32, tagged.contains(owner),
-                  (w[kCGWindowLayer as String] as? Int) == 0,
-                  let boundsDict = w[kCGWindowBounds as String] as? NSDictionary,
+        for window in info {
+            guard let owner = window[kCGWindowOwnerPID as String] as? Int32, tagged.contains(owner),
+                  (window[kCGWindowLayer as String] as? Int) == 0,
+                  let boundsDict = window[kCGWindowBounds as String] as? NSDictionary,
                   let bounds = CGRect(dictionaryRepresentation: boundsDict as CFDictionary)
             else { continue }
             if bounds.width >= 200, bounds.height >= 150 {

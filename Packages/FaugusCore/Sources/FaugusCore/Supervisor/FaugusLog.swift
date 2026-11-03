@@ -21,19 +21,19 @@ public final class FaugusLog: @unchecked Sendable {
     private func append(_ text: String) {
         lock.lock()
         defer { lock.unlock() }
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: path) {
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: path) {
             // Created on first write, so a run that never logs leaves no folder behind.
-            try? fm.createDirectory(
+            try? fileManager.createDirectory(
                 atPath: (path as NSString).deletingLastPathComponent,
                 withIntermediateDirectories: true
             )
-            fm.createFile(atPath: path, contents: nil)
+            fileManager.createFile(atPath: path, contents: nil)
         }
-        guard let h = FileHandle(forWritingAtPath: path) else { return }
-        defer { try? h.close() }
-        _ = try? h.seekToEnd()
-        try? h.write(contentsOf: Data(text.utf8))
+        guard let handle = FileHandle(forWritingAtPath: path) else { return }
+        defer { try? handle.close() }
+        _ = try? handle.seekToEnd()
+        try? handle.write(contentsOf: Data(text.utf8))
     }
 
     public func truncate() {

@@ -56,7 +56,7 @@ struct EditorArtworkDraft {
 /// The popup upstream shows when an image is clicked (Refresh is for SteamGridDB, which this
 /// build does not have yet).
 struct ArtworkMenu<Label: View>: View {
-    let t: Translator
+    let translate: Translator
     let hasImage: Bool
     let loadFile: () -> Void
     let loadURL: () -> Void
@@ -65,9 +65,9 @@ struct ArtworkMenu<Label: View>: View {
 
     var body: some View {
         Menu {
-            Button(t("Load from file"), action: loadFile)
-            Button(t("Load from URL"), action: loadURL)
-            Button(t("Remove"), action: remove).disabled(!hasImage)
+            Button(translate("Load from file"), action: loadFile)
+            Button(translate("Load from URL"), action: loadURL)
+            Button(translate("Remove"), action: remove).disabled(!hasImage)
         } label: {
             label()
         }
@@ -79,7 +79,7 @@ struct ArtworkMenu<Label: View>: View {
 
 /// `on_load_url`: asks for an address and downloads it.
 struct ImageURLPrompt: View {
-    let t: Translator
+    let translate: Translator
     let slot: ArtworkSlot
     let done: (Data?) -> Void
 
@@ -89,19 +89,19 @@ struct ImageURLPrompt: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(t("Enter the image URL")).font(.title3.weight(.semibold))
+            Text(translate("Enter the image URL")).font(.title3.weight(.semibold))
             TextField("", text: $text)
                 .disabled(busy)
                 .onSubmit { submit() }
                 .accessibilityIdentifier("image-url")
             if invalid {
-                Text(t("The selected file is not a valid image.")).foregroundStyle(.red)
-                Text(t("Please choose another one.")).foregroundStyle(.secondary)
+                Text(translate("The selected file is not a valid image.")).foregroundStyle(.red)
+                Text(translate("Please choose another one.")).foregroundStyle(.secondary)
             }
             HStack {
-                Button(t("Cancel"), role: .cancel) { done(nil) }
+                Button(translate("Cancel"), role: .cancel) { done(nil) }
                     .keyboardShortcut(.cancelAction).frame(maxWidth: .infinity)
-                Button(t("Ok")) { submit() }
+                Button(translate("Ok")) { submit() }
                     .keyboardShortcut(.defaultAction).frame(maxWidth: .infinity).disabled(busy)
             }
         }

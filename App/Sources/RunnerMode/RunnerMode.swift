@@ -133,19 +133,19 @@ final class RunnerMode {
     // MARK: Events
 
     func handle(_ event: SupervisorEvent) {
-        let t = translator
+        let translate = translator
         switch event {
-        case .preparing: splash.model.status = t("Loading...")
+        case .preparing: splash.model.status = translate("Loading...")
         case .checkingRosetta: break
-        case let .downloadingRunner(name, p), let .downloadingComponent(name, p):
+        case let .downloadingRunner(name, progress), let .downloadingComponent(name, progress):
             splash.model.status = "Downloading \(name)..."
-            splash.model.progress = p
+            splash.model.progress = progress
         case .creatingPrefix:
             splash.model.progress = nil
-            splash.model.status = t("Creating prefix...")
+            splash.model.status = translate("Creating prefix...")
         case .starting, .running:
             splash.model.progress = nil
-            splash.model.status = isSteam ? t("Starting Steam game...") : t("Starting game...")
+            splash.model.status = isSteam ? translate("Starting Steam game...") : translate("Starting game...")
         case .stopping, .exited, .failed: break
         }
     }
@@ -182,12 +182,12 @@ final class RunnerMode {
     }
 
     private func showFailure(_ failure: SupervisorFailure) {
-        let t = translator
+        let translate = translator
         let alert = NSAlert()
         alert.alertStyle = .warning
         switch failure {
         case let .runnerNotFound(name):
-            alert.messageText = t.format("%s was not found", name)
+            alert.messageText = translate.format("%s was not found", name)
             alert.informativeText = "Open the Runner Manager to install it, or choose another runner."
         case .rosettaMissing:
             alert.messageText = "Rosetta 2 is required"
@@ -195,7 +195,7 @@ final class RunnerMode {
         default:
             alert.messageText = failure.description
         }
-        alert.addButton(withTitle: t("Close"))
+        alert.addButton(withTitle: translate("Close"))
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
     }

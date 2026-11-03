@@ -9,8 +9,8 @@ public struct CategoryStore: Sendable {
 
     /// `_get_current_categories`: stripped, non-empty strings.
     public func load() -> [String] {
-        guard case let .array(a) = JSONFile.load(paths.categoriesFile, default: .array([])) else { return [] }
-        return a.compactMap(\.stringValue).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard case let .array(items) = JSONFile.load(paths.categoriesFile, default: .array([])) else { return [] }
+        return items.compactMap(\.stringValue).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
 
@@ -28,18 +28,18 @@ public struct CategoryStore: Sendable {
     @discardableResult
     public func add(_ rawName: String, reserved: [String]) throws -> [String] {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
-        var cats = load()
+        var categories = load()
         if name.isEmpty {
             throw Failure.emptyName
         }
         if reserved.contains(name) {
             throw Failure.reserved
         }
-        if cats.contains(name) {
+        if categories.contains(name) {
             throw Failure.duplicate
         }
-        cats.append(name)
-        let sorted = Self.caseInsensitiveSorted(cats)
+        categories.append(name)
+        let sorted = Self.caseInsensitiveSorted(categories)
         try save(sorted)
         return sorted
     }
@@ -48,19 +48,19 @@ public struct CategoryStore: Sendable {
     @discardableResult
     public func rename(_ old: String, to rawNew: String, reserved: [String]) throws -> [String] {
         let new = rawNew.trimmingCharacters(in: .whitespacesAndNewlines)
-        var cats = load()
+        var categories = load()
         if new.isEmpty || new == old {
             throw Failure.emptyName
         }
         if reserved.contains(new) {
             throw Failure.reserved
         }
-        if cats.contains(new) {
+        if categories.contains(new) {
             throw Failure.duplicate
         }
-        guard let i = cats.firstIndex(of: old) else { throw Failure.missing }
-        cats[i] = new
-        let sorted = Self.caseInsensitiveSorted(cats)
+        guard let index = categories.firstIndex(of: old) else { throw Failure.missing }
+        categories[index] = new
+        let sorted = Self.caseInsensitiveSorted(categories)
         try save(sorted)
         try CategoryAssignments(paths: paths).renameEverywhere(old, to: new)
         return sorted
@@ -69,12 +69,12 @@ public struct CategoryStore: Sendable {
     /// Remove: drops the category from the list and from every game.
     @discardableResult
     public func remove(_ name: String) throws -> [String] {
-        var cats = load()
-        guard let i = cats.firstIndex(of: name) else { throw Failure.missing }
-        cats.remove(at: i)
-        try save(cats)
+        var categories = load()
+        guard let index = categories.firstIndex(of: name) else { throw Failure.missing }
+        categories.remove(at: index)
+        try save(categories)
         try CategoryAssignments(paths: paths).removeEverywhere(name)
-        return cats
+        return categories
     }
 }
 
@@ -89,10 +89,10 @@ public struct CategoryAssignments: Sendable {
     private func mutate(_ body: (inout JSONObject) -> Bool) throws {
         guard case var .array(entries) = try JSONFile.loadOrThrow(paths.gamesJSON) else { return }
         var changed = false
-        for i in entries.indices {
-            guard case var .object(o) = entries[i] else { continue }
-            if body(&o) {
-                entries[i] = .object(o)
+        for index in entries.indices {
+            guard case var .object(object) = entries[index] else { continue }
+            if body(&object) {
+                entries[index] = .object(object)
                 changed = true
             }
         }
@@ -101,10 +101,10 @@ public struct CategoryAssignments: Sendable {
         }
     }
 
-    private static func names(_ v: JSONValue?) -> [String]? {
-        switch v {
-        case let .string(s)?: [s]
-        case let .array(a)?: a.compactMap(\.stringValue)
+    private static func names(_ value: JSONValue?) -> [String]? {
+        switch value {
+        case let .string(text)?: [text]
+        case let .array(items)?: items.compactMap(\.stringValue)
         default: nil
         }
     }
@@ -112,33 +112,33 @@ public struct CategoryAssignments: Sendable {
     /// The context-menu Category item: "None" clears, any other name toggles. An empty result
     /// removes the key (so a later full save writes `false` again).
     public func toggle(gameID: String, category: String, noneLabel: String = "None") throws {
-        try mutate { o in
-            guard o["gameid"]?.stringValue == gameID else { return false }
-            var cats = Self.names(o["category"]) ?? []
+        try mutate { object in
+            guard object["gameid"]?.stringValue == gameID else { return false }
+            var categories = Self.names(object["category"]) ?? []
             if category == noneLabel {
-                cats = []
-            } else if let i = cats.firstIndex(of: category) {
-                cats.remove(at: i)
+                categories = []
+            } else if let index = categories.firstIndex(of: category) {
+                categories.remove(at: index)
             } else {
-                cats.append(category)
+                categories.append(category)
             }
-            o["category"] = cats.isEmpty ? nil : .array(cats.map { .string($0) })
+            object["category"] = categories.isEmpty ? nil : .array(categories.map { .string($0) })
             return true
         }
     }
 
     /// `_update_games_category`: a lone string becomes `[new]`; lists are mapped and de-duplicated.
     public func renameEverywhere(_ old: String, to new: String) throws {
-        try mutate { o in
-            switch o["category"] {
-            case let .string(s)? where s == old:
-                o["category"] = .array([.string(new)])
+        try mutate { object in
+            switch object["category"] {
+            case let .string(text)? where text == old:
+                object["category"] = .array([.string(new)])
                 return true
-            case let .array(a)? where a.contains(.string(old)):
+            case let .array(items)? where items.contains(.string(old)):
                 var seen = Set<String>()
-                let mapped = a.compactMap(\.stringValue).map { $0 == old ? new : $0 }
+                let mapped = items.compactMap(\.stringValue).map { $0 == old ? new : $0 }
                     .filter { seen.insert($0).inserted }
-                o["category"] = .array(mapped.map { .string($0) })
+                object["category"] = .array(mapped.map { .string($0) })
                 return true
             default: return false
             }
@@ -147,14 +147,14 @@ public struct CategoryAssignments: Sendable {
 
     /// `_remove_games_category`.
     public func removeEverywhere(_ name: String) throws {
-        try mutate { o in
-            switch o["category"] {
-            case let .string(s)? where s == name:
-                o["category"] = nil
+        try mutate { object in
+            switch object["category"] {
+            case let .string(text)? where text == name:
+                object["category"] = nil
                 return true
-            case let .array(a)? where a.contains(.string(name)):
-                let rest = a.filter { $0 != .string(name) }
-                o["category"] = rest.isEmpty ? nil : .array(rest)
+            case let .array(items)? where items.contains(.string(name)):
+                let rest = items.filter { $0 != .string(name) }
+                object["category"] = rest.isEmpty ? nil : .array(rest)
                 return true
             default: return false
             }
@@ -170,13 +170,13 @@ public struct CustomOrderStore: Sendable {
     }
 
     public func load() -> [String: Int] {
-        guard case let .object(o) = JSONFile.load(paths.customOrderFile, default: .object(JSONObject()))
+        guard case let .object(object) = JSONFile.load(paths.customOrderFile, default: .object(JSONObject()))
         else { return [:] }
         var out: [String: Int] = [:]
-        for (k, v) in o.pairs {
-            switch v {
-            case let .int(i): out[k] = Int(i)
-            case let .double(d): out[k] = Int(d)
+        for (key, value) in object.pairs {
+            switch value {
+            case let .int(integer): out[key] = Int(integer)
+            case let .double(double): out[key] = Int(double)
             default: break
             }
         }
@@ -184,24 +184,24 @@ public struct CustomOrderStore: Sendable {
     }
 
     public func save(_ order: [String: Int]) throws {
-        var o = JSONObject()
-        for (k, v) in order.sorted(by: { ($0.value, $0.key) < ($1.value, $1.key) }) {
-            o[k] = .int(Int64(v))
+        var object = JSONObject()
+        for (key, position) in order.sorted(by: { ($0.value, $0.key) < ($1.value, $1.key) }) {
+            object[key] = .int(Int64(position))
         }
-        try JSONFile.save(.object(o), to: paths.customOrderFile)
+        try JSONFile.save(.object(object), to: paths.customOrderFile)
     }
 
     /// `move_custom_order`: drag `source` onto `target`. Returns the new order, or `nil` when
     /// nothing moved.
     public static func move(ordered: [String], source: String, target: String) -> [String: Int]? {
-        guard let src = ordered.firstIndex(of: source), let dst = ordered.firstIndex(of: target),
-              src != dst else { return nil }
+        guard let sourceIndex = ordered.firstIndex(of: source), let targetIndex = ordered.firstIndex(of: target),
+              sourceIndex != targetIndex else { return nil }
         var list = ordered
-        list.remove(at: src)
-        list.insert(source, at: dst)
+        list.remove(at: sourceIndex)
+        list.insert(source, at: targetIndex)
         var out: [String: Int] = [:]
-        for (i, id) in list.enumerated() {
-            out[id] = i
+        for (position, id) in list.enumerated() {
+            out[id] = position
         }
         return out
     }
@@ -223,23 +223,23 @@ public struct RecentRunFiles: Sendable {
     }
 
     private func loadAll() -> JSONObject {
-        if case let .object(o) = JSONFile.load(paths.recentRunFilesFile, default: .object(JSONObject())) {
-            return o
+        if case let .object(object) = JSONFile.load(paths.recentRunFilesFile, default: .object(JSONObject())) {
+            return object
         }
         return JSONObject()
     }
 
     /// Existing files only (upstream drops entries whose file is gone when building the menu).
     public func files(gameID: String) -> [String] {
-        guard case let .array(a)? = loadAll()[gameID] else { return [] }
-        return a.compactMap(\.stringValue).filter { FileManager.default.fileExists(atPath: $0) }
+        guard case let .array(items)? = loadAll()[gameID] else { return [] }
+        return items.compactMap(\.stringValue).filter { FileManager.default.fileExists(atPath: $0) }
     }
 
     public func record(gameID: String, file: String) throws {
         var all = loadAll()
         var files: [String] = []
-        if case let .array(a)? = all[gameID] {
-            files = a.compactMap(\.stringValue)
+        if case let .array(items)? = all[gameID] {
+            files = items.compactMap(\.stringValue)
         }
         files.removeAll { $0 == file }
         files.insert(file, at: 0)

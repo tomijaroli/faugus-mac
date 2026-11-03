@@ -12,13 +12,13 @@ public struct JSONParseError: Error, Equatable, CustomStringConvertible {
 /// tokens are rejected, which is fine: upstream never writes them).
 public enum JSONParser {
     public static func parse(_ data: Data) throws -> JSONValue {
-        var p = Parser(bytes: [UInt8](data))
-        p.skipBOM()
-        p.skipWhitespace()
-        let value = try p.parseValue(depth: 0)
-        p.skipWhitespace()
-        if !p.atEnd {
-            throw p.error("unexpected trailing data")
+        var parser = Parser(bytes: [UInt8](data))
+        parser.skipBOM()
+        parser.skipWhitespace()
+        let value = try parser.parseValue(depth: 0)
+        parser.skipWhitespace()
+        if !parser.atEnd {
+            throw parser.error("unexpected trailing data")
         }
         return value
     }
@@ -29,7 +29,7 @@ public enum JSONParser {
 
     private struct Parser {
         let bytes: [UInt8]
-        var i = 0
+        var position = 0
         static let maxDepth = 512
 
         init(bytes: [UInt8]) {
@@ -37,23 +37,23 @@ public enum JSONParser {
         }
 
         var atEnd: Bool {
-            i >= bytes.count
+            position >= bytes.count
         }
 
         func error(_ message: String) -> JSONParseError {
-            JSONParseError(message: message, offset: i)
+            JSONParseError(message: message, offset: position)
         }
 
         mutating func skipBOM() {
             if bytes.count >= 3, bytes[0] == 0xEF, bytes[1] == 0xBB, bytes[2] == 0xBF {
-                i = 3
+                position = 3
             }
         }
 
         mutating func skipWhitespace() {
-            while i < bytes.count {
-                switch bytes[i] {
-                case 0x20, 0x09, 0x0A, 0x0D: i += 1
+            while position < bytes.count {
+                switch bytes[position] {
+                case 0x20, 0x09, 0x0A, 0x0D: position += 1
                 default: return
                 }
             }
@@ -61,8 +61,8 @@ public enum JSONParser {
 
         mutating func parseValue(depth: Int) throws -> JSONValue {
             guard depth < Parser.maxDepth else { throw error("nesting too deep") }
-            guard i < bytes.count else { throw error("unexpected end of input") }
-            switch bytes[i] {
+            guard position < bytes.count else { throw error("unexpected end of input") }
+            switch bytes[position] {
             case UInt8(ascii: "{"): return try parseObject(depth: depth)
             case UInt8(ascii: "["): return try parseArray(depth: depth)
             case UInt8(ascii: "\""): return try .string(parseString())
@@ -78,126 +78,130 @@ public enum JSONParser {
         }
 
         mutating func expect(_ literal: String) throws {
-            let lit = Array(literal.utf8)
-            guard i + lit.count <= bytes.count, Array(bytes[i ..< (i + lit.count)]) == lit else {
+            let literalBytes = Array(literal.utf8)
+            guard position + literalBytes.count <= bytes.count,
+                  Array(bytes[position ..< (position + literalBytes.count)]) == literalBytes
+            else {
                 throw error("invalid literal")
             }
-            i += lit.count
+            position += literalBytes.count
         }
 
         mutating func parseObject(depth: Int) throws -> JSONValue {
-            i += 1
-            var obj = JSONObject()
+            position += 1
+            var object = JSONObject()
             skipWhitespace()
-            if i < bytes.count, bytes[i] == UInt8(ascii: "}") {
-                i += 1
-                return .object(obj)
+            if position < bytes.count, bytes[position] == UInt8(ascii: "}") {
+                position += 1
+                return .object(object)
             }
             while true {
                 skipWhitespace()
-                guard i < bytes.count, bytes[i] == UInt8(ascii: "\"") else {
+                guard position < bytes.count, bytes[position] == UInt8(ascii: "\"") else {
                     throw error("expected string key")
                 }
                 let key = try parseString()
                 skipWhitespace()
-                guard i < bytes.count, bytes[i] == UInt8(ascii: ":") else { throw error("expected ':'") }
-                i += 1
+                guard position < bytes.count, bytes[position] == UInt8(ascii: ":") else { throw error("expected ':'") }
+                position += 1
                 skipWhitespace()
-                obj[key] = try parseValue(depth: depth + 1)
+                object[key] = try parseValue(depth: depth + 1)
                 skipWhitespace()
-                guard i < bytes.count else { throw error("unterminated object") }
-                if bytes[i] == UInt8(ascii: ",") {
-                    i += 1
+                guard position < bytes.count else { throw error("unterminated object") }
+                if bytes[position] == UInt8(ascii: ",") {
+                    position += 1
                     continue
                 }
-                if bytes[i] == UInt8(ascii: "}") {
-                    i += 1
-                    return .object(obj)
+                if bytes[position] == UInt8(ascii: "}") {
+                    position += 1
+                    return .object(object)
                 }
                 throw error("expected ',' or '}'")
             }
         }
 
         mutating func parseArray(depth: Int) throws -> JSONValue {
-            i += 1
-            var arr: [JSONValue] = []
+            position += 1
+            var array: [JSONValue] = []
             skipWhitespace()
-            if i < bytes.count, bytes[i] == UInt8(ascii: "]") {
-                i += 1
-                return .array(arr)
+            if position < bytes.count, bytes[position] == UInt8(ascii: "]") {
+                position += 1
+                return .array(array)
             }
             while true {
                 skipWhitespace()
-                try arr.append(parseValue(depth: depth + 1))
+                try array.append(parseValue(depth: depth + 1))
                 skipWhitespace()
-                guard i < bytes.count else { throw error("unterminated array") }
-                if bytes[i] == UInt8(ascii: ",") {
-                    i += 1
+                guard position < bytes.count else { throw error("unterminated array") }
+                if bytes[position] == UInt8(ascii: ",") {
+                    position += 1
                     continue
                 }
-                if bytes[i] == UInt8(ascii: "]") {
-                    i += 1
-                    return .array(arr)
+                if bytes[position] == UInt8(ascii: "]") {
+                    position += 1
+                    return .array(array)
                 }
                 throw error("expected ',' or ']'")
             }
         }
 
         mutating func parseHex4() throws -> UInt32 {
-            guard i + 4 <= bytes.count else { throw error("truncated \\u escape") }
-            var v: UInt32 = 0
+            guard position + 4 <= bytes.count else { throw error("truncated \\u escape") }
+            var value: UInt32 = 0
             for _ in 0 ..< 4 {
-                let c = bytes[i]
-                let d: UInt32
-                switch c {
-                case UInt8(ascii: "0") ... UInt8(ascii: "9"): d = UInt32(c - UInt8(ascii: "0"))
-                case UInt8(ascii: "a") ... UInt8(ascii: "f"): d = UInt32(c - UInt8(ascii: "a")) + 10
-                case UInt8(ascii: "A") ... UInt8(ascii: "F"): d = UInt32(c - UInt8(ascii: "A")) + 10
+                let byte = bytes[position]
+                let digitValue: UInt32
+                switch byte {
+                case UInt8(ascii: "0") ... UInt8(ascii: "9"): digitValue = UInt32(byte - UInt8(ascii: "0"))
+                case UInt8(ascii: "a") ... UInt8(ascii: "f"): digitValue = UInt32(byte - UInt8(ascii: "a")) + 10
+                case UInt8(ascii: "A") ... UInt8(ascii: "F"): digitValue = UInt32(byte - UInt8(ascii: "A")) + 10
                 default: throw error("invalid \\u escape")
                 }
-                v = v << 4 | d
-                i += 1
+                value = value << 4 | digitValue
+                position += 1
             }
-            return v
+            return value
         }
 
         mutating func parseString() throws -> String {
-            i += 1 // opening quote
-            var out = [UInt8]()
+            position += 1 // opening quote
+            var decodedBytes = [UInt8]()
             while true {
-                guard i < bytes.count else { throw error("unterminated string") }
-                let c = bytes[i]
-                if c == UInt8(ascii: "\"") {
-                    i += 1
+                guard position < bytes.count else { throw error("unterminated string") }
+                let byte = bytes[position]
+                if byte == UInt8(ascii: "\"") {
+                    position += 1
                     break
                 }
-                if c < 0x20 {
+                if byte < 0x20 {
                     throw error("control character in string")
                 }
-                if c != UInt8(ascii: "\\") {
-                    out.append(c)
-                    i += 1
+                if byte != UInt8(ascii: "\\") {
+                    decodedBytes.append(byte)
+                    position += 1
                     continue
                 }
-                i += 1
-                guard i < bytes.count else { throw error("unterminated escape") }
-                let e = bytes[i]
-                i += 1
-                switch e {
-                case UInt8(ascii: "\""): out.append(0x22)
-                case UInt8(ascii: "\\"): out.append(0x5C)
-                case UInt8(ascii: "/"): out.append(0x2F)
-                case UInt8(ascii: "b"): out.append(0x08)
-                case UInt8(ascii: "f"): out.append(0x0C)
-                case UInt8(ascii: "n"): out.append(0x0A)
-                case UInt8(ascii: "r"): out.append(0x0D)
-                case UInt8(ascii: "t"): out.append(0x09)
+                position += 1
+                guard position < bytes.count else { throw error("unterminated escape") }
+                let escapeByte = bytes[position]
+                position += 1
+                switch escapeByte {
+                case UInt8(ascii: "\""): decodedBytes.append(0x22)
+                case UInt8(ascii: "\\"): decodedBytes.append(0x5C)
+                case UInt8(ascii: "/"): decodedBytes.append(0x2F)
+                case UInt8(ascii: "b"): decodedBytes.append(0x08)
+                case UInt8(ascii: "f"): decodedBytes.append(0x0C)
+                case UInt8(ascii: "n"): decodedBytes.append(0x0A)
+                case UInt8(ascii: "r"): decodedBytes.append(0x0D)
+                case UInt8(ascii: "t"): decodedBytes.append(0x09)
                 case UInt8(ascii: "u"):
                     var scalar = try parseHex4()
                     if (0xD800 ... 0xDBFF).contains(scalar) {
                         // High surrogate: must be followed by \uDC00-\uDFFF.
-                        if i + 1 < bytes.count, bytes[i] == UInt8(ascii: "\\"), bytes[i + 1] == UInt8(ascii: "u") {
-                            i += 2
+                        if position + 1 < bytes.count, bytes[position] == UInt8(ascii: "\\"),
+                           bytes[position + 1] == UInt8(ascii: "u")
+                        {
+                            position += 2
                             let low = try parseHex4()
                             guard (0xDC00 ... 0xDFFF).contains(low) else { throw error("invalid surrogate pair") }
                             scalar = 0x10000 + ((scalar - 0xD800) << 10) + (low - 0xDC00)
@@ -207,58 +211,60 @@ public enum JSONParser {
                     } else if (0xDC00 ... 0xDFFF).contains(scalar) {
                         scalar = 0xFFFD
                     }
-                    out.append(contentsOf: Array(String(Unicode.Scalar(scalar) ?? "\u{FFFD}").utf8))
+                    decodedBytes.append(contentsOf: Array(String(Unicode.Scalar(scalar) ?? "\u{FFFD}").utf8))
                 default: throw error("invalid escape")
                 }
             }
-            return String(decoding: out, as: UTF8.self)
+            return String(decoding: decodedBytes, as: UTF8.self)
         }
 
         mutating func parseNumber() throws -> JSONValue {
-            let start = i
+            let start = position
             var isFloat = false
-            if bytes[i] == UInt8(ascii: "-") {
-                i += 1
+            if bytes[position] == UInt8(ascii: "-") {
+                position += 1
             }
-            guard i < bytes.count else { throw error("invalid number") }
-            if bytes[i] == UInt8(ascii: "0") {
-                i += 1
-            } else if (UInt8(ascii: "1") ... UInt8(ascii: "9")).contains(bytes[i]) {
-                while i < bytes.count, isDigit(bytes[i]) {
-                    i += 1
+            guard position < bytes.count else { throw error("invalid number") }
+            if bytes[position] == UInt8(ascii: "0") {
+                position += 1
+            } else if (UInt8(ascii: "1") ... UInt8(ascii: "9")).contains(bytes[position]) {
+                while position < bytes.count, isDigit(bytes[position]) {
+                    position += 1
                 }
             } else {
                 throw error("invalid number")
             }
-            if i < bytes.count, bytes[i] == UInt8(ascii: ".") {
+            if position < bytes.count, bytes[position] == UInt8(ascii: ".") {
                 isFloat = true
-                i += 1
-                guard i < bytes.count, isDigit(bytes[i]) else { throw error("invalid fraction") }
-                while i < bytes.count, isDigit(bytes[i]) {
-                    i += 1
+                position += 1
+                guard position < bytes.count, isDigit(bytes[position]) else { throw error("invalid fraction") }
+                while position < bytes.count, isDigit(bytes[position]) {
+                    position += 1
                 }
             }
-            if i < bytes.count, bytes[i] == UInt8(ascii: "e") || bytes[i] == UInt8(ascii: "E") {
+            if position < bytes.count, bytes[position] == UInt8(ascii: "e") || bytes[position] == UInt8(ascii: "E") {
                 isFloat = true
-                i += 1
-                if i < bytes.count, bytes[i] == UInt8(ascii: "+") || bytes[i] == UInt8(ascii: "-") {
-                    i += 1
+                position += 1
+                if position < bytes.count,
+                   bytes[position] == UInt8(ascii: "+") || bytes[position] == UInt8(ascii: "-")
+                {
+                    position += 1
                 }
-                guard i < bytes.count, isDigit(bytes[i]) else { throw error("invalid exponent") }
-                while i < bytes.count, isDigit(bytes[i]) {
-                    i += 1
+                guard position < bytes.count, isDigit(bytes[position]) else { throw error("invalid exponent") }
+                while position < bytes.count, isDigit(bytes[position]) {
+                    position += 1
                 }
             }
-            let text = String(decoding: bytes[start ..< i], as: UTF8.self)
-            if !isFloat, let v = Int64(text) {
-                return .int(v)
+            let text = String(decoding: bytes[start ..< position], as: UTF8.self)
+            if !isFloat, let integer = Int64(text) {
+                return .int(integer)
             }
-            guard let d = Double(text) else { throw error("invalid number") }
-            return .double(d)
+            guard let number = Double(text) else { throw error("invalid number") }
+            return .double(number)
         }
 
-        func isDigit(_ c: UInt8) -> Bool {
-            c >= 0x30 && c <= 0x39
+        func isDigit(_ byte: UInt8) -> Bool {
+            byte >= 0x30 && byte <= 0x39
         }
     }
 }

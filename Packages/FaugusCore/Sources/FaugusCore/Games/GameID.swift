@@ -8,20 +8,20 @@ public enum GameID {
         let lowered = pythonStrip(title).lowercased()
 
         var kept = String.UnicodeScalarView()
-        for s in lowered.unicodeScalars where isWordScalar(s) || isPythonSpace(s) || s == "-" {
-            kept.append(s)
+        for scalar in lowered.unicodeScalars where isWordScalar(scalar) || isPythonSpace(scalar) || scalar == "-" {
+            kept.append(scalar)
         }
 
         var out = String.UnicodeScalarView()
         var inSpace = false
-        for s in kept {
-            if isPythonSpace(s) {
+        for scalar in kept {
+            if isPythonSpace(scalar) {
                 if !inSpace {
                     out.append("-")
                 }
                 inSpace = true
             } else {
-                out.append(s)
+                out.append(scalar)
                 inSpace = false
             }
         }
@@ -32,29 +32,29 @@ public enum GameID {
         if base.isEmpty || !existing.contains(base) {
             return base
         }
-        var n = 2
-        while existing.contains("\(base)-\(n)") {
-            n += 1
+        var suffix = 2
+        while existing.contains("\(base)-\(suffix)") {
+            suffix += 1
         }
-        return "\(base)-\(n)"
+        return "\(base)-\(suffix)"
     }
 
     // MARK: Python-compatible character classes
 
     /// `str.isspace()`.
-    static func isPythonSpace(_ s: Unicode.Scalar) -> Bool {
-        if (0x1C ... 0x1F).contains(s.value) {
+    static func isPythonSpace(_ scalar: Unicode.Scalar) -> Bool {
+        if (0x1C ... 0x1F).contains(scalar.value) {
             return true
         }
-        return s.properties.isWhitespace
+        return scalar.properties.isWhitespace
     }
 
     /// Python's `\w` on `str`: alphanumeric (letters and numbers) or underscore.
-    static func isWordScalar(_ s: Unicode.Scalar) -> Bool {
-        if s == "_" {
+    static func isWordScalar(_ scalar: Unicode.Scalar) -> Bool {
+        if scalar == "_" {
             return true
         }
-        switch s.properties.generalCategory {
+        switch scalar.properties.generalCategory {
         case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter,
              .decimalNumber, .letterNumber, .otherNumber:
             return true
@@ -63,16 +63,16 @@ public enum GameID {
         }
     }
 
-    static func pythonStrip(_ s: String) -> String {
-        var scalars = Array(s.unicodeScalars)
-        while let f = scalars.first, isPythonSpace(f) {
+    static func pythonStrip(_ text: String) -> String {
+        var scalars = Array(text.unicodeScalars)
+        while let first = scalars.first, isPythonSpace(first) {
             scalars.removeFirst()
         }
-        while let l = scalars.last, isPythonSpace(l) {
+        while let last = scalars.last, isPythonSpace(last) {
             scalars.removeLast()
         }
-        var v = String.UnicodeScalarView()
-        v.append(contentsOf: scalars)
-        return String(v)
+        var stripped = String.UnicodeScalarView()
+        stripped.append(contentsOf: scalars)
+        return String(stripped)
     }
 }

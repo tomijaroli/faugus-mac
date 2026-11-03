@@ -13,9 +13,10 @@ public enum ImageTools {
     public static func decode(_ data: Data, frame: Int = 0) -> CGImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               CGImageSourceGetCount(source) > frame,
-              let props = CGImageSourceCopyPropertiesAtIndex(source, frame, nil) as? [CFString: Any],
-              let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
-              w > 0, h > 0, w * h <= maxPixels
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, frame, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0, width * height <= maxPixels
         else { return nil }
         return CGImageSourceCreateImageAtIndex(source, frame, nil)
     }
@@ -24,11 +25,12 @@ public enum ImageTools {
     public static func pixelSize(atPath path: String) -> (width: Int, height: Int)? {
         guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
               CGImageSourceGetCount(source) > 0,
-              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-              let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
-              w > 0, h > 0
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0
         else { return nil }
-        return (w, h)
+        return (width, height)
     }
 
     public static func isValid(_ data: Data) -> Bool {
@@ -36,56 +38,57 @@ public enum ImageTools {
     }
 
     public static func isValid(path: String) -> Bool {
-        guard let d = FileManager.default.contents(atPath: path) else { return false }
-        return isValid(d)
+        guard let data = FileManager.default.contents(atPath: path) else { return false }
+        return isValid(data)
     }
 
     /// The frame with the most pixels (`icon.info["sizes"]` sorted descending upstream).
     public static func largestFrame(_ data: Data) -> CGImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        var best: (index: Int, pixels: Int)?
-        for i in 0 ..< CGImageSourceGetCount(source) {
-            guard let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any],
-                  let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
-                  w * h <= maxPixels
+        var largest: (index: Int, pixels: Int)?
+        for frameIndex in 0 ..< CGImageSourceGetCount(source) {
+            guard let properties = CGImageSourceCopyPropertiesAtIndex(source, frameIndex, nil) as? [CFString: Any],
+                  let width = properties[kCGImagePropertyPixelWidth] as? Int,
+                  let height = properties[kCGImagePropertyPixelHeight] as? Int,
+                  width * height <= maxPixels
             else { continue }
-            if best == nil || w * h > best!.pixels {
-                best = (i, w * h)
+            if largest == nil || width * height > largest!.pixels {
+                largest = (frameIndex, width * height)
             }
         }
-        guard let best else { return nil }
-        return CGImageSourceCreateImageAtIndex(source, best.index, nil)
+        guard let largest else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, largest.index, nil)
     }
 
     /// `img.convert("RGBA").resize((w, h), LANCZOS)`: stretches to exactly `width` x `height`.
     public static func resized(_ image: CGImage, width: Int, height: Int) -> CGImage? {
         guard width > 0, height > 0,
-              let ctx = CGContext(
+              let context = CGContext(
                   data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                   space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
               )
         else { return nil }
-        ctx.interpolationQuality = .high
-        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-        return ctx.makeImage()
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage()
     }
 
     public static func png(_ image: CGImage) -> Data? {
-        let out = NSMutableData()
-        guard let dest = CGImageDestinationCreateWithData(out, UTType.png.identifier as CFString, 1, nil)
+        let pngData = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(pngData, UTType.png.identifier as CFString, 1, nil)
         else { return nil }
-        CGImageDestinationAddImage(dest, image, nil)
-        return CGImageDestinationFinalize(dest) ? out as Data : nil
+        CGImageDestinationAddImage(destination, image, nil)
+        return CGImageDestinationFinalize(destination) ? pngData as Data : nil
     }
 
     /// `resize_image_file`: any readable image to a PNG of exactly `width` x `height`.
-    public static func resizeFile(from src: String, to dst: String, width: Int, height: Int) throws {
-        guard let data = FileManager.default.contents(atPath: src),
+    public static func resizeFile(from sourcePath: String, to destinationPath: String, width: Int, height: Int) throws {
+        guard let data = FileManager.default.contents(atPath: sourcePath),
               let image = decode(data) else { throw Failure.invalidImage }
         guard let scaled = resized(image, width: width, height: height),
-              let out = png(scaled) else { throw Failure.writeFailed }
-        try JSONFile.atomicWrite(out, to: dst)
+              let pngData = png(scaled) else { throw Failure.writeFailed }
+        try JSONFile.atomicWrite(pngData, to: destinationPath)
     }
 
     /// `normalize_icon_bytes` + `resize_icon_bytes`: any image (an `.ico` uses its largest frame)

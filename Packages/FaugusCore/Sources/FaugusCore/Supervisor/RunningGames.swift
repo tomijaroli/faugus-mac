@@ -10,25 +10,27 @@ public struct RunningGames: Sendable {
 
     public func load() -> [String: Int32] {
         let json = JSONFile.load(paths.runningGamesFile, default: .object(JSONObject()))
-        var out: [String: Int32] = [:]
-        for (k, v) in json.objectValue?.pairs ?? [] {
-            if let n = v.intValue {
-                out[k] = Int32(truncatingIfNeeded: n)
+        var processIDs: [String: Int32] = [:]
+        for (gameID, value) in json.objectValue?.pairs ?? [] {
+            if let processID = value.intValue {
+                processIDs[gameID] = Int32(truncatingIfNeeded: processID)
             }
         }
-        return out
+        return processIDs
     }
 
     public func mark(gameID: String, pid: Int32) throws {
-        var o = JSONFile.load(paths.runningGamesFile, default: .object(JSONObject())).objectValue ?? JSONObject()
-        o[gameID] = .int(Int64(pid))
-        try JSONFile.save(.object(o), to: paths.runningGamesFile)
+        var runningObject = JSONFile.load(paths.runningGamesFile, default: .object(JSONObject()))
+            .objectValue ?? JSONObject()
+        runningObject[gameID] = .int(Int64(pid))
+        try JSONFile.save(.object(runningObject), to: paths.runningGamesFile)
     }
 
     public func unmark(gameID: String) throws {
-        var o = JSONFile.load(paths.runningGamesFile, default: .object(JSONObject())).objectValue ?? JSONObject()
-        o[gameID] = nil
-        try JSONFile.save(.object(o), to: paths.runningGamesFile)
+        var runningObject = JSONFile.load(paths.runningGamesFile, default: .object(JSONObject()))
+            .objectValue ?? JSONObject()
+        runningObject[gameID] = nil
+        try JSONFile.save(.object(runningObject), to: paths.runningGamesFile)
     }
 
     /// Entries whose runner process is gone (crash, reboot) are dropped.
@@ -56,9 +58,9 @@ public struct RunningGames: Sendable {
 
     /// Consumes a pending stop request.
     public func consumeStopRequest(gameID: String) -> Bool {
-        let p = paths.stopFile(gameID: gameID)
-        guard FileManager.default.fileExists(atPath: p) else { return false }
-        try? FileManager.default.removeItem(atPath: p)
+        let stopFilePath = paths.stopFile(gameID: gameID)
+        guard FileManager.default.fileExists(atPath: stopFilePath) else { return false }
+        try? FileManager.default.removeItem(atPath: stopFilePath)
         return true
     }
 
@@ -76,16 +78,16 @@ public struct PlaytimeStore: Sendable {
 
     /// `datetime.now().isoformat()` (microseconds, no timezone).
     public static func isoNow(_ date: Date = Date()) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
-        return f.string(from: date)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+        return formatter.string(from: date)
     }
 
     public func gamePlaytime(gameID: String) -> Int {
         let entries = JSONFile.load(paths.gamesJSON).arrayValue ?? []
-        for e in entries.compactMap(\.objectValue) where e["gameid"]?.stringValue == gameID {
-            return Int(e["playtime"]?.intValue ?? 0)
+        for entry in entries.compactMap(\.objectValue) where entry["gameid"]?.stringValue == gameID {
+            return Int(entry["playtime"]?.intValue ?? 0)
         }
         return 0
     }
@@ -94,10 +96,10 @@ public struct PlaytimeStore: Sendable {
     public func touchLastPlayed(gameID: String, now: Date = Date()) throws {
         guard !gameID.isEmpty else { return }
         var entries = try JSONFile.loadOrThrow(paths.gamesJSON).arrayValue ?? []
-        for i in entries.indices {
-            guard var o = entries[i].objectValue, o["gameid"]?.stringValue == gameID else { continue }
-            o["last_played"] = .string(PlaytimeStore.isoNow(now))
-            entries[i] = .object(o)
+        for index in entries.indices {
+            guard var entry = entries[index].objectValue, entry["gameid"]?.stringValue == gameID else { continue }
+            entry["last_played"] = .string(PlaytimeStore.isoNow(now))
+            entries[index] = .object(entry)
             break
         }
         try JSONFile.save(.array(entries), to: paths.gamesJSON)
@@ -110,18 +112,18 @@ public struct PlaytimeStore: Sendable {
     ) throws {
         guard runtimeSeconds > 0 else { return }
 
-        var cfg = try FaugusConfig.load(paths: paths)
+        var configuration = try FaugusConfig.load(paths: paths)
         // Upstream stores this through `set_value`, i.e. as a string.
-        cfg.setValue("playtime", String(totalBaseline + runtimeSeconds))
-        try cfg.save()
+        configuration.setValue("playtime", String(totalBaseline + runtimeSeconds))
+        try configuration.save()
 
         guard !gameID.isEmpty else { return }
         var entries = try JSONFile.loadOrThrow(paths.gamesJSON).arrayValue ?? []
-        for i in entries.indices {
-            guard var o = entries[i].objectValue, o["gameid"]?.stringValue == gameID else { continue }
-            o["playtime"] = .int(Int64(gameBaseline + runtimeSeconds))
-            o["last_played"] = .string(PlaytimeStore.isoNow(now))
-            entries[i] = .object(o)
+        for index in entries.indices {
+            guard var entry = entries[index].objectValue, entry["gameid"]?.stringValue == gameID else { continue }
+            entry["playtime"] = .int(Int64(gameBaseline + runtimeSeconds))
+            entry["last_played"] = .string(PlaytimeStore.isoNow(now))
+            entries[index] = .object(entry)
             break
         }
         try JSONFile.save(.array(entries), to: paths.gamesJSON)

@@ -42,9 +42,9 @@ public struct GamesStore: Sendable {
 
         let visibleIDs = Set(games.map(\.gameID))
         let hiddenKept: [JSONValue] = entries.filter { entry in
-            guard let o = entry.objectValue else { return false }
-            let id = o["gameid"]?.stringValue
-            return (o["hidden"]?.isTruthy ?? false)
+            guard let object = entry.objectValue else { return false }
+            let id = object["gameid"]?.stringValue
+            return (object["hidden"]?.isTruthy ?? false)
                 && !(id.map(visibleIDs.contains) ?? false)
                 && id != deletedGameID
         }
@@ -59,27 +59,27 @@ public struct GamesStore: Sendable {
     /// `backup_games`: copy to `games-backup/games-data-YYYY-MM-DD_HH-MM-SS.json`, keep 20.
     @discardableResult
     public func backup(now: Date = Date()) throws -> String? {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: paths.gamesJSON) else { return nil }
-        try fm.createDirectory(atPath: paths.gamesBackupDirectory, withIntermediateDirectories: true)
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: paths.gamesJSON) else { return nil }
+        try fileManager.createDirectory(atPath: paths.gamesBackupDirectory, withIntermediateDirectories: true)
 
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let dest = paths.gamesBackupDirectory + "/games-data-\(f.string(from: now)).json"
-        if fm.fileExists(atPath: dest) {
-            try fm.removeItem(atPath: dest)
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let destination = paths.gamesBackupDirectory + "/games-data-\(dateFormatter.string(from: now)).json"
+        if fileManager.fileExists(atPath: destination) {
+            try fileManager.removeItem(atPath: destination)
         }
-        try fm.copyItem(atPath: paths.gamesJSON, toPath: dest)
+        try fileManager.copyItem(atPath: paths.gamesJSON, toPath: destination)
 
-        var backups = try fm.contentsOfDirectory(atPath: paths.gamesBackupDirectory)
+        var backups = try fileManager.contentsOfDirectory(atPath: paths.gamesBackupDirectory)
             .filter { $0.hasPrefix("games-data-") && $0.hasSuffix(".json") }
             .sorted()
         while backups.count > GamesStore.backupKeepCount {
             let oldest = backups.removeFirst()
-            try? fm.removeItem(atPath: paths.gamesBackupDirectory + "/" + oldest)
+            try? fileManager.removeItem(atPath: paths.gamesBackupDirectory + "/" + oldest)
         }
-        return dest
+        return destination
     }
 
     // MARK: Internals
@@ -89,7 +89,7 @@ public struct GamesStore: Sendable {
         do { value = try JSONFile.loadOrThrow(paths.gamesJSON) } catch {
             throw GamesStoreError.corrupt(path: paths.gamesJSON)
         }
-        guard case let .array(a) = value else { throw GamesStoreError.corrupt(path: paths.gamesJSON) }
-        return a
+        guard case let .array(entries) = value else { throw GamesStoreError.corrupt(path: paths.gamesJSON) }
+        return entries
     }
 }

@@ -93,19 +93,19 @@ final class AppModel {
     func reload() {
         do {
             try paths.ensureDirectories()
-            let cfg = try FaugusConfig.load(paths: paths)
-            config = cfg
+            let configuration = try FaugusConfig.load(paths: paths)
+            config = configuration
             // `FAUGUS_LANG` is a QA override that never touches config.json.
-            languageCode = ProcessInfo.processInfo.environment["FAUGUS_LANG"] ?? cfg.string(
+            languageCode = ProcessInfo.processInfo.environment["FAUGUS_LANG"] ?? configuration.string(
                 "language",
                 default: "en_US"
             )
             translator = Self.languageCatalogs()?.translator(for: languageCode) ?? .identity
-            games = try GamesStore(paths: paths).load(showHidden: (previewConfig ?? cfg).bool("show-hidden"))
+            games = try GamesStore(paths: paths).load(showHidden: (previewConfig ?? configuration).bool("show-hidden"))
             running = RunningGames(paths: paths).load()
             customOrder = CustomOrderStore(paths: paths).load()
             categoryNames = CategoryStore(paths: paths).load()
-            restoreInterfaceState(cfg)
+            restoreInterfaceState(configuration)
             loadError = nil
             applyAppearance()
         } catch {
@@ -121,24 +121,24 @@ final class AppModel {
     }
 
     /// Applies `sort`, `category` and `cover-size` from `config.json` once per launch.
-    private func restoreInterfaceState(_ cfg: FaugusConfig) {
+    private func restoreInterfaceState(_ configuration: FaugusConfig) {
         guard !restoredInterfaceState else { return }
         restoredInterfaceState = true
-        sortMode = SortMode(configValue: cfg.string("sort", default: "alpha"))
-        category = CategorySelection(configValue: cfg.string("category", default: "all"))
-        let size = cfg.int("cover-size", default: 100)
+        sortMode = SortMode(configValue: configuration.string("sort", default: "alpha"))
+        category = CategorySelection(configValue: configuration.string("category", default: "all"))
+        let size = configuration.int("cover-size", default: 100)
         coverSize = min(100, max(50, size))
     }
 
     /// Edits and saves `config.json` (used for interface state saved outside Settings).
     func updateConfig(_ body: (inout FaugusConfig) -> Void) {
-        guard var cfg = config else { return }
-        body(&cfg)
-        guard cfg != config else { return }
-        do { try cfg.save() } catch { actionError = "\(error)"
+        guard var configuration = config else { return }
+        body(&configuration)
+        guard configuration != config else { return }
+        do { try configuration.save() } catch { actionError = "\(error)"
             return
         }
-        config = cfg
+        config = configuration
     }
 
     private func persistInterfaceState() {
@@ -183,10 +183,10 @@ final class AppModel {
         if let override = ProcessInfo.processInfo.environment["FAUGUS_LANGUAGES_DIR"] {
             return LanguageCatalogs(localeDirectory: URL(fileURLWithPath: override))
         }
-        guard let dir = Bundle.main.resourceURL?.appendingPathComponent("languages"),
-              FileManager.default.fileExists(atPath: dir.path)
+        guard let directory = Bundle.main.resourceURL?.appendingPathComponent("languages"),
+              FileManager.default.fileExists(atPath: directory.path)
         else { return nil }
-        return LanguageCatalogs(localeDirectory: dir)
+        return LanguageCatalogs(localeDirectory: directory)
     }
 
     // MARK: Settings
@@ -194,8 +194,8 @@ final class AppModel {
     /// `interface-theme` (system/light/dark) drives the app appearance; `accent-mode`
     /// `custom` supplies a tint.
     func applyAppearance() {
-        guard let cfg = activeConfig else { return }
-        switch cfg.string("interface-theme", default: "system") {
+        guard let configuration = activeConfig else { return }
+        switch configuration.string("interface-theme", default: "system") {
         case "light": NSApp?.appearance = NSAppearance(named: .aqua)
         case "dark": NSApp?.appearance = NSAppearance(named: .darkAqua)
         default: NSApp?.appearance = nil
@@ -204,14 +204,14 @@ final class AppModel {
 
     /// The custom accent colour, or `nil` for the system one.
     var accentColor: ConfigColor? {
-        guard let cfg = activeConfig, cfg.accentColor() != "system" else { return nil }
-        return ConfigColor(cfg.accentColor())
+        guard let configuration = activeConfig, configuration.accentColor() != "system" else { return nil }
+        return ConfigColor(configuration.accentColor())
     }
 
-    /// Settings "Ok": writes `config.json` and `environmentVariable.json`.
-    func saveSettings(_ cfg: FaugusConfig, environmentVariables: [String]) {
+    /// Settings "Ok": writes `config.json` and `envar.json`.
+    func saveSettings(_ configuration: FaugusConfig, environmentVariables: [String]) {
         do {
-            try cfg.save()
+            try configuration.save()
             try EnvironmentVariableStore(paths: paths).save(environmentVariables)
             actionError = nil
         } catch {
@@ -246,20 +246,21 @@ final class AppModel {
             stop(game)
             return
         }
-        guard let exe = Bundle.main.executablePath ?? CommandLine.arguments.first else { return }
-        var argv = [exe, "--game", game.gameID]
+        guard let executablePath = Bundle.main.executablePath ?? CommandLine.arguments.first else { return }
+        var arguments = [executablePath, "--game", game.gameID]
         if withLogs {
-            argv.append("--logs")
+            arguments.append("--logs")
         }
         let gameDirectory = (paths.expand(game.path) as NSString).deletingLastPathComponent
         var isDirectory: ObjCBool = false
-        let cwd = FileManager.default.fileExists(atPath: gameDirectory, isDirectory: &isDirectory) && isDirectory
+        let workingDirectory = FileManager.default
+            .fileExists(atPath: gameDirectory, isDirectory: &isDirectory) && isDirectory
             .boolValue ? gameDirectory : nil
         do {
             _ = try ProcessSpawner.spawn(
-                argv: argv,
+                commandLine: arguments,
                 options: .init(
-                    workingDirectory: cwd,
+                    workingDirectory: workingDirectory,
                     environment: ProcessInfo.processInfo.environment,
                     newSession: true
                 )
@@ -283,17 +284,17 @@ final class AppModel {
 
     /// Spawns `Faugus --run <file> --in-game <id>` (upstream `run_file_in_prefix`).
     func runFile(_ file: String, in game: Game, withLogs: Bool = false) {
-        guard let exe = Bundle.main.executablePath ?? CommandLine.arguments.first else { return }
-        var argv = [exe, "--run", file, "--in-game", game.gameID]
+        guard let executablePath = Bundle.main.executablePath ?? CommandLine.arguments.first else { return }
+        var arguments = [executablePath, "--run", file, "--in-game", game.gameID]
         if withLogs {
-            argv.append("--logs")
+            arguments.append("--logs")
         }
         do {
-            var env = ProcessInfo.processInfo.environment
-            env["FAUGUS_DISABLE_UPDATES"] = "1"
+            var environment = ProcessInfo.processInfo.environment
+            environment["FAUGUS_DISABLE_UPDATES"] = "1"
             _ = try ProcessSpawner.spawn(
-                argv: argv,
-                options: .init(workingDirectory: nil, environment: env, newSession: true)
+                commandLine: arguments,
+                options: .init(workingDirectory: nil, environment: environment, newSession: true)
             )
             try? RecentRunFiles(paths: paths).record(gameID: game.gameID, file: file)
             actionError = nil
@@ -305,11 +306,11 @@ final class AppModel {
     /// The Add Game dialog's "Run" and "Run an installer": runs `file` in a prefix that may not
     /// belong to a saved game yet, and returns once it has exited.
     func runInPrefix(file: String, prefix: String, runner: String, logID: String) async -> Bool {
-        guard let exe = Bundle.main.executablePath ?? CommandLine.arguments.first else { return false }
-        let argv = [exe, "--run", file, "--in-prefix", prefix, "--runner", runner, "--log-id", logID]
+        guard let executablePath = Bundle.main.executablePath ?? CommandLine.arguments.first else { return false }
+        let arguments = [executablePath, "--run", file, "--in-prefix", prefix, "--runner", runner, "--log-id", logID]
         do {
             let pid = try ProcessSpawner.spawn(
-                argv: argv,
+                commandLine: arguments,
                 options: .init(
                     workingDirectory: nil,
                     environment: ProcessInfo.processInfo.environment,
@@ -357,8 +358,8 @@ final class AppModel {
     /// Adds or replaces a game (matched on `gameid`) and writes games.json.
     func save(_ game: Game) {
         var all = (try? GamesStore(paths: paths).loadAll()) ?? []
-        if let i = all.firstIndex(where: { $0.gameID == game.gameID }) {
-            all[i] = game
+        if let index = all.firstIndex(where: { $0.gameID == game.gameID }) {
+            all[index] = game
         } else {
             all.append(game)
         }
@@ -401,8 +402,8 @@ final class AppModel {
             selection = copy.gameID
             searchText = ""
             return nil
-        } catch let e as GameEditing.DuplicateError {
-            return e
+        } catch let duplicateError as GameEditing.DuplicateError {
+            return duplicateError
         } catch {
             actionError = "\(error)"
             return nil
@@ -410,9 +411,9 @@ final class AppModel {
     }
 
     func toggleHidden(_ game: Game) {
-        var g = game
-        g.hidden.toggle()
-        save(g)
+        var toggledGame = game
+        toggledGame.hidden.toggle()
+        save(toggledGame)
     }
 
     private func write(_ all: [Game], deleted: String?) {
@@ -431,8 +432,8 @@ final class AppModel {
         if game.runner == "Steam" {
             return steam.installFolder(appID: game.path)
         }
-        let dir = (paths.expand(game.path) as NSString).deletingLastPathComponent
-        return dir.isEmpty ? nil : dir
+        let directory = (paths.expand(game.path) as NSString).deletingLastPathComponent
+        return directory.isEmpty ? nil : directory
     }
 
     /// Steam-type games have no prefix here (macOS Steam keeps no Proton prefixes).
@@ -440,18 +441,19 @@ final class AppModel {
         guard game.runner != "Steam" else { return nil }
         let prefix = paths.expand(game.prefix)
         var isDirectory: ObjCBool = false
-        return FileManager.default.fileExists(atPath: prefix, isDirectory: &isDirectory) && isDirectory.boolValue ? prefix : nil
+        return FileManager.default.fileExists(atPath: prefix, isDirectory: &isDirectory) && isDirectory
+            .boolValue ? prefix : nil
     }
 
     func revealGameLocation(_ game: Game) {
-        if let dir = gameLocation(game) {
-            NSWorkspace.shared.open(URL(fileURLWithPath: dir))
+        if let directory = gameLocation(game) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: directory))
         }
     }
 
     func revealPrefix(_ game: Game) {
-        if let dir = prefixLocation(game) {
-            NSWorkspace.shared.open(URL(fileURLWithPath: dir))
+        if let directory = prefixLocation(game) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: directory))
         }
     }
 
@@ -481,8 +483,8 @@ final class AppModel {
         guard game.runner == "Steam" else { return game.playtime }
         let key = game.path + "|" + game.steamUser
         let now = Date()
-        if let hit = steamPlaytimeCache[key], now.timeIntervalSince(hit.at) <= 5 {
-            return hit.seconds
+        if let cachedPlaytime = steamPlaytimeCache[key], now.timeIntervalSince(cachedPlaytime.at) <= 5 {
+            return cachedPlaytime.seconds
         }
         let seconds = steam
             .playtimeMinutes(appID: game.path, accountID: game.steamUser.isEmpty ? nil : game.steamUser) * 60

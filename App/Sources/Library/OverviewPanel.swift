@@ -11,9 +11,9 @@ struct OverviewPanel: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let t = model.translator
+            let translate = model.translator
             let color = appearance.overviewColor
-            let stats = stats(t, now: context.date)
+            let stats = stats(translate, now: context.date)
             VStack(spacing: 0) {
                 Text(game.title)
                     .font(.system(size: 56, weight: .bold))
@@ -49,8 +49,8 @@ struct OverviewPanel: View {
     }
 
     /// The visible stat lines, in order: categories, playtime, last played or playing for.
-    private func stats(_ t: Translator, now: Date) -> [String] {
-        var out: [String] = []
+    private func stats(_ translate: Translator, now: Date) -> [String] {
+        var lines: [String] = []
         let running = model.isRunning(game)
         let session = running ? model.playSession(for: game) : nil
 
@@ -59,28 +59,31 @@ struct OverviewPanel: View {
         } else {
             model.playtimeSeconds(game)
         }
-        let playtime = GameFormatting.playtimeDisplay(seconds: seconds, t)
+        let playtime = GameFormatting.playtimeDisplay(seconds: seconds, translate)
         let categories = GameFormatting.categoryLine(game.categoryNames)
 
         if !categories.isEmpty {
-            out.append(categories)
+            lines.append(categories)
         }
         if let playtime {
-            out.append(t.format("Playtime: {}", playtime))
+            lines.append(translate.format("Playtime: {}", playtime))
         }
 
         if running {
             if let start = session?.start {
-                out.append(t.format("Playing for: {}", GameFormatting.playingFor(start: start, now: now, t)))
+                lines.append(translate.format(
+                    "Playing for: {}",
+                    GameFormatting.playingFor(start: start, now: now, translate)
+                ))
             }
         } else {
-            let last = GameFormatting.lastPlayed(iso: game.lastPlayed, now: now, t)
-            if let last {
-                out.append(t.format("Last played: {}", last))
+            let lastPlayed = GameFormatting.lastPlayed(iso: game.lastPlayed, now: now, translate)
+            if let lastPlayed {
+                lines.append(translate.format("Last played: {}", lastPlayed))
             } else if playtime == nil {
-                out.append(t("Never played"))
+                lines.append(translate("Never played"))
             }
         }
-        return out
+        return lines
     }
 }

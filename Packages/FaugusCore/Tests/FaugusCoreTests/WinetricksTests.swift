@@ -14,23 +14,24 @@ struct WinetricksTests {
 
     @Test func parsesTheRealListAll() throws {
         let text = try String(decoding: TestSupport.fixtureData("winetricks-list-all.txt"), as: UTF8.self)
-        let cats = Winetricks.parseList(text)
-        #expect(cats.map(\.name) == ["apps", "benchmarks", "dlls", "fonts", "settings"])
-        let dlls = try #require(cats.first { $0.name == "dlls" })
+        let categories = Winetricks.parseList(text)
+        #expect(categories.map(\.name) == ["apps", "benchmarks", "dlls", "fonts", "settings"])
+        let dlls = try #require(categories.first { $0.name == "dlls" })
         let vcrun = try #require(dlls.verbs.first { $0.name == "vcrun2022" })
         #expect(vcrun.summary.contains("Visual C++"))
         #expect(vcrun.category == "dlls")
         // Output noise is not a verb, and settings keep their `=` names.
-        #expect(!cats.flatMap(\.verbs).contains { $0.name.hasPrefix("Executing") || $0.name.hasPrefix("warning") })
-        #expect(cats.first { $0.name == "settings" }!.verbs
+        #expect(!categories.flatMap(\.verbs)
+            .contains { $0.name.hasPrefix("Executing") || $0.name.hasPrefix("warning") })
+        #expect(categories.first { $0.name == "settings" }!.verbs
             .contains { $0.name == "vd=1024x768" || $0.name == "alldlls=builtin" })
         // `winver=` (empty value) and the `prefix` meta-verbs are left out.
-        #expect(!cats.flatMap(\.verbs).contains { $0.name.hasSuffix("=") })
-        #expect(cats.flatMap(\.verbs).count > 400)
+        #expect(!categories.flatMap(\.verbs).contains { $0.name.hasSuffix("=") })
+        #expect(categories.flatMap(\.verbs).count > 400)
     }
 
     @Test func readsInstalledVerbsFromThePrefixLog() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let prefix = paths.home + "/pfx"
         try FileManager.default.createDirectory(atPath: prefix, withIntermediateDirectories: true)
@@ -44,57 +45,61 @@ struct WinetricksTests {
     }
 
     @Test func invocationUsesTheRunnerAndASharedCache() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        let r = runner(paths)
-        let inv = WinetricksInvocation.install(
-            verbs: ["vcrun2022", "corefonts"], prefix: "/p/game", runner: r, paths: paths, logName: "my-game",
+        let installedRunner = runner(paths)
+        let invocation = WinetricksInvocation.install(
+            verbs: ["vcrun2022", "corefonts"], prefix: "/p/game", runner: installedRunner, paths: paths,
+            logName: "my-game",
             base: ["PATH": "/usr/bin:/bin", "HOME": paths.home]
         )
-        #expect(inv.argv.first == "/bin/sh")
-        #expect(inv.argv.suffix(3) == ["-q", "vcrun2022", "corefonts"])
-        #expect(inv.argv[1] == WinetricksComponent(paths: paths).scriptPath)
-        #expect(inv.environment["WINEPREFIX"] == "/p/game")
-        #expect(inv.environment["WINE"] == r.wineBinary)
-        #expect(inv.environment["WINESERVER"] == r.wineserverBinary)
-        #expect(inv.environment["W_CACHE"] == paths.winetricksDirectory + "/cache")
-        #expect(inv.environment["WINETRICKS_LATEST_VERSION_CHECK"] == "disabled")
-        let path = inv.environment["PATH"] ?? ""
-        #expect(path.hasPrefix(r.wineRoot + "/bin:"))
+        #expect(invocation.commandLine.first == "/bin/sh")
+        #expect(invocation.commandLine.suffix(3) == ["-q", "vcrun2022", "corefonts"])
+        #expect(invocation.commandLine[1] == WinetricksComponent(paths: paths).scriptPath)
+        #expect(invocation.environment["WINEPREFIX"] == "/p/game")
+        #expect(invocation.environment["WINE"] == installedRunner.wineBinary)
+        #expect(invocation.environment["WINESERVER"] == installedRunner.wineserverBinary)
+        #expect(invocation.environment["W_CACHE"] == paths.winetricksDirectory + "/cache")
+        #expect(invocation.environment["WINETRICKS_LATEST_VERSION_CHECK"] == "disabled")
+        let path = invocation.environment["PATH"] ?? ""
+        #expect(path.hasPrefix(installedRunner.wineRoot + "/bin:"))
         #expect(path.contains("/opt/homebrew/bin"))
-        #expect(inv.logFile == paths.logsDirectory + "/my-game/winetricks.log")
+        #expect(invocation.logFile == paths.logsDirectory + "/my-game/winetricks.log")
         // Nothing of the runner is written: the script, cache and log live elsewhere.
-        #expect(!inv.logFile.hasPrefix(r.directory) && !inv.environment["W_CACHE", default: ""].hasPrefix(r.directory))
+        #expect(!invocation.logFile.hasPrefix(installedRunner.directory) && !invocation.environment[
+            "W_CACHE",
+            default: ""
+        ].hasPrefix(installedRunner.directory))
     }
 
     @Test func installScriptChecksTheHashAndMakesItExecutable() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        let src = paths.home + "/src-winetricks"
-        try "#!/bin/sh\necho hi\n".write(toFile: src, atomically: true, encoding: .utf8)
+        let scriptSourcePath = paths.home + "/src-winetricks"
+        try "#!/bin/sh\necho hi\n".write(toFile: scriptSourcePath, atomically: true, encoding: .utf8)
         let component = WinetricksComponent(paths: paths)
         #expect(!component.isInstalled)
         #expect(throws: RunnerError.self) { try component.installScript(
-            at: src,
+            at: scriptSourcePath,
             expectedSHA256: String(repeating: "0", count: 64)
         ) }
         #expect(!component.isInstalled)
-        try component.installScript(at: src, expectedSHA256: Downloader.sha256(ofFileAt: src))
+        try component.installScript(at: scriptSourcePath, expectedSHA256: Downloader.sha256(ofFileAt: scriptSourcePath))
         #expect(component.isInstalled)
         #expect(FileManager.default.isExecutableFile(atPath: component.scriptPath))
     }
 
     @Test func logTailReturnsOnlyCompleteLinesAndCarriageReturns() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let file = paths.home + "/t.log"
         FileManager.default.createFile(atPath: file, contents: nil)
         let tail = LogTail(path: file)
-        func append(_ s: String) throws {
-            let h = try FileHandle(forWritingTo: URL(fileURLWithPath: file))
-            try h.seekToEnd()
-            try h.write(contentsOf: Data(s.utf8))
-            try h.close()
+        func append(_ text: String) throws {
+            let handle = try FileHandle(forWritingTo: URL(fileURLWithPath: file))
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data(text.utf8))
+            try handle.close()
         }
         try append("one\ntw")
         #expect(tail.poll() == ["one"])
@@ -105,10 +110,10 @@ struct WinetricksTests {
     }
 
     @Test func aFakeScriptRunsInThePrefixAndItsOutputReachesTheLog() async throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let component = WinetricksComponent(paths: paths)
-        let src = paths.home + "/fake"
+        let scriptSourcePath = paths.home + "/fake"
         try """
         #!/bin/sh
         echo "args: $@"
@@ -117,11 +122,11 @@ struct WinetricksTests {
         echo "pwd: $(pwd)"
         echo "$2" >> "$WINEPREFIX/winetricks.log"
         exit 0
-        """.write(toFile: src, atomically: true, encoding: .utf8)
-        try component.installScript(at: src, expectedSHA256: nil)
+        """.write(toFile: scriptSourcePath, atomically: true, encoding: .utf8)
+        try component.installScript(at: scriptSourcePath, expectedSHA256: nil)
         let prefix = paths.home + "/pfx"
         try FileManager.default.createDirectory(atPath: prefix, withIntermediateDirectories: true)
-        let inv = WinetricksInvocation.install(
+        let invocation = WinetricksInvocation.install(
             verbs: ["corefonts"],
             prefix: prefix,
             runner: runner(paths),
@@ -129,16 +134,16 @@ struct WinetricksTests {
             logName: "fake"
         )
         let pid = try ProcessSpawner.spawn(
-            argv: inv.argv,
+            commandLine: invocation.commandLine,
             options: .init(
-                workingDirectory: inv.workingDirectory,
-                environment: inv.environment,
-                outputFile: inv.logFile
+                workingDirectory: invocation.workingDirectory,
+                environment: invocation.environment,
+                outputFile: invocation.logFile
             )
         )
         let status = await ProcessSpawner.waitForExit(pid: pid)
         #expect(status == 0)
-        let lines = LogTail(path: inv.logFile).poll(flush: true)
+        let lines = LogTail(path: invocation.logFile).poll(flush: true)
         #expect(lines.contains("args: -q corefonts"))
         #expect(lines.contains("prefix: \(prefix)"))
         #expect(lines.contains("cache: \(paths.winetricksDirectory)/cache"))

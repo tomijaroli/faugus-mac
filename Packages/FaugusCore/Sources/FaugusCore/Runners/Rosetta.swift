@@ -6,8 +6,8 @@ public enum Rosetta {
 
     /// `/usr/bin/arch -x86_64 /usr/bin/true` succeeds only when Rosetta is installed.
     public static func isInstalled() async -> Bool {
-        guard let r = try? await ProcessRunner.run(archPath, ["-x86_64", "/usr/bin/true"]) else { return false }
-        return r.succeeded
+        guard let result = try? await ProcessRunner.run(archPath, ["-x86_64", "/usr/bin/true"]) else { return false }
+        return result.succeeded
     }
 
     /// The shell command run (with an administrator prompt) to install Rosetta.
@@ -26,13 +26,13 @@ public enum Rosetta {
     /// Installs Rosetta via an admin prompt (`osascript`). Throws `.cancelled` when the user
     /// dismisses the prompt.
     public static func install() async throws {
-        let r = try await ProcessRunner.run("/usr/bin/osascript", ["-e", installAppleScript])
-        if r.succeeded {
+        let result = try await ProcessRunner.run("/usr/bin/osascript", ["-e", installAppleScript])
+        if result.succeeded {
             return
         }
-        if r.stderr.contains("-128") || r.stderr.lowercased().contains("user canceled") {
+        if result.stderr.contains("-128") || result.stderr.lowercased().contains("user canceled") {
             throw InstallError.cancelled
         }
-        throw InstallError.failed(r.stderr.trimmingCharacters(in: .whitespacesAndNewlines))
+        throw InstallError.failed(result.stderr.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }

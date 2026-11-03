@@ -19,7 +19,7 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        let t = model.translator
+        let translate = model.translator
         Group {
             if let config = model.activeConfig {
                 let appearance = LibraryAppearance(config: config, customAccent: model.accentColor)
@@ -36,8 +36,8 @@ struct LibraryView: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6)).padding()
             }
         }
-        .toolbar { toolbar(t) }
-        .searchable(text: $model.searchText, placement: .toolbar, prompt: t("Search..."))
+        .toolbar { toolbar(translate) }
+        .searchable(text: $model.searchText, placement: .toolbar, prompt: translate("Search..."))
         .sheet(item: $editor) { state in
             GameEditorView(model: model, state: state) { editor = nil }
         }
@@ -85,7 +85,7 @@ struct LibraryView: View {
     // MARK: Toolbar
 
     @ToolbarContentBuilder
-    private func toolbar(_ t: Translator) -> some ToolbarContent {
+    private func toolbar(_ translate: Translator) -> some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
             if showsZoom {
                 HStack(spacing: 6) {
@@ -93,29 +93,29 @@ struct LibraryView: View {
                     Slider(value: zoomBinding, in: 50 ... 100, step: 10).frame(width: 110)
                     Text("\(model.coverSize)").monospacedDigit().frame(width: 28, alignment: .trailing)
                 }
-                .help(t("Displays a zoom slider to adjust the size of games"))
+                .help(translate("Displays a zoom slider to adjust the size of games"))
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {
             if model.sortEnabled {
-                sortMenu(t)
+                sortMenu(translate)
             }
             if model.categoriesEnabled {
-                categoryMenu(t)
+                categoryMenu(translate)
             }
-            Button(t("Add"), systemImage: "plus") { editor = .new(model: model) }
-                .help(t("Add"))
-            Button(t("Settings"), systemImage: "gearshape") { model.showSettings = true }
-                .help(t("Settings"))
-            Button(t("Kill all running games"), systemImage: "xmark.octagon") { model.killAll() }
-                .help(t("Kill all running games"))
+            Button(translate("Add"), systemImage: "plus") { editor = .new(model: model) }
+                .help(translate("Add"))
+            Button(translate("Settings"), systemImage: "gearshape") { model.showSettings = true }
+                .help(translate("Settings"))
+            Button(translate("Kill all running games"), systemImage: "xmark.octagon") { model.killAll() }
+                .help(translate("Kill all running games"))
                 .disabled(model.running.isEmpty)
-            if let g = model.selectedGame {
+            if let selectedGame = model.selectedGame {
                 Button(
-                    model.isRunning(g) ? t("Stop") : t("Play"),
-                    systemImage: model.isRunning(g) ? "stop.fill" : "play.fill"
-                ) { model.play(g, withLogs: false) }
-                    .help(model.isRunning(g) ? t("Stop") : t("Play"))
+                    model.isRunning(selectedGame) ? translate("Stop") : translate("Play"),
+                    systemImage: model.isRunning(selectedGame) ? "stop.fill" : "play.fill"
+                ) { model.play(selectedGame, withLogs: false) }
+                    .help(model.isRunning(selectedGame) ? translate("Stop") : translate("Play"))
             }
         }
     }
@@ -129,23 +129,23 @@ struct LibraryView: View {
         Binding(get: { Double(model.coverSize) }, set: { model.coverSize = Int(($0 / 10).rounded()) * 10 })
     }
 
-    private func sortMenu(_ t: Translator) -> some View {
+    private func sortMenu(_ translate: Translator) -> some View {
         Menu {
-            Picker(t("Sort"), selection: $model.sortMode) {
-                ForEach(SortMode.allCases, id: \.self) { Text(t($0.label)).tag($0) }
+            Picker(translate("Sort"), selection: $model.sortMode) {
+                ForEach(SortMode.allCases, id: \.self) { Text(translate($0.label)).tag($0) }
             }
             .pickerStyle(.inline)
             .labelsHidden()
         } label: {
-            Text(t(model.sortMode.label))
+            Text(translate(model.sortMode.label))
         }
-        .help(t("Displays a button to change the game sorting order"))
+        .help(translate("Displays a button to change the game sorting order"))
     }
 
-    private func categoryMenu(_ t: Translator) -> some View {
+    private func categoryMenu(_ translate: Translator) -> some View {
         let entries: [CategorySelection] = [.all, .uncategorized] + model.categoryNames.map { .named($0) }
         return Menu {
-            Picker(t("Categories"), selection: $model.category) {
+            Picker(translate("Categories"), selection: $model.category) {
                 ForEach(entries, id: \.self) { entry in
                     Text("\(model.categoryLabel(entry)) (\(model.gameCount(in: entry)))").tag(entry)
                 }
@@ -153,11 +153,11 @@ struct LibraryView: View {
             .pickerStyle(.inline)
             .labelsHidden()
             Divider()
-            Button(t("Manage categories...")) { showCategories = true }
+            Button(translate("Manage categories...")) { showCategories = true }
         } label: {
             Text(model.categoryLabel(model.category))
         }
-        .help(t("Displays a button to manage game categories"))
+        .help(translate("Displays a button to manage game categories"))
     }
 }
 
@@ -178,8 +178,8 @@ private struct GameListView: View {
         .scrollContentBackground(appearance.backgroundTint == nil ? .automatic : .hidden)
         .contextMenu(forSelectionType: String.self) { _ in
         } primaryAction: { ids in
-            if let id = ids.first, let g = model.games.first(where: { $0.gameID == id }) {
-                model.play(g, withLogs: false)
+            if let id = ids.first, let game = model.games.first(where: { $0.gameID == id }) {
+                model.play(game, withLogs: false)
             }
         }
         .accessibilityIdentifier("library-list")
@@ -191,7 +191,7 @@ private struct GameRow: View {
     let model: AppModel
 
     var body: some View {
-        let t = model.translator
+        let translate = model.translator
         HStack(spacing: 10) {
             ArtworkView(path: model.paths.expand(game.icon), size: CGSize(width: 40, height: 40)) {
                 FaugusFallbackIcon()
@@ -199,31 +199,31 @@ private struct GameRow: View {
             .saturation(FileManager.default.fileExists(atPath: model.paths.expand(game.path)) ? 1 : 0)
             VStack(alignment: .leading, spacing: 2) {
                 Text(game.title).font(.body).opacity(game.hidden ? 0.5 : 1)
-                if let sub = subtitle(t) {
-                    Text(sub).font(.caption).foregroundStyle(.secondary)
+                if let subtitleText = subtitle(translate) {
+                    Text(subtitleText).font(.caption).foregroundStyle(.secondary)
                 }
             }
             Spacer()
             if model.isRunning(game) {
                 Image(systemName: "play.circle.fill").foregroundStyle(.green)
-                    .help(t("Stop"))
+                    .help(translate("Stop"))
             }
         }
         .padding(.vertical, 2)
     }
 
-    private func subtitle(_ t: Translator) -> String? {
+    private func subtitle(_ translate: Translator) -> String? {
         var parts: [String] = []
-        if let p = GameFormatting.playtimeDisplay(seconds: model.playtimeSeconds(game), t) {
-            parts.append(t.format("Playtime: {}", p))
+        if let playtime = GameFormatting.playtimeDisplay(seconds: model.playtimeSeconds(game), translate) {
+            parts.append(translate.format("Playtime: {}", playtime))
         }
         if model.isRunning(game) {
             return parts.joined(separator: " · ")
         }
-        if let l = GameFormatting.lastPlayed(iso: game.lastPlayed, t) {
-            parts.append(t.format("Last played: {}", l))
+        if let lastPlayed = GameFormatting.lastPlayed(iso: game.lastPlayed, translate) {
+            parts.append(translate.format("Last played: {}", lastPlayed))
         } else if model.playtimeSeconds(game) == 0 {
-            parts.append(t("Never played"))
+            parts.append(translate("Never played"))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

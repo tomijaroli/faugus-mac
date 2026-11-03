@@ -10,7 +10,7 @@ struct CarrouselView: View {
     let appearance: LibraryAppearance
     let actions: GameActions
 
-    /// The target as an absolute index (it grows past the list, the game is `index mod n`).
+    /// The target as an absolute index (it grows past the list, the game is `index mod games.count`).
     @State private var index = 0
     /// The animated position the slots are laid out from.
     @State private var position: Double = 0
@@ -51,10 +51,10 @@ struct CarrouselView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
+        GeometryReader { geometry in
             VStack(spacing: 0) {
-                if config.bool("overview-enabled"), let g = model.selectedGame {
-                    OverviewPanel(model: model, game: g, appearance: appearance, width: geo.size.width)
+                if config.bool("overview-enabled"), let selectedGame = model.selectedGame {
+                    OverviewPanel(model: model, game: selectedGame, appearance: appearance, width: geometry.size.width)
                 }
                 CarrouselLayer(
                     position: position, games: games, model: model, appearance: appearance, actions: actions,
@@ -63,7 +63,7 @@ struct CarrouselView: View {
                 )
                 .frame(height: crossSize)
             }
-            .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: alignment)
+            .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: alignment)
         }
         .focusable()
         .focusEffectDisabled()
@@ -72,8 +72,8 @@ struct CarrouselView: View {
             case .leftArrow: move(-1)
             case .rightArrow: move(1)
             case .return:
-                if let g = centerGame {
-                    model.play(g, withLogs: false)
+                if let game = centerGame {
+                    model.play(game, withLogs: false)
                 }
             default: return .ignored
             }
@@ -85,8 +85,8 @@ struct CarrouselView: View {
         }
         .onDisappear { removeScrollMonitor() }
         .onChange(of: games.map(\.gameID)) { _, _ in syncToSelection(animated: false) }
-        .onChange(of: model.selection) { _, sel in
-            if sel != centerGame?.gameID {
+        .onChange(of: model.selection) { _, newSelection in
+            if newSelection != centerGame?.gameID {
                 syncToSelection(animated: true)
             }
         }
@@ -99,8 +99,8 @@ struct CarrouselView: View {
         return games[Self.mod(index, games.count)]
     }
 
-    static func mod(_ i: Int, _ n: Int) -> Int {
-        ((i % n) + n) % n
+    static func mod(_ value: Int, _ modulus: Int) -> Int {
+        ((value % modulus) + modulus) % modulus
     }
 
     private func move(_ delta: Int) {
@@ -113,17 +113,17 @@ struct CarrouselView: View {
     /// Moves the fan so the selected game is in the centre (the nearest copy when it wraps).
     private func syncToSelection(animated: Bool) {
         guard !games.isEmpty else { return }
-        let n = games.count
+        let gameCount = games.count
         let target = model.selection.flatMap { id in games.firstIndex { $0.gameID == id } } ?? 0
         if model.selection == nil || model.selection != games[target].gameID {
             model.selection = games[target].gameID
         }
         // Pick the copy of `target` closest to where the fan is now.
-        var delta = target - Self.mod(index, n)
-        if delta > n / 2 {
-            delta -= n
-        } else if delta < -n / 2 {
-            delta += n
+        var delta = target - Self.mod(index, gameCount)
+        if delta > gameCount / 2 {
+            delta -= gameCount
+        } else if delta < -gameCount / 2 {
+            delta += gameCount
         }
         index += delta
         if animated {
@@ -136,8 +136,8 @@ struct CarrouselView: View {
     private func tapped(offset: Int, double: Bool) {
         if offset != 0 {
             move(offset)
-        } else if double, let g = centerGame {
-            model.play(g, withLogs: false)
+        } else if double, let game = centerGame {
+            model.play(game, withLogs: false)
         }
     }
 
@@ -165,8 +165,8 @@ struct CarrouselView: View {
     }
 
     private func removeScrollMonitor() {
-        if let m = scrollMonitor {
-            NSEvent.removeMonitor(m)
+        if let monitor = scrollMonitor {
+            NSEvent.removeMonitor(monitor)
         }
         scrollMonitor = nil
     }
@@ -198,42 +198,45 @@ private struct CarrouselLayer: View, Animatable {
             (3, 0.46, 0.25),
             (4, 0.3, 0),
         ]
-        let d = abs(offset)
-        for (a, b) in zip(anchors, anchors.dropFirst()) where d <= b.0 {
-            let t = (d - a.0) / (b.0 - a.0)
-            return (a.1 + (b.1 - a.1) * t, a.2 + (b.2 - a.2) * t)
+        let distance = abs(offset)
+        for (lower, upper) in zip(anchors, anchors.dropFirst()) where distance <= upper.0 {
+            let fraction = (distance - lower.0) / (upper.0 - lower.0)
+            return (
+                lower.1 + (upper.1 - lower.1) * fraction,
+                lower.2 + (upper.2 - lower.2) * fraction
+            )
         }
         return (anchors.last!.1, anchors.last!.2)
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let n = games.count
-            let maxRadius = min(3, n / 2)
-            let fit = step > 0 ? Int((geo.size.width / step - 1) / 2) : maxRadius
-            let radius = maxRadius <= 1 ? maxRadius : max(1, min(maxRadius, fit))
+        GeometryReader { geometry in
+            let gameCount = games.count
+            let maxRadius = min(3, gameCount / 2)
+            let fittingCount = step > 0 ? Int((geometry.size.width / step - 1) / 2) : maxRadius
+            let radius = maxRadius <= 1 ? maxRadius : max(1, min(maxRadius, fittingCount))
             let base = Int(position.rounded(.down))
             ZStack {
-                if n > 0 {
-                    ForEach((base - 4) ... (base + 5), id: \.self) { i in
-                        let offset = Double(i) - position
-                        slot(i, offset: offset, radius: radius, n: n)
+                if gameCount > 0 {
+                    ForEach((base - 4) ... (base + 5), id: \.self) { slotIndex in
+                        let offset = Double(slotIndex) - position
+                        slot(slotIndex, offset: offset, radius: radius, gameCount: gameCount)
                     }
                 }
             }
-            .frame(width: geo.size.width, height: geo.size.height)
+            .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
         }
     }
 
     @ViewBuilder
-    private func slot(_ i: Int, offset: Double, radius: Int, n: Int) -> some View {
-        let d = abs(offset)
+    private func slot(_ slotIndex: Int, offset: Double, radius: Int, gameCount: Int) -> some View {
+        let distance = abs(offset)
         let (scale, baseOpacity) = Self.scaleOpacity(offset)
-        let opacity = d > Double(radius) ? baseOpacity * max(0, Double(radius) + 1 - d) : baseOpacity
-        let game = games[CarrouselView.mod(i, n)]
-        let current = d < 0.5
-        let glow = max(0, 1 - d)
+        let opacity = distance > Double(radius) ? baseOpacity * max(0, Double(radius) + 1 - distance) : baseOpacity
+        let game = games[CarrouselView.mod(slotIndex, gameCount)]
+        let current = distance < 0.5
+        let glow = max(0, 1 - distance)
         if opacity > 0.001 {
             GameTile(
                 model: model, game: game, appearance: appearance, mode: .covers,
@@ -245,8 +248,8 @@ private struct CarrouselLayer: View, Animatable {
             .scaleEffect((scale * 400).rounded(.down) / 400 + 0.00125)
             .opacity(opacity)
             .offset(x: offset * step)
-            .zIndex(-d)
-            .allowsHitTesting(d <= Double(radius) + 0.5)
+            .zIndex(-distance)
+            .allowsHitTesting(distance <= Double(radius) + 0.5)
             .onTapGesture(count: 2) { onTap(Int(offset.rounded()), true) }
             .onTapGesture { onTap(Int(offset.rounded()), false) }
             .contextMenu { GameContextMenu(model: model, game: game, actions: actions) }

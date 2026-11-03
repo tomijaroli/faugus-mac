@@ -14,17 +14,17 @@ public enum GameEditing {
     /// `validate_fields("path+prefix")`: the title and its formatted ID, the path and the prefix
     /// must be non-empty.
     public static func invalidFields(title: String, path: String, prefix: String) -> [InvalidField] {
-        var out: [InvalidField] = []
+        var fields: [InvalidField] = []
         if title.isEmpty || GameID.format(title: title).isEmpty {
-            out.append(.title)
+            fields.append(.title)
         }
         if path.isEmpty {
-            out.append(.path)
+            fields.append(.path)
         }
         if prefix.isEmpty {
-            out.append(.prefix)
+            fields.append(.prefix)
         }
-        return out
+        return fields
     }
 
     /// "%s already exists": case-insensitive match against every other game's title.
@@ -77,7 +77,7 @@ public enum GameEditing {
         public var postLaunch = ""
         public var discordRPC = false
         public var noSleep = false
-        public var sdl = false
+        public var sdlEnabled = false
         public var addAppEnabled = false
         public var addAppPath = ""
         public var addAppDelay = 0
@@ -87,42 +87,42 @@ public enum GameEditing {
 
     /// `on_dialog_response` / `on_edit_dialog_response`: writes the draft into `game`. The game
     /// ID of an existing game never changes. Fields the dialog does not edit are kept.
-    public static func apply(_ d: Draft, to game: Game, paths: FaugusPaths) -> Game {
-        var g = game
-        g.title = d.title
-        g.path = d.path
-        g.prefix = normalizedPath(d.prefix)
-        g.runner = d.customRunner ? d.runner : "Default"
-        g.graphics = d.graphics == .default ? nil : d.graphics
-        g.launchArguments = LaunchArgumentLines.join(d.launchArguments)
-        g.gameArguments = d.gameArguments
-        g.preLaunch = d.preLaunch.trimmingCharacters(in: .whitespacesAndNewlines)
-        g.postLaunch = d.postLaunch.trimmingCharacters(in: .whitespacesAndNewlines)
-        g.sdlEnabled = d.sdl
-        g.noSleep = d.noSleep
-        g.discordRPC = d.discordRPC
-        g.addAppEnabled = d.addAppEnabled
-        g.addApp = d.addAppPath
-        g.addAppDelay = String(d.addAppDelay)
-        g.addAppFirst = d.addAppFirst
-        g.addAppBat = addAppBatPath(gamePath: g.path, gameID: g.gameID, paths: paths)
-        if let user = d.steamUser {
+    public static func apply(_ draft: Draft, to game: Game, paths: FaugusPaths) -> Game {
+        var updatedGame = game
+        updatedGame.title = draft.title
+        updatedGame.path = draft.path
+        updatedGame.prefix = normalizedPath(draft.prefix)
+        updatedGame.runner = draft.customRunner ? draft.runner : "Default"
+        updatedGame.graphics = draft.graphics == .default ? nil : draft.graphics
+        updatedGame.launchArguments = LaunchArgumentLines.join(draft.launchArguments)
+        updatedGame.gameArguments = draft.gameArguments
+        updatedGame.preLaunch = draft.preLaunch.trimmingCharacters(in: .whitespacesAndNewlines)
+        updatedGame.postLaunch = draft.postLaunch.trimmingCharacters(in: .whitespacesAndNewlines)
+        updatedGame.sdlEnabled = draft.sdlEnabled
+        updatedGame.noSleep = draft.noSleep
+        updatedGame.discordRPC = draft.discordRPC
+        updatedGame.addAppEnabled = draft.addAppEnabled
+        updatedGame.addApp = draft.addAppPath
+        updatedGame.addAppDelay = String(draft.addAppDelay)
+        updatedGame.addAppFirst = draft.addAppFirst
+        updatedGame.addAppBat = addAppBatPath(gamePath: updatedGame.path, gameID: updatedGame.gameID, paths: paths)
+        if let user = draft.steamUser {
             // Steam owns the game: Wine-side options are cleared, as upstream does.
-            g.runner = "Steam"
-            g.graphics = nil
-            g.steamUser = user
-            g.mangohud = false
-            g.gamemode = false
-            g.sdlEnabled = false
-            g.noSleep = false
-            g.discordRPC = false
-            g.addAppEnabled = false
-            g.addApp = ""
-            g.addAppBat = ""
+            updatedGame.runner = "Steam"
+            updatedGame.graphics = nil
+            updatedGame.steamUser = user
+            updatedGame.mangohud = false
+            updatedGame.gamemode = false
+            updatedGame.sdlEnabled = false
+            updatedGame.noSleep = false
+            updatedGame.discordRPC = false
+            updatedGame.addAppEnabled = false
+            updatedGame.addApp = ""
+            updatedGame.addAppBat = ""
         } else {
-            g.steamUser = ""
+            updatedGame.steamUser = ""
         }
-        return g
+        return updatedGame
     }
 
     // MARK: Additional application
@@ -130,27 +130,27 @@ public enum GameEditing {
     /// `write_addapp_bat`: the batch file that starts the game and the extra application. The
     /// `z:` drive is Wine's view of the Unix root.
     public static func addAppBatContents(
-        exe: String, addApp: String, delay: String, first: Bool, gameArguments: String
+        executable: String, addApp: String, delay: String, first: Bool, gameArguments: String
     ) -> String {
-        let gameLine = gameArguments.isEmpty ? "start \"\" \"z:\(exe)\"\n" : "start \"\" \"z:\(exe)\" \(gameArguments)\n"
+        let gameLine = gameArguments.isEmpty ? "start \"\" \"z:\(executable)\"\n" : "start \"\" \"z:\(executable)\" \(gameArguments)\n"
         let addAppLine = "start \"\" \"z:\(addApp)\"\n"
-        let (a, b) = first ? (addAppLine, gameLine) : (gameLine, addAppLine)
-        var out = "@echo off\n" + a
+        let (firstLine, secondLine) = first ? (addAppLine, gameLine) : (gameLine, addAppLine)
+        var contents = "@echo off\n" + firstLine
         if !delay.isEmpty, delay != "0" {
-            out += "ping -n \(delay) 127.0.0.1 >nul\n"
+            contents += "ping -n \(delay) 127.0.0.1 >nul\n"
         }
-        return out + b
+        return contents + secondLine
     }
 
     /// `faugus-<id>.bat` next to the game's executable.
     public static func addAppBatPath(gamePath: String, gameID: String, paths: FaugusPaths) -> String {
-        let dir = (paths.expand(gamePath) as NSString).deletingLastPathComponent
-        return "\(dir)/faugus-\(gameID).bat"
+        let directory = (paths.expand(gamePath) as NSString).deletingLastPathComponent
+        return "\(directory)/faugus-\(gameID).bat"
     }
 
     public static func writeAddAppBat(for game: Game, paths: FaugusPaths) throws {
         let contents = addAppBatContents(
-            exe: paths.expand(game.path), addApp: paths.expand(game.addApp), delay: game.addAppDelay,
+            executable: paths.expand(game.path), addApp: paths.expand(game.addApp), delay: game.addAppDelay,
             first: game.addAppFirst,
             gameArguments: game.gameArguments
         )
@@ -171,16 +171,18 @@ public enum GameEditing {
 
     /// Removes the artwork and the generated bat. Never touches the prefix or the game itself.
     public static func removeOwnedFiles(of game: Game, paths: FaugusPaths) {
-        let fm = FileManager.default
-        for f in artworkFiles(for: game.gameID, paths: paths)
-            where fm.fileExists(atPath: f)
+        let fileManager = FileManager.default
+        for artworkFile in artworkFiles(for: game.gameID, paths: paths)
+            where fileManager.fileExists(atPath: artworkFile)
         {
-            try? fm.removeItem(atPath: f)
+            try? fileManager.removeItem(atPath: artworkFile)
         }
-        let bat = paths.expand(game.addAppBat)
+        let batchFile = paths.expand(game.addAppBat)
         // Only generated `faugus-*.bat` files are removed.
-        if !bat.isEmpty, (bat as NSString).lastPathComponent.hasPrefix("faugus-"), fm.fileExists(atPath: bat) {
-            try? fm.removeItem(atPath: bat)
+        if !batchFile.isEmpty, (batchFile as NSString).lastPathComponent.hasPrefix("faugus-"),
+           fileManager.fileExists(atPath: batchFile)
+        {
+            try? fileManager.removeItem(atPath: batchFile)
         }
     }
 
@@ -216,7 +218,7 @@ public enum GameEditing {
             throw DuplicateError.exists
         }
         let id = GameID.unique(base: base, existing: Set(existing.map(\.gameID)))
-        let fm = FileManager.default
+        let fileManager = FileManager.default
 
         var copy = game
         copy.gameID = id
@@ -224,39 +226,39 @@ public enum GameEditing {
 
         let oldIcon = paths.expand(game.icon)
         let newIcon = "\(paths.iconsDirectory)/\(id).png"
-        if !oldIcon.isEmpty, fm.fileExists(atPath: oldIcon) {
-            try? fm.createDirectory(atPath: paths.iconsDirectory, withIntermediateDirectories: true)
-            try? fm.removeItem(atPath: newIcon)
-            try? fm.copyItem(atPath: oldIcon, toPath: newIcon)
+        if !oldIcon.isEmpty, fileManager.fileExists(atPath: oldIcon) {
+            try? fileManager.createDirectory(atPath: paths.iconsDirectory, withIntermediateDirectories: true)
+            try? fileManager.removeItem(atPath: newIcon)
+            try? fileManager.copyItem(atPath: oldIcon, toPath: newIcon)
         }
         copy.icon = newIcon
 
         let oldCover = paths.expand(game.cover)
         let newCover = "\(paths.coversDirectory)/\(id).png"
-        if !oldCover.isEmpty, fm.fileExists(atPath: oldCover) {
-            try? fm.createDirectory(atPath: paths.coversDirectory, withIntermediateDirectories: true)
-            try? fm.removeItem(atPath: newCover)
-            try? fm.copyItem(atPath: oldCover, toPath: newCover)
+        if !oldCover.isEmpty, fileManager.fileExists(atPath: oldCover) {
+            try? fileManager.createDirectory(atPath: paths.coversDirectory, withIntermediateDirectories: true)
+            try? fileManager.removeItem(atPath: newCover)
+            try? fileManager.copyItem(atPath: oldCover, toPath: newCover)
             copy.cover = newCover
         } else {
             copy.cover = ""
         }
 
         let oldBanner = "\(paths.bannersDirectory)/\(game.gameID).png"
-        if fm.fileExists(atPath: oldBanner) {
-            try? fm.createDirectory(atPath: paths.bannersDirectory, withIntermediateDirectories: true)
+        if fileManager.fileExists(atPath: oldBanner) {
+            try? fileManager.createDirectory(atPath: paths.bannersDirectory, withIntermediateDirectories: true)
             let newBanner = "\(paths.bannersDirectory)/\(id).png"
-            try? fm.removeItem(atPath: newBanner)
-            try? fm.copyItem(atPath: oldBanner, toPath: newBanner)
+            try? fileManager.removeItem(atPath: newBanner)
+            try? fileManager.copyItem(atPath: oldBanner, toPath: newBanner)
         }
 
-        let newBat = addAppBatPath(gamePath: game.path, gameID: id, paths: paths)
-        let oldBat = paths.expand(game.addAppBat)
-        if !oldBat.isEmpty, fm.fileExists(atPath: oldBat) {
-            try? fm.removeItem(atPath: newBat)
-            try? fm.copyItem(atPath: oldBat, toPath: newBat)
+        let newBatchFile = addAppBatPath(gamePath: game.path, gameID: id, paths: paths)
+        let oldBatchFile = paths.expand(game.addAppBat)
+        if !oldBatchFile.isEmpty, fileManager.fileExists(atPath: oldBatchFile) {
+            try? fileManager.removeItem(atPath: newBatchFile)
+            try? fileManager.copyItem(atPath: oldBatchFile, toPath: newBatchFile)
         }
-        copy.addAppBat = newBat
+        copy.addAppBat = newBatchFile
         return copy
     }
 }
@@ -269,8 +271,8 @@ public struct PresetsStore: Sendable {
     }
 
     public func load() -> [String] {
-        guard case let .array(a) = JSONFile.load(paths.presetsFile, default: .array([])) else { return [] }
-        return a.compactMap(\.stringValue)
+        guard case let .array(items) = JSONFile.load(paths.presetsFile, default: .array([])) else { return [] }
+        return items.compactMap(\.stringValue)
     }
 
     public func save(_ presets: [String]) throws {

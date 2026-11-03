@@ -14,12 +14,12 @@ public struct RunnerInstaller: Sendable {
         _ remote: RemoteRunner,
         progress: @escaping @Sendable (Double) -> Void = { _ in }
     ) async throws -> InstalledRunner {
-        let fm = FileManager.default
-        try fm.createDirectory(atPath: paths.runnersDirectory, withIntermediateDirectories: true)
-        try fm.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(atPath: paths.runnersDirectory, withIntermediateDirectories: true)
+        try fileManager.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
 
         let archive = URL(fileURLWithPath: paths.tempDirectory).appendingPathComponent(remote.assetName + ".part")
-        defer { try? fm.removeItem(at: archive) }
+        defer { try? fileManager.removeItem(at: archive) }
 
         let downloader = Downloader(destination: archive) { done, total in
             let expected = total > 0 ? total : remote.size
@@ -49,14 +49,14 @@ public struct RunnerInstaller: Sendable {
         at archivePath: String, directoryName: String, sourceTag: String? = nil,
         progress: @Sendable (Double) -> Void = { _ in }
     ) async throws -> InstalledRunner {
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         let staging = paths.runnersDirectory + "/.staging-" + UUID().uuidString.lowercased()
         let final = paths.runnersDirectory + "/" + directoryName
-        try fm.createDirectory(atPath: staging, withIntermediateDirectories: true)
+        try fileManager.createDirectory(atPath: staging, withIntermediateDirectories: true)
         var succeeded = false
         defer {
             if !succeeded {
-                try? fm.removeItem(atPath: staging)
+                try? fileManager.removeItem(atPath: staging)
             }
         }
 
@@ -85,10 +85,10 @@ public struct RunnerInstaller: Sendable {
         ]
         try JSONFile.save(info, to: staging + "/.faugus-install.json")
 
-        if fm.fileExists(atPath: final) {
-            try fm.removeItem(atPath: final)
+        if fileManager.fileExists(atPath: final) {
+            try fileManager.removeItem(atPath: final)
         }
-        try fm.moveItem(atPath: staging, toPath: final)
+        try fileManager.moveItem(atPath: staging, toPath: final)
         succeeded = true
         progress(1)
 

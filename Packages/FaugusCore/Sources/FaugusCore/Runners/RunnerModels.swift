@@ -41,7 +41,7 @@ public struct RemoteRunner: Equatable, Sendable, Identifiable {
 /// Features detected from the files in a Wine tree (plan section 4: detected, never assumed).
 public struct RunnerCapabilities: Equatable, Sendable {
     public var vulkan = false
-    public var sdl = false
+    public var sdlSupported = false
     public var gstreamer = false
     /// Declared by `faugus-runner.json` in the runner directory; never detected.
     public var dxmt = false
@@ -49,13 +49,13 @@ public struct RunnerCapabilities: Equatable, Sendable {
 
     public init(
         vulkan: Bool = false,
-        sdl: Bool = false,
+        sdlSupported: Bool = false,
         gstreamer: Bool = false,
         dxmt: Bool = false,
         d3dmetal: Bool = false
     ) {
         self.vulkan = vulkan
-        self.sdl = sdl
+        self.sdlSupported = sdlSupported
         self.gstreamer = gstreamer
         self.dxmt = dxmt
         self.d3dmetal = d3dmetal
@@ -99,13 +99,13 @@ public enum RunnerError: Error, Equatable, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case let .notInstalled(n): "Runner \(n) is not installed"
-        case let .noWineBinary(d): "No bin/wine found in \(d)"
-        case let .unsafeArchive(m): "Unsafe archive member: \(m)"
-        case let .checksumMismatch(e, a): "Checksum mismatch (expected \(e), got \(a))"
-        case let .downloadFailed(m): "Download failed: \(m)"
-        case let .extractionFailed(m): "Extraction failed: \(m)"
-        case let .noRelease(m): "No matching release: \(m)"
+        case let .notInstalled(name): "Runner \(name) is not installed"
+        case let .noWineBinary(directory): "No bin/wine found in \(directory)"
+        case let .unsafeArchive(member): "Unsafe archive member: \(member)"
+        case let .checksumMismatch(expected, actual): "Checksum mismatch (expected \(expected), got \(actual))"
+        case let .downloadFailed(message): "Download failed: \(message)"
+        case let .extractionFailed(message): "Extraction failed: \(message)"
+        case let .noRelease(message): "No matching release: \(message)"
         }
     }
 }

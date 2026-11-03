@@ -6,14 +6,14 @@ public enum LaunchEnvironment {
     public static func wineBase(
         prefix: String, runner: InstalledRunner, base: [String: String]
     ) -> [String: String] {
-        var env = base
-        env.removeValue(forKey: "VK_LOADER_LAYERS_DISABLE")
-        env["WINEPREFIX"] = prefix
-        env["WINE"] = runner.wineBinary
-        env["WINESERVER"] = runner.wineserverBinary
+        var environment = base
+        environment.removeValue(forKey: "VK_LOADER_LAYERS_DISABLE")
+        environment["WINEPREFIX"] = prefix
+        environment["WINE"] = runner.wineBinary
+        environment["WINESERVER"] = runner.wineserverBinary
         let path = base["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
-        env["PATH"] = runner.wineRoot + "/bin:" + path
-        return env
+        environment["PATH"] = runner.wineRoot + "/bin:" + path
+        return environment
     }
 }
 
@@ -35,7 +35,7 @@ public enum LaunchError: Error, Equatable, CustomStringConvertible {
     case emptyPath
     public var description: String {
         switch self {
-        case let .badArguments(m): "Cannot parse launch arguments: \(m)"
+        case let .badArguments(message): "Cannot parse launch arguments: \(message)"
         case .emptyPath: "The game has no executable path"
         }
     }
@@ -43,7 +43,7 @@ public enum LaunchError: Error, Equatable, CustomStringConvertible {
 
 /// Everything needed to spawn a game, computed without side effects.
 public struct LaunchPlan: Sendable {
-    public var argv: [String]
+    public var commandLine: [String]
     public var environment: [String: String]
     public var workingDirectory: String
     public var prefix: String
@@ -56,16 +56,16 @@ public struct LaunchPlan: Sendable {
     public var logDirectory: String
 
     public var executable: String {
-        argv[0]
+        commandLine[0]
     }
 
     public var arguments: [String] {
-        Array(argv.dropFirst())
+        Array(commandLine.dropFirst())
     }
 
     /// Printed to `faugus.log` the way upstream prints its "UMU-LAUNCHER COMMAND".
     public var commandDescription: String {
-        ShellWords.join(argv)
+        ShellWords.join(commandLine)
     }
 }
 
@@ -94,11 +94,11 @@ public enum LaunchPlanner {
             prefix = (defaultPrefix.isEmpty ? paths.prefixesDirectory : defaultPrefix) + "/default"
         }
 
-        var exePath = paths.expand(game.path)
+        var executablePath = paths.expand(game.path)
         if game.addAppEnabled, !game.addAppBat.isEmpty {
-            exePath = paths.expand(game.addAppBat)
+            executablePath = paths.expand(game.addAppBat)
         }
-        if exePath.isEmpty {
+        if executablePath.isEmpty {
             throw LaunchError.emptyPath
         }
 
@@ -110,22 +110,22 @@ public enum LaunchPlanner {
         } catch {
             throw LaunchError.badArguments("\(error)")
         }
-        let (userEnv, wrapper) = ShellWords.extractEnvironment(from: launchWords)
+        let (userEnvironment, wrapper) = ShellWords.extractEnvironment(from: launchWords)
 
         // Faugus computed layer.
-        var env = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: baseEnvironment)
+        var environment = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: baseEnvironment)
         let logDirectory = paths.gameLogsDirectory(gameID: game.gameID.isEmpty ? "default" : game.gameID)
         if !game.gameID.isEmpty {
-            env["FAUGUSID"] = game.gameID
+            environment["FAUGUSID"] = game.gameID
         }
-        env["WINEDEBUG"] = logs ? logsWineDebug : "-all"
+        environment["WINEDEBUG"] = logs ? logsWineDebug : "-all"
         if logs {
-            env["DXVK_LOG_LEVEL"] = "info"
-            env["DXVK_LOG_PATH"] = logDirectory
-            env["MVK_CONFIG_LOG_LEVEL"] = "2"
+            environment["DXVK_LOG_LEVEL"] = "info"
+            environment["DXVK_LOG_PATH"] = logDirectory
+            environment["MVK_CONFIG_LOG_LEVEL"] = "2"
         }
-        for (k, v) in graphics.environment {
-            env[k] = v
+        for (key, value) in graphics.environment {
+            environment[key] = value
         }
 
         // WINEDLLOVERRIDES: winemenubuilder off + graphics, merged with whatever the user set.
@@ -134,26 +134,28 @@ public enum LaunchPlanner {
             if key == "WINEDLLOVERRIDES" {
                 overrides = DLLOverrides.merge(base: overrides, overriding: DLLOverrides.parse(value))
             } else {
-                env[key] = value
+                environment[key] = value
             }
         }
-        for (k, v) in userEnv {
-            applyUser(k, v)
+        for (key, value) in userEnvironment {
+            applyUser(key, value)
         }
-        for (k, v) in globalEnvironment {
-            applyUser(k, v)
+        for (key, value) in globalEnvironment {
+            applyUser(key, value)
         }
-        env["WINEDLLOVERRIDES"] = DLLOverrides.serialize(overrides)
+        environment["WINEDLLOVERRIDES"] = DLLOverrides.serialize(overrides)
 
-        let argv = wrapper + LaunchSpec.command(forPath: exePath, wine: runner.wineBinary) + gameWords
+        let commandLine = wrapper + LaunchSpec.command(forPath: executablePath, wine: runner.wineBinary) + gameWords
 
-        let workDirectory = (exePath as NSString).deletingLastPathComponent
+        let workDirectory = (executablePath as NSString).deletingLastPathComponent
         var isDirectory: ObjCBool = false
-        let cwd = FileManager.default.fileExists(atPath: workDirectory, isDirectory: &isDirectory) && isDirectory.boolValue
+        let launchDirectory = FileManager.default
+            .fileExists(atPath: workDirectory, isDirectory: &isDirectory) && isDirectory.boolValue
             ? workDirectory : prefix
 
         return LaunchPlan(
-            argv: argv, environment: env, workingDirectory: cwd, prefix: prefix, gameID: game.gameID,
+            commandLine: commandLine, environment: environment, workingDirectory: launchDirectory, prefix: prefix,
+            gameID: game.gameID,
             graphics: graphics, splashIcon: game.icon.isEmpty ? nil : game.icon,
             noSleep: game.noSleep, discordRPC: game.discordRPC, logsEnabled: logs, logDirectory: logDirectory
         )
@@ -162,14 +164,14 @@ public enum LaunchPlanner {
     /// `load_env_from_file`: `environmentVariable.json` is a JSON list of `KEY=VALUE` lines.
     public static func loadGlobalEnvironment(paths: FaugusPaths) -> [(String, String)] {
         let json = JSONFile.load(paths.environmentVariablesFile, default: .array([]))
-        var out: [(String, String)] = []
+        var entries: [(String, String)] = []
         for line in (json.arrayValue ?? []).compactMap(\.stringValue) {
-            let t = line.trimmingCharacters(in: .whitespaces)
-            guard !t.isEmpty, let eq = t.firstIndex(of: "=") else { continue }
-            let k = t[..<eq].trimmingCharacters(in: .whitespaces)
-            let v = t[t.index(after: eq)...].trimmingCharacters(in: .whitespaces)
-            out.append((k, v))
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmedLine.isEmpty, let equalsIndex = trimmedLine.firstIndex(of: "=") else { continue }
+            let key = trimmedLine[..<equalsIndex].trimmingCharacters(in: .whitespaces)
+            let value = trimmedLine[trimmedLine.index(after: equalsIndex)...].trimmingCharacters(in: .whitespaces)
+            entries.append((key, value))
         }
-        return out
+        return entries
     }
 }

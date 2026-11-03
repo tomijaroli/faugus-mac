@@ -12,78 +12,78 @@ public struct FaugusConfig: Equatable, Sendable {
     /// Upstream defaults in upstream order. Exceptions (see docs/parity.md): `default-runner`,
     /// `language`.
     public static func defaults(paths: FaugusPaths, language: String) -> JSONObject {
-        var o = JSONObject()
-        let on: JSONValue = "True"
-        let off: JSONValue = "False"
-        o["auto-close-on-launch"] = off
-        o["default-prefix"] = .string(paths.prefixesDirectory)
-        o["mangohud"] = off
-        o["gamemode"] = off
-        o["discord-rpc-enabled"] = off
-        o["sdl-enabled"] = off
-        o["no-sleep-enabled"] = off
-        o["default-runner"] = .string(defaultRunner)
-        o["lossless-location"] = ""
-        o["gpu"] = ""
-        o["splash-window-enabled"] = on
-        o["system-tray"] = off
-        o["autostart-enabled"] = off
-        o["mono-icon"] = off
-        o["interface-mode"] = "List"
-        o["labels-enabled"] = off
-        o["zoom-enabled"] = off
-        o["auto-create-shortcuts"] = off
-        o["wayland-driver"] = off
-        o["wow64-enabled"] = off
-        o["language"] = .string(language)
-        o["show-hidden"] = off
-        o["automatic-updates"] = on
-        o["show-donate"] = on
-        o["donate-last"] = ""
-        o["playtime"] = .int(0)
-        o["gamepad-navigation"] = off
-        o["minimized-startup-enabled"] = off
-        o["categories-enabled"] = off
-        o["auto-hide-enabled"] = off
-        o["sort-enabled"] = off
-        o["header-bar"] = off
-        o["backup-auto-enabled"] = off
-        o["backup-frequency"] = "daily"
-        o["backup-target-day"] = "0"
-        o["backup-dest-dir"] = ""
-        o["backup-last-date"] = ""
-        o["startup-window-size"] = "None"
-        o["interface-theme"] = "system"
-        o["accent-mode"] = "system"
-        o["accent-color"] = "rgb(61,174,233)"
-        o["theme-engine"] = "adwaita"
-        o["steamgriddb-api-key"] = ""
-        o["steamgriddb-enabled"] = off
-        o["background-mode"] = "default"
-        o["overview-color-mode"] = "default"
-        o["widget-color-mode"] = "default"
-        o["background-color"] = "rgb(61,174,233)"
-        o["overview-color"] = "rgb(61,174,233)"
-        o["banner-enabled"] = on
-        o["grid-position"] = "Middle"
-        o["grid-orientation"] = "Vertical"
-        o["grid-max-children-enabled"] = off
-        o["grid-max-children-per-line"] = "20"
-        o["overview-enabled"] = off
-        o["width"] = "1280"
-        o["height"] = "720"
-        o["cover-size"] = "100"
-        o["sort"] = "alpha"
-        o["category"] = "all"
-        o["steam-user"] = "all"
-        o["interface-sounds-enabled"] = off
-        o["interface-sounds-theme"] = "cloud"
-        o["interface-sounds-volume"] = "50"
-        o["interface-sounds-custom-navigate"] = ""
-        o["interface-sounds-custom-confirm"] = ""
-        o["interface-sounds-custom-cancel"] = ""
-        o["interface-sounds-custom-warning"] = ""
-        return o
+        var defaultValues = JSONObject()
+        let enabled: JSONValue = "True"
+        let disabled: JSONValue = "False"
+        defaultValues["auto-close-on-launch"] = disabled
+        defaultValues["default-prefix"] = .string(paths.prefixesDirectory)
+        defaultValues["mangohud"] = disabled
+        defaultValues["gamemode"] = disabled
+        defaultValues["discord-rpc-enabled"] = disabled
+        defaultValues["sdl-enabled"] = disabled
+        defaultValues["no-sleep-enabled"] = disabled
+        defaultValues["default-runner"] = .string(defaultRunner)
+        defaultValues["lossless-location"] = ""
+        defaultValues["gpu"] = ""
+        defaultValues["splash-window-enabled"] = enabled
+        defaultValues["system-tray"] = disabled
+        defaultValues["autostart-enabled"] = disabled
+        defaultValues["mono-icon"] = disabled
+        defaultValues["interface-mode"] = "List"
+        defaultValues["labels-enabled"] = disabled
+        defaultValues["zoom-enabled"] = disabled
+        defaultValues["auto-create-shortcuts"] = disabled
+        defaultValues["wayland-driver"] = disabled
+        defaultValues["wow64-enabled"] = disabled
+        defaultValues["language"] = .string(language)
+        defaultValues["show-hidden"] = disabled
+        defaultValues["automatic-updates"] = enabled
+        defaultValues["show-donate"] = enabled
+        defaultValues["donate-last"] = ""
+        defaultValues["playtime"] = .int(0)
+        defaultValues["gamepad-navigation"] = disabled
+        defaultValues["minimized-startup-enabled"] = disabled
+        defaultValues["categories-enabled"] = disabled
+        defaultValues["auto-hide-enabled"] = disabled
+        defaultValues["sort-enabled"] = disabled
+        defaultValues["header-bar"] = disabled
+        defaultValues["backup-auto-enabled"] = disabled
+        defaultValues["backup-frequency"] = "daily"
+        defaultValues["backup-target-day"] = "0"
+        defaultValues["backup-dest-dir"] = ""
+        defaultValues["backup-last-date"] = ""
+        defaultValues["startup-window-size"] = "None"
+        defaultValues["interface-theme"] = "system"
+        defaultValues["accent-mode"] = "system"
+        defaultValues["accent-color"] = "rgb(61,174,233)"
+        defaultValues["theme-engine"] = "adwaita"
+        defaultValues["steamgriddb-api-key"] = ""
+        defaultValues["steamgriddb-enabled"] = disabled
+        defaultValues["background-mode"] = "default"
+        defaultValues["overview-color-mode"] = "default"
+        defaultValues["widget-color-mode"] = "default"
+        defaultValues["background-color"] = "rgb(61,174,233)"
+        defaultValues["overview-color"] = "rgb(61,174,233)"
+        defaultValues["banner-enabled"] = enabled
+        defaultValues["grid-position"] = "Middle"
+        defaultValues["grid-orientation"] = "Vertical"
+        defaultValues["grid-max-children-enabled"] = disabled
+        defaultValues["grid-max-children-per-line"] = "20"
+        defaultValues["overview-enabled"] = disabled
+        defaultValues["width"] = "1280"
+        defaultValues["height"] = "720"
+        defaultValues["cover-size"] = "100"
+        defaultValues["sort"] = "alpha"
+        defaultValues["category"] = "all"
+        defaultValues["steam-user"] = "all"
+        defaultValues["interface-sounds-enabled"] = disabled
+        defaultValues["interface-sounds-theme"] = "cloud"
+        defaultValues["interface-sounds-volume"] = "50"
+        defaultValues["interface-sounds-custom-navigate"] = ""
+        defaultValues["interface-sounds-custom-confirm"] = ""
+        defaultValues["interface-sounds-custom-cancel"] = ""
+        defaultValues["interface-sounds-custom-warning"] = ""
+        return defaultValues
     }
 
     public let paths: FaugusPaths
@@ -96,9 +96,9 @@ public struct FaugusConfig: Equatable, Sendable {
     /// `load_config`: read the file (missing/invalid is `{}`), add any missing default keys and
     /// save when something was added or the file did not exist.
     public static func load(paths: FaugusPaths, language: String? = nil) throws -> FaugusConfig {
-        let lang = language ?? SystemLocale.currentCode()
-        let defaults = defaults(paths: paths, language: lang)
-        var cfg = FaugusConfig(paths: paths, values: defaults, existing: nil)
+        let languageCode = language ?? SystemLocale.currentCode()
+        let defaults = defaults(paths: paths, language: languageCode)
+        var configuration = FaugusConfig(paths: paths, values: defaults, existing: nil)
 
         let loaded = JSONFile.load(paths.configFile, default: .object(JSONObject()))
         var existing = loaded.objectValue ?? JSONObject()
@@ -108,11 +108,11 @@ public struct FaugusConfig: Equatable, Sendable {
             existing[key] = value
             updated = true
         }
-        cfg.values = existing
+        configuration.values = existing
         if updated || !FileManager.default.fileExists(atPath: paths.configFile) {
-            try cfg.save()
+            try configuration.save()
         }
-        return cfg
+        return configuration
     }
 
     private init(paths: FaugusPaths, values: JSONObject, existing: JSONObject?) {
@@ -129,10 +129,10 @@ public struct FaugusConfig: Equatable, Sendable {
 
     public func string(_ key: String, default fallback: String = "") -> String {
         switch values[key] {
-        case let .string(s)?: s
-        case let .int(i)?: String(i)
-        case let .double(d)?: "\(d)"
-        case let .bool(b)?: b ? "True" : "False"
+        case let .string(text)?: text
+        case let .int(integer)?: String(integer)
+        case let .double(number)?: "\(number)"
+        case let .bool(flag)?: flag ? "True" : "False"
         default: fallback
         }
     }
@@ -143,11 +143,11 @@ public struct FaugusConfig: Equatable, Sendable {
     }
 
     public func int(_ key: String, default fallback: Int = 0) -> Int {
-        guard let v = values[key] else { return fallback }
-        switch v {
-        case let .int(i): return Int(i)
-        case let .double(d): return Int(d)
-        case let .string(s): return Int(s) ?? fallback
+        guard let storedValue = values[key] else { return fallback }
+        switch storedValue {
+        case let .int(integer): return Int(integer)
+        case let .double(number): return Int(number)
+        case let .string(text): return Int(text) ?? fallback
         default: return fallback
         }
     }
@@ -174,8 +174,8 @@ public struct FaugusConfig: Equatable, Sendable {
 
     /// Mac extension. Never backfilled into the file; reads fall back to `dxvk`.
     public var macGraphicsBackend: String {
-        let v = string(FaugusConfig.macGraphicsBackendKey)
-        return v.isEmpty ? FaugusConfig.defaultMacGraphicsBackend : v
+        let backend = string(FaugusConfig.macGraphicsBackendKey)
+        return backend.isEmpty ? FaugusConfig.defaultMacGraphicsBackend : backend
     }
 
     /// `resolve_game_runner` for the `Default` choice.

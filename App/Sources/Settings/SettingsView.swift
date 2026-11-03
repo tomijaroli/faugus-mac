@@ -9,7 +9,7 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     let model: AppModel
     let dismiss: () -> Void
 
-    @State private var cfg: FaugusConfig
+    @State private var configuration: FaugusConfig
     @State private var environmentVariables: [String]
     @State private var newEnvironmentVariable = ""
     @State private var original: FaugusConfig
@@ -28,47 +28,47 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     init(model: AppModel, dismiss: @escaping () -> Void) {
         self.model = model
         self.dismiss = dismiss
-        let c = model.config!
-        let e = EnvironmentVariableStore(paths: model.paths).load()
-        _cfg = State(initialValue: c)
-        _original = State(initialValue: c)
-        _environmentVariables = State(initialValue: e)
-        _originalEnvironmentVariables = State(initialValue: e)
+        let initialConfiguration = model.config!
+        let initialEnvironmentVariables = EnvironmentVariableStore(paths: model.paths).load()
+        _configuration = State(initialValue: initialConfiguration)
+        _original = State(initialValue: initialConfiguration)
+        _environmentVariables = State(initialValue: initialEnvironmentVariables)
+        _originalEnvironmentVariables = State(initialValue: initialEnvironmentVariables)
     }
 
     private var modified: Bool {
-        cfg != original || environmentVariables != originalEnvironmentVariables
+        configuration != original || environmentVariables != originalEnvironmentVariables
     }
 
     private var mode: InterfaceMode {
-        InterfaceMode(configValue: cfg.string("interface-mode"))
+        InterfaceMode(configValue: configuration.string("interface-mode"))
     }
 
     var body: some View {
-        let t = model.translator
+        let translate = model.translator
         VStack(spacing: 0) {
             TabView {
-                general(t).tabItem { Text(t("General")) }
-                interface(t).tabItem { Text(t("Interface")) }
+                general(translate).tabItem { Text(translate("General")) }
+                interface(translate).tabItem { Text(translate("Interface")) }
             }
             .padding([.horizontal, .top], 12)
 
             Divider()
             HStack {
-                Picker(t("Language"), selection: text("language")) {
+                Picker(translate("Language"), selection: text("language")) {
                     ForEach(languageCodes, id: \.self) { Text(languageName($0)).tag($0) }
                 }
                 .frame(maxWidth: 260)
                 Spacer()
-                Button(t("Cancel")) { cancel() }.keyboardShortcut(.cancelAction)
-                Button(t("Ok")) { save() }
+                Button(translate("Cancel")) { cancel() }.keyboardShortcut(.cancelAction)
+                Button(translate("Ok")) { save() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!modified)
             }
             .padding(12)
         }
         .frame(width: 680, height: 600)
-        .onChange(of: cfg) { _, new in model.previewConfig = new }
+        .onChange(of: configuration) { _, newConfiguration in model.previewConfig = newConfiguration }
         .task {
             runners = model.installedRunners()
             logsSize = model.logsSize()
@@ -83,7 +83,7 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
             ) { showWinetricks = false }
         }
         .confirmationDialog(
-            t("Do you want to save the changes?"),
+            translate("Do you want to save the changes?"),
             isPresented: Binding(get: { pendingTool != nil }, set: {
                 if !$0 {
                     pendingTool = nil
@@ -91,14 +91,14 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
             }),
             titleVisibility: .visible
         ) {
-            Button(t("Yes")) { finishPendingTool(save: true) }
-            Button(t("No"), role: .destructive) { finishPendingTool(save: false) }
+            Button(translate("Yes")) { finishPendingTool(save: true) }
+            Button(translate("No"), role: .destructive) { finishPendingTool(save: false) }
         }
         .confirmationDialog(
-            t("Do you want to save the changes?"), isPresented: $confirmDiscard, titleVisibility: .visible
+            translate("Do you want to save the changes?"), isPresented: $confirmDiscard, titleVisibility: .visible
         ) {
-            Button(t("Yes")) { save() }
-            Button(t("No"), role: .destructive) {
+            Button(translate("Yes")) { save() }
+            Button(translate("No"), role: .destructive) {
                 model.discardSettingsPreview()
                 dismiss()
             }
@@ -107,9 +107,9 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
 
     // MARK: General
 
-    private func general(_ t: Translator) -> some View {
+    private func general(_ translate: Translator) -> some View {
         Form {
-            Section(t("Default Prefixes Location")) {
+            Section(translate("Default Prefixes Location")) {
                 HStack {
                     TextField("", text: text("default-prefix"))
                         .labelsHidden()
@@ -117,28 +117,28 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
                             Color.red,
                             lineWidth: prefixInvalid ? 1.5 : 0
                         ))
-                        .help(t("The location where prefixes are created"))
-                        .onChange(of: cfg.string("default-prefix")) { _, v in
-                            if !v.isEmpty {
+                        .help(translate("The location where prefixes are created"))
+                        .onChange(of: configuration.string("default-prefix")) { _, newPrefixLocation in
+                            if !newPrefixLocation.isEmpty {
                                 prefixInvalid = false
                             }
                         }
-                    Button(t("Select a prefix location") + "…") { choosePrefixFolder(t) }
+                    Button(translate("Select a prefix location") + "…") { choosePrefixFolder(translate) }
                 }
             }
 
-            Section(t("Default Prefix Tools")) {
-                Picker(t("Default Runner"), selection: runnerBinding) {
+            Section(translate("Default Prefix Tools")) {
+                Picker(translate("Default Runner"), selection: runnerBinding) {
                     ForEach(runnerChoices, id: \.self) { Text($0).tag($0) }
                 }
-                Button(t("Runner Manager")) { showRunnerManager = true }
+                Button(translate("Runner Manager")) { showRunnerManager = true }
                 HStack {
                     Button("Winetricks") { startTool(.winetricks) }
                         .accessibilityIdentifier("settings-winetricks")
                     Button("Winecfg") { startTool(.winecfg) }
                         .accessibilityIdentifier("settings-winecfg")
-                    Button(t("Run")) { startTool(.run) }
-                        .help(t("Run a file in the prefix"))
+                    Button(translate("Run")) { startTool(.run) }
+                        .help(translate("Run a file in the prefix"))
                         .accessibilityIdentifier("settings-run")
                     if toolsBusy > 0 {
                         ProgressView().controlSize(.small)
@@ -147,36 +147,43 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
                 .disabled(toolsBusy > 0)
             }
 
-            Section(t("Miscellaneous")) {
-                Toggle(t("Auto-close"), isOn: flag("auto-close-on-launch"))
-                    .help(t("Automatically closes the application when launching a game"))
-                Toggle(t("Splash window"), isOn: flag("splash-window-enabled"))
+            Section(translate("Miscellaneous")) {
+                Toggle(translate("Auto-close"), isOn: flag("auto-close-on-launch"))
+                    .help(translate("Automatically closes the application when launching a game"))
+                Toggle(translate("Splash window"), isOn: flag("splash-window-enabled"))
                     .help(
-                        t(
+                        translate(
                             "Displays a splash window with information about the runner and other required "
                                 + "components when launching a game"
                         )
                     )
-                Toggle(t("Automatic updates"), isOn: flag("automatic-updates"))
-                    .help(t("Checks for and updates the runner and other required components when launching a game"))
-                Toggle(t("Categories"), isOn: flag("categories-enabled"))
-                    .help(t("Displays a button to manage game categories"))
-                Toggle(t("Sort"), isOn: flag("sort-enabled"))
-                    .help(t("Displays a button to change the game sorting order"))
-                Toggle(t("Hidden games"), isOn: flag("show-hidden"))
-                    .help(t("Displays hidden games") + "\n" + t("Ctrl+H toggles hidden games"))
+                Toggle(translate("Automatic updates"), isOn: flag("automatic-updates"))
+                    .help(
+                        translate(
+                            "Checks for and updates the runner and other required components when launching a game"
+                        )
+                    )
+                Toggle(translate("Categories"), isOn: flag("categories-enabled"))
+                    .help(translate("Displays a button to manage game categories"))
+                Toggle(translate("Sort"), isOn: flag("sort-enabled"))
+                    .help(translate("Displays a button to change the game sorting order"))
+                Toggle(translate("Hidden games"), isOn: flag("show-hidden"))
+                    .help(translate("Displays hidden games") + "\n" + translate("Ctrl+H toggles hidden games"))
                 Toggle("SDL", isOn: flag("sdl-enabled"))
-                    .help(t("May fix gamepad issues with some games"))
-                Toggle(t("No Sleep"), isOn: flag("no-sleep-enabled"))
-                    .help(t("Prevents the system from suspending while gaming"))
+                    .help(translate("May fix gamepad issues with some games"))
+                Toggle(translate("No Sleep"), isOn: flag("no-sleep-enabled"))
+                    .help(translate("Prevents the system from suspending while gaming"))
             }
 
-            Section(t("Global Environment Variables")) {
-                ForEach(environmentVariables.indices, id: \.self) { i in
+            Section(translate("Global Environment Variables")) {
+                ForEach(environmentVariables.indices, id: \.self) { variableIndex in
                     HStack {
-                        TextField("", text: $environmentVariables[i]).labelsHidden().font(.body.monospaced())
-                        Button { environmentVariables.remove(at: i) } label: { Image(systemName: "minus.circle") }
-                            .buttonStyle(.borderless)
+                        TextField("", text: $environmentVariables[variableIndex]).labelsHidden()
+                            .font(.body.monospaced())
+                        Button { environmentVariables.remove(at: variableIndex) } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
                     }
                 }
                 TextField("", text: $newEnvironmentVariable, prompt: Text("KEY=VALUE"))
@@ -185,7 +192,7 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
             }
 
             Section {
-                Button(clearLogsLabel(t)) {
+                Button(clearLogsLabel(translate)) {
                     model.clearLogs()
                     logsSize = model.logsSize()
                 }
@@ -198,107 +205,108 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     // MARK: Interface
 
     // swiftlint:disable:next function_body_length
-    private func interface(_ t: Translator) -> some View {
-        let sgdb = cfg.bool("steamgriddb-enabled")
+    private func interface(_ translate: Translator) -> some View {
+        let steamGridDBEnabled = configuration.bool("steamgriddb-enabled")
         return Form {
             Section {
-                Picker(t("Interface Mode"), selection: text("interface-mode")) {
-                    ForEach(InterfaceMode.allCases, id: \.rawValue) { Text(t($0.label)).tag($0.rawValue) }
+                Picker(translate("Interface Mode"), selection: text("interface-mode")) {
+                    ForEach(InterfaceMode.allCases, id: \.rawValue) { Text(translate($0.label)).tag($0.rawValue) }
                 }
             }
 
-            Section(t("Display")) {
-                Toggle(t("Labels"), isOn: flag("labels-enabled"))
+            Section(translate("Display")) {
+                Toggle(translate("Labels"), isOn: flag("labels-enabled"))
                     .disabled(!mode.supportsLabelsAndZoom)
                     .help(mode
-                        .supportsLabelsAndZoom ? t("Displays the game title below the cover") :
-                        t("Covers or Carrousel mode"))
-                Toggle(t("Zoom"), isOn: flag("zoom-enabled"))
+                        .supportsLabelsAndZoom ? translate("Displays the game title below the cover") :
+                        translate("Covers or Carrousel mode"))
+                Toggle(translate("Zoom"), isOn: flag("zoom-enabled"))
                     .disabled(!mode.supportsLabelsAndZoom)
                     .help(mode
-                        .supportsLabelsAndZoom ? t("Displays a zoom slider to adjust the size of games") :
-                        t("Covers or Carrousel mode"))
-                Toggle(t("Banner"), isOn: flag("banner-enabled"))
-                    .disabled(!mode.supportsBanner(steamGridDBEnabled: sgdb))
-                    .help(t("Covers or Carrousel mode with SteamGridDB"))
-                Toggle(t("Overview"), isOn: flag("overview-enabled"))
+                        .supportsLabelsAndZoom ? translate("Displays a zoom slider to adjust the size of games") :
+                        translate("Covers or Carrousel mode"))
+                Toggle(translate("Banner"), isOn: flag("banner-enabled"))
+                    .disabled(!mode.supportsBanner(steamGridDBEnabled: steamGridDBEnabled))
+                    .help(translate("Covers or Carrousel mode with SteamGridDB"))
+                Toggle(translate("Overview"), isOn: flag("overview-enabled"))
                     .disabled(!mode.supportsOverview)
                     .help(mode.supportsOverview
-                        ? t("Displays a panel with the game title, categories, playtime, and last played date")
-                        : t("Grid, Covers or Carrousel mode"))
-                Toggle(t("Auto-hide"), isOn: flag("auto-hide-enabled"))
+                        ? translate("Displays a panel with the game title, categories, playtime, and last played date")
+                        : translate("Grid, Covers or Carrousel mode"))
+                Toggle(translate("Auto-hide"), isOn: flag("auto-hide-enabled"))
                     .disabled(!mode.supportsOverview)
-                    .help(t("Automatically hides widgets"))
-                Picker(t("Position"), selection: text("grid-position")) {
-                    Text(t("Top")).tag("Top")
-                    Text(t("Middle")).tag("Middle")
-                    Text(t("Bottom")).tag("Bottom")
+                    .help(translate("Automatically hides widgets"))
+                Picker(translate("Position"), selection: text("grid-position")) {
+                    Text(translate("Top")).tag("Top")
+                    Text(translate("Middle")).tag("Middle")
+                    Text(translate("Bottom")).tag("Bottom")
                 }
                 .disabled(!mode.supportsPosition)
-                .help(t("Sets how games are positioned on the screen"))
-                Picker(t("Orientation"), selection: text("grid-orientation")) {
-                    Text(t("Vertical")).tag("Vertical")
-                    Text(t("Horizontal")).tag("Horizontal")
+                .help(translate("Sets how games are positioned on the screen"))
+                Picker(translate("Orientation"), selection: text("grid-orientation")) {
+                    Text(translate("Vertical")).tag("Vertical")
+                    Text(translate("Horizontal")).tag("Horizontal")
                 }
                 .disabled(!mode.supportsOrientation)
-                .help(t("Sets how games are scrolled through"))
+                .help(translate("Sets how games are scrolled through"))
                 HStack {
-                    Text(t(InterfaceMode.maxChildrenLabel(orientation: cfg.string("grid-orientation"))))
+                    Text(translate(InterfaceMode
+                            .maxChildrenLabel(orientation: configuration.string("grid-orientation"))))
                     Spacer()
                     Stepper(value: maxChildren, in: 1 ... 99) { Text("\(maxChildren.wrappedValue)").monospacedDigit() }
-                        .disabled(!cfg.bool("grid-max-children-enabled"))
+                        .disabled(!configuration.bool("grid-max-children-enabled"))
                     Toggle("", isOn: flag("grid-max-children-enabled")).labelsHidden()
                 }
                 .disabled(!mode.supportsMaxChildren)
-                Picker(t("Startup Window Size"), selection: text("startup-window-size")) {
-                    Text(t("Default size")).tag("None")
-                    Text(t("Remember size")).tag("Remember")
-                    Text(t("Maximized")).tag("Maximized")
-                    Text(t("Fullscreen")).tag("Fullscreen")
+                Picker(translate("Startup Window Size"), selection: text("startup-window-size")) {
+                    Text(translate("Default size")).tag("None")
+                    Text(translate("Remember size")).tag("Remember")
+                    Text(translate("Maximized")).tag("Maximized")
+                    Text(translate("Fullscreen")).tag("Fullscreen")
                 }
                 .disabled(!mode.supportsStartupWindowSize)
-                .help(t("Alt+Enter toggles fullscreen"))
+                .help(translate("Alt+Enter toggles fullscreen"))
             }
 
-            Section(t("Colors")) {
-                Picker(t("Color Scheme"), selection: text("interface-theme")) {
-                    Text(t("Default")).tag("system")
-                    Text(t("Light")).tag("light")
-                    Text(t("Dark")).tag("dark")
+            Section(translate("Colors")) {
+                Picker(translate("Color Scheme"), selection: text("interface-theme")) {
+                    Text(translate("Default")).tag("system")
+                    Text(translate("Light")).tag("light")
+                    Text(translate("Dark")).tag("dark")
                 }
                 colorRow(
-                    t("Accent Color"),
+                    translate("Accent Color"),
                     mode: "accent-mode",
                     color: "accent-color",
-                    modes: [("system", t("Default")), ("custom", t("Custom"))]
+                    modes: [("system", translate("Default")), ("custom", translate("Custom"))]
                 )
                 colorRow(
-                    t("Background Color"),
+                    translate("Background Color"),
                     mode: "background-mode",
                     color: "background-color",
                     modes: [
-                        ("default", t("Default")),
-                        ("accent", t("Accent color")),
-                        ("dominant_color", t("Dominant color")),
-                        ("custom", t("Custom")),
+                        ("default", translate("Default")),
+                        ("accent", translate("Accent color")),
+                        ("dominant_color", translate("Dominant color")),
+                        ("custom", translate("Custom")),
                     ]
                 )
                 colorRow(
-                    t("Overview Color"),
+                    translate("Overview Color"),
                     mode: "overview-color-mode",
                     color: "overview-color",
                     modes: [
-                        ("default", t("Default")),
-                        ("accent", t("Accent color")),
-                        ("dominant_color", t("Dominant color")),
-                        ("custom", t("Custom")),
+                        ("default", translate("Default")),
+                        ("accent", translate("Accent color")),
+                        ("dominant_color", translate("Dominant color")),
+                        ("custom", translate("Custom")),
                     ]
                 )
-                .disabled(!cfg.bool("overview-enabled") || !mode.supportsOverview)
-                Picker(t("Widget Color"), selection: text("widget-color-mode")) {
-                    Text(t("Default")).tag("default")
-                    Text(t("Accent color")).tag("accent")
-                    Text(t("Solid color")).tag("solid")
+                .disabled(!configuration.bool("overview-enabled") || !mode.supportsOverview)
+                Picker(translate("Widget Color"), selection: text("widget-color-mode")) {
+                    Text(translate("Default")).tag("default")
+                    Text(translate("Accent color")).tag("accent")
+                    Text(translate("Solid color")).tag("solid")
                 }
             }
         }
@@ -312,40 +320,46 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
             }
             ColorPicker("", selection: colorBinding(color), supportsOpacity: false)
                 .labelsHidden()
-                .disabled(cfg.string(mode) != "custom")
+                .disabled(configuration.string(mode) != "custom")
         }
     }
 
     // MARK: Bindings
 
     private func flag(_ key: String) -> Binding<Bool> {
-        Binding(get: { cfg.bool(key) }, set: { cfg.setValue(key, bool: $0) })
+        Binding(get: { configuration.bool(key) }, set: { configuration.setValue(key, bool: $0) })
     }
 
     private func text(_ key: String) -> Binding<String> {
-        Binding(get: { cfg.string(key) }, set: { cfg.setValue(key, $0) })
+        Binding(get: { configuration.string(key) }, set: { configuration.setValue(key, $0) })
     }
 
     private var maxChildren: Binding<Int> {
         Binding(
-            get: { max(1, cfg.int("grid-max-children-per-line", default: 20)) },
-            set: { cfg.setValue("grid-max-children-per-line", String($0)) }
+            get: { max(1, configuration.int("grid-max-children-per-line", default: 20)) },
+            set: { configuration.setValue("grid-max-children-per-line", String($0)) }
         )
     }
 
     private func colorBinding(_ key: String) -> Binding<Color> {
         Binding(
             get: {
-                let c = ConfigColor(cfg.string(key)) ?? .fallback
-                return Color(.sRGB, red: Double(c.red) / 255, green: Double(c.green) / 255, blue: Double(c.blue) / 255)
-            },
-            set: { new in
-                let ns = NSColor(new).usingColorSpace(.sRGB) ?? .black
-                let c = ConfigColor(
-                    red: Int((ns.redComponent * 255).rounded()), green: Int((ns.greenComponent * 255).rounded()),
-                    blue: Int((ns.blueComponent * 255).rounded())
+                let configColor = ConfigColor(configuration.string(key)) ?? .fallback
+                return Color(
+                    .sRGB,
+                    red: Double(configColor.red) / 255,
+                    green: Double(configColor.green) / 255,
+                    blue: Double(configColor.blue) / 255
                 )
-                cfg.setValue(key, c.cssString)
+            },
+            set: { newColor in
+                let nativeColor = NSColor(newColor).usingColorSpace(.sRGB) ?? .black
+                let configColor = ConfigColor(
+                    red: Int((nativeColor.redComponent * 255).rounded()),
+                    green: Int((nativeColor.greenComponent * 255).rounded()),
+                    blue: Int((nativeColor.blueComponent * 255).rounded())
+                )
+                configuration.setValue(key, configColor.cssString)
             }
         )
     }
@@ -354,7 +368,7 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
 
     private var runnerChoices: [String] {
         var names = [FaugusConfig.defaultRunner] + runners.map(\.name)
-        let current = cfg.defaultRunner
+        let current = configuration.defaultRunner
         if !current.isEmpty, !names.contains(current) {
             names.append(current)
         }
@@ -363,14 +377,14 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
 
     private var runnerBinding: Binding<String> {
         Binding(
-            get: { cfg.defaultRunner.isEmpty ? FaugusConfig.defaultRunner : cfg.defaultRunner },
-            set: { cfg.setValue("default-runner", $0) }
+            get: { configuration.defaultRunner.isEmpty ? FaugusConfig.defaultRunner : configuration.defaultRunner },
+            set: { configuration.setValue("default-runner", $0) }
         )
     }
 
     private var languageCodes: [String] {
         var codes = AppModel.languageCatalogs()?.selectableLanguages() ?? ["en_US"]
-        let current = cfg.string("language")
+        let current = configuration.string("language")
         if !current.isEmpty, !codes.contains(current) {
             codes.append(current)
         }
@@ -384,9 +398,9 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
 
     // MARK: Actions
 
-    private func clearLogsLabel(_ t: Translator) -> String {
-        guard let size = logsSize else { return t("Clear Logs") }
-        return t("Clear Logs (%s)").replacingOccurrences(of: "%s", with: LogsMaintenance.formatSize(size))
+    private func clearLogsLabel(_ translate: Translator) -> String {
+        guard let size = logsSize else { return translate("Clear Logs") }
+        return translate("Clear Logs (%s)").replacingOccurrences(of: "%s", with: LogsMaintenance.formatSize(size))
     }
 
     private func commitNewEnvironmentVariable() {
@@ -397,15 +411,15 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         newEnvironmentVariable = ""
     }
 
-    private func choosePrefixFolder(_ t: Translator) {
+    private func choosePrefixFolder(_ translate: Translator) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.title = t("Select a prefix location")
-        panel.directoryURL = URL(fileURLWithPath: model.paths.expand(cfg.string("default-prefix")))
+        panel.title = translate("Select a prefix location")
+        panel.directoryURL = URL(fileURLWithPath: model.paths.expand(configuration.string("default-prefix")))
         if panel.runModal() == .OK, let url = panel.url {
-            cfg.setValue("default-prefix", url.path)
+            configuration.setValue("default-prefix", url.path)
         }
     }
 
@@ -435,29 +449,29 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         pendingTool = nil
         if save {
             commitNewEnvironmentVariable()
-            if cfg.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
+            if configuration.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
                 prefixInvalid = true
                 return
             }
-            model.saveSettings(cfg, environmentVariables: environmentVariables)
-            original = cfg
+            model.saveSettings(configuration, environmentVariables: environmentVariables)
+            original = configuration
             originalEnvironmentVariables = environmentVariables
         } else {
-            cfg = original
+            configuration = original
             environmentVariables = originalEnvironmentVariables
         }
         launch(tool)
     }
 
     private func launch(_ tool: PrefixTool) {
-        let t = model.translator
+        let translate = model.translator
         switch tool {
         case .winetricks:
             showWinetricks = true
         case .winecfg:
             runInDefaultPrefix("winecfg")
         case .run:
-            guard let file = FilePicker.choose(message: t("Select a file to run in the prefix")) else { return }
+            guard let file = FilePicker.choose(message: translate("Select a file to run in the prefix")) else { return }
             runInDefaultPrefix(file)
         }
     }
@@ -472,11 +486,11 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
 
     private func save() {
         commitNewEnvironmentVariable()
-        if cfg.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
+        if configuration.string("default-prefix").trimmingCharacters(in: .whitespaces).isEmpty {
             prefixInvalid = true
             return
         }
-        model.saveSettings(cfg, environmentVariables: environmentVariables)
+        model.saveSettings(configuration, environmentVariables: environmentVariables)
         dismiss()
     }
 }

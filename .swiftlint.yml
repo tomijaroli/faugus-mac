@@ -98,12 +98,16 @@ nesting:
   type_level: 3
 
 identifier_name:
-  # Short locals (`o`, `d`, `f`, `c`) are common in small scopes and in tests; the rule still
-  # enforces lowerCamelCase and a maximum length.
+  # Names must say what they hold or do (API Design Guidelines: clarity at the point of use).
+  # Single letters and two-letter abbreviations are rejected; `id`, `x` and `y` are the only exceptions.
   min_length:
-    warning: 1
+    warning: 3
   max_length:
     warning: 50
+  excluded:
+    - id
+    - x
+    - y
 
 type_name:
   min_length: 3
@@ -124,4 +128,10 @@ custom_rules:
     included: "(App|Packages/FaugusCore/Sources)/.*\\.swift"
     match_kinds: [identifier]
     message: "Log through FaugusLog (or write to stderr in a CLI path) instead of print()."
+    severity: warning
+  no_abbreviated_names:
+    name: "No abbreviated names"
+    regex: '(?<![A-Za-z0-9_])(?:fm|cfg|dirs?|envs?|envars?|exe|src|dst|dest|cats?|str|inv|args?|argv|obj|proc|ctx|ctxt|txt|lib|cwd|tmp|req|idx|ext|lnk|desc|langs?|pct|attrs?|arr|sel|res|rc|rd|db|sup|tar|gfx|pre|geo|mib|len|sig|dup|num|val|msg|elem|ptr|buf|cur|prev|temp|cont|cmd|opt|ret|impl|btn|img|params?|rel|vk|sdl|rva)(?![A-Za-z0-9_])|(?<=[a-z0-9])(?:Fm|Cfg|Dirs?|Envs?|Envars?|Exe|Src|Dst|Dest|Cats?|Str|Inv|Args?|Argv|Obj|Proc|Ctx|Ctxt|Txt|Lib|Cwd|Tmp|Req|Idx|Ext|Lnk|Desc|Langs?|Pct|Attrs?|Arr|Sel|Res|Rc|Rd|Db|Sup|Tar|Gfx|Pre|Geo|Mib|Len|Sig|Dup|Num|Val|Msg|Elem|Ptr|Buf|Cur|Prev|Temp|Cont|Cmd|Opt|Ret|Impl|Btn|Img|Params?|Rel|Vk|Sdl|Rva)(?![a-z0-9_])'
+    match_kinds: identifier
+    message: "Spell the name out (for example `configuration`, not `cfg`; `directory`, not `dir`)."
     severity: warning

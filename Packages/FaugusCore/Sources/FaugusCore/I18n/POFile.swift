@@ -36,12 +36,12 @@ public struct POCatalog: Equatable, Sendable {
     // A single-pass state machine over the file; splitting it would scatter the state.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     public static func parse(_ text: String) -> POCatalog {
-        enum Field { case ctxt, id, idPlural, str(Int) }
+        enum Field { case context, id, idPlural, translation(Int) }
 
         var entries: [String: String] = [:]
         var headers: [String: String] = [:]
 
-        var ctxt: String?
+        var context: String?
         var msgid: String?
         var msgidPlural: String?
         var msgstr: [Int: String] = [:]
@@ -51,7 +51,7 @@ public struct POCatalog: Equatable, Sendable {
 
         func flush() {
             defer {
-                ctxt = nil
+                context = nil
                 msgid = nil
                 msgidPlural = nil
                 msgstr = [:]
@@ -61,12 +61,12 @@ public struct POCatalog: Equatable, Sendable {
             guard let id = msgid else { return }
             if id.isEmpty {
                 // Header entry: always parsed, never counted.
-                if let h = msgstr[0] {
-                    for line in h.split(separator: "\n") {
+                if let headerText = msgstr[0] {
+                    for line in headerText.split(separator: "\n") {
                         guard let colon = line.firstIndex(of: ":") else { continue }
-                        let k = line[..<colon].trimmingCharacters(in: .whitespaces)
-                        let v = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
-                        headers[k] = v
+                        let headerName = line[..<colon].trimmingCharacters(in: .whitespaces)
+                        let headerValue = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+                        headers[headerName] = headerValue
                     }
                 }
                 return
@@ -74,14 +74,14 @@ public struct POCatalog: Equatable, Sendable {
             if fuzzy {
                 return
             }
-            let base = ctxt.map { $0 + "\u{4}" + id } ?? id
+            let base = context.map { $0 + "\u{4}" + id } ?? id
             if msgidPlural != nil {
                 guard let first = msgstr[0], !first.isEmpty else { return }
-                for (n, value) in msgstr where !value.isEmpty {
-                    entries[n == 0 ? base : base + "\u{0}" + String(n)] = value
+                for (form, value) in msgstr where !value.isEmpty {
+                    entries[form == 0 ? base : base + "\u{0}" + String(form)] = value
                 }
-            } else if let s = msgstr[0], !s.isEmpty {
-                entries[base] = s
+            } else if let translation = msgstr[0], !translation.isEmpty {
+                entries[base] = translation
             }
         }
 
@@ -115,8 +115,8 @@ public struct POCatalog: Equatable, Sendable {
                 }
                 fuzzy = pendingFuzzy
                 pendingFuzzy = false
-                ctxt = unquote(line.dropFirst("msgctxt".count))
-                current = .ctxt
+                context = unquote(line.dropFirst("msgctxt".count))
+                current = .context
             } else if line.hasPrefix("msgid_plural") {
                 msgidPlural = unquote(line.dropFirst("msgid_plural".count))
                 current = .idPlural
@@ -124,7 +124,7 @@ public struct POCatalog: Equatable, Sendable {
                 if msgid != nil, !msgstr.isEmpty {
                     flush()
                 }
-                if msgid == nil, ctxt == nil {
+                if msgid == nil, context == nil {
                     fuzzy = pendingFuzzy
                     pendingFuzzy = false
                 }
@@ -132,20 +132,20 @@ public struct POCatalog: Equatable, Sendable {
                 current = .id
             } else if line.hasPrefix("msgstr[") {
                 guard let close = line.firstIndex(of: "]"),
-                      let n = Int(line[line.index(line.startIndex, offsetBy: 7) ..< close])
+                      let form = Int(line[line.index(line.startIndex, offsetBy: 7) ..< close])
                 else { continue }
-                msgstr[n] = unquote(line[line.index(after: close)...])
-                current = .str(n)
+                msgstr[form] = unquote(line[line.index(after: close)...])
+                current = .translation(form)
             } else if line.hasPrefix("msgstr") {
                 msgstr[0] = unquote(line.dropFirst("msgstr".count))
-                current = .str(0)
+                current = .translation(0)
             } else if line.hasPrefix("\"") {
                 let piece = unquote(Substring(line))
                 switch current {
-                case .ctxt?: ctxt = (ctxt ?? "") + piece
+                case .context?: context = (context ?? "") + piece
                 case .id?: msgid = (msgid ?? "") + piece
                 case .idPlural?: msgidPlural = (msgidPlural ?? "") + piece
-                case let .str(n)?: msgstr[n] = (msgstr[n] ?? "") + piece
+                case let .translation(form)?: msgstr[form] = (msgstr[form] ?? "") + piece
                 case nil: break
                 }
             }
@@ -155,31 +155,31 @@ public struct POCatalog: Equatable, Sendable {
     }
 
     /// Parses a (possibly prefixed with whitespace) `"..."` literal with C-style escapes.
-    static func unquote(_ s: Substring) -> String {
-        let t = s.trimmingCharacters(in: .whitespaces)
-        guard t.hasPrefix("\""), t.hasSuffix("\""), t.count >= 2 else { return "" }
-        let inner = t.dropFirst().dropLast()
-        var out = String.UnicodeScalarView()
-        var it = inner.unicodeScalars.makeIterator()
-        while let c = it.next() {
-            guard c == "\\" else { out.append(c)
+    static func unquote(_ quotedText: Substring) -> String {
+        let trimmed = quotedText.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("\""), trimmed.hasSuffix("\""), trimmed.count >= 2 else { return "" }
+        let inner = trimmed.dropFirst().dropLast()
+        var unescaped = String.UnicodeScalarView()
+        var iterator = inner.unicodeScalars.makeIterator()
+        while let scalar = iterator.next() {
+            guard scalar == "\\" else { unescaped.append(scalar)
                 continue
             }
-            guard let e = it.next() else { break }
-            switch e {
-            case "n": out.append("\n")
-            case "t": out.append("\t")
-            case "r": out.append("\r")
-            case "\"": out.append("\"")
-            case "\\": out.append("\\")
-            case "a": out.append("\u{07}")
-            case "b": out.append("\u{08}")
-            case "f": out.append("\u{0C}")
-            case "v": out.append("\u{0B}")
-            default: out.append("\\")
-                out.append(e)
+            guard let escaped = iterator.next() else { break }
+            switch escaped {
+            case "n": unescaped.append("\n")
+            case "t": unescaped.append("\t")
+            case "r": unescaped.append("\r")
+            case "\"": unescaped.append("\"")
+            case "\\": unescaped.append("\\")
+            case "a": unescaped.append("\u{07}")
+            case "b": unescaped.append("\u{08}")
+            case "f": unescaped.append("\u{0C}")
+            case "v": unescaped.append("\u{0B}")
+            default: unescaped.append("\\")
+                unescaped.append(escaped)
             }
         }
-        return String(out)
+        return String(unescaped)
     }
 }

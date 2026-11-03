@@ -79,7 +79,7 @@ public enum Winetricks {
 
 /// A winetricks invocation: argv, environment and the log file the output goes to.
 public struct WinetricksInvocation: Sendable {
-    public var argv: [String]
+    public var commandLine: [String]
     public var environment: [String: String]
     public var workingDirectory: String
     public var logFile: String
@@ -115,16 +115,17 @@ public struct WinetricksInvocation: Sendable {
         base: [String: String] = ProcessInfo.processInfo.environment
     ) -> WinetricksInvocation {
         let component = WinetricksComponent(paths: paths)
-        var env = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: base)
+        var environment = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: base)
         let basePath = base["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
-        env["PATH"] = ([runner.wineRoot + "/bin"] + Winetricks.extraPathDirectories + [basePath]).joined(separator: ":")
-        env["W_CACHE"] = component.cacheDirectory
-        env["WINEDEBUG"] = "-all"
-        env["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d"
-        env["WINETRICKS_LATEST_VERSION_CHECK"] = "disabled"
-        let argv = ["/bin/sh", component.scriptPath] + arguments
+        environment["PATH"] = ([runner.wineRoot + "/bin"] + Winetricks.extraPathDirectories + [basePath])
+            .joined(separator: ":")
+        environment["W_CACHE"] = component.cacheDirectory
+        environment["WINEDEBUG"] = "-all"
+        environment["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d"
+        environment["WINETRICKS_LATEST_VERSION_CHECK"] = "disabled"
+        let commandLine = ["/bin/sh", component.scriptPath] + arguments
         return WinetricksInvocation(
-            argv: argv, environment: env, workingDirectory: prefix,
+            commandLine: commandLine, environment: environment, workingDirectory: prefix,
             logFile: paths.gameLogsDirectory(gameID: logName) + "/winetricks.log"
         )
     }
@@ -153,9 +154,9 @@ public final class LogTail: @unchecked Sendable {
         offset += UInt64(data.count)
         pending.append(data)
         var lines: [String] = []
-        while let i = pending.firstIndex(where: { $0 == 0x0A || $0 == 0x0D }) {
-            let line = String(decoding: pending[pending.startIndex ..< i], as: UTF8.self)
-            pending.removeSubrange(pending.startIndex ... i)
+        while let separatorIndex = pending.firstIndex(where: { $0 == 0x0A || $0 == 0x0D }) {
+            let line = String(decoding: pending[pending.startIndex ..< separatorIndex], as: UTF8.self)
+            pending.removeSubrange(pending.startIndex ... separatorIndex)
             if !line.isEmpty {
                 lines.append(line)
             }

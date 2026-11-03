@@ -33,9 +33,11 @@ public struct DXVKComponent: Sendable {
     }
 
     public var isInstalled: Bool {
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         return DXVKComponent.dllNames.allSatisfy {
-            fm.fileExists(atPath: x64Directory + "/" + $0) && fm.fileExists(atPath: x32Directory + "/" + $0)
+            let hasX64 = fileManager.fileExists(atPath: x64Directory + "/" + $0)
+            let hasX32 = fileManager.fileExists(atPath: x32Directory + "/" + $0)
+            return hasX64 && hasX32
         }
     }
 
@@ -43,10 +45,11 @@ public struct DXVKComponent: Sendable {
         if isInstalled {
             return
         }
-        let fm = FileManager.default
-        try fm.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
-        let archive = URL(fileURLWithPath: paths.tempDirectory).appendingPathComponent(DXVKComponent.assetName + ".part")
-        defer { try? fm.removeItem(at: archive) }
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(atPath: paths.tempDirectory, withIntermediateDirectories: true)
+        let archive = URL(fileURLWithPath: paths.tempDirectory)
+            .appendingPathComponent(DXVKComponent.assetName + ".part")
+        defer { try? fileManager.removeItem(at: archive) }
 
         let downloader = Downloader(destination: archive) { done, total in
             if total > 0 {
@@ -60,14 +63,14 @@ public struct DXVKComponent: Sendable {
 
     /// Verifies, safely extracts and installs a local archive.
     public func installArchive(at path: String, expectedSHA256: String?) throws {
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         if let expected = expectedSHA256 {
             let actual = try Downloader.sha256(ofFileAt: path)
             guard actual == expected else { throw RunnerError.checksumMismatch(expected: expected, actual: actual) }
         }
         let staging = paths.dxvkMacOSDir + "/.staging-" + UUID().uuidString.lowercased()
-        try fm.createDirectory(atPath: staging, withIntermediateDirectories: true)
-        defer { try? fm.removeItem(atPath: staging) }
+        try fileManager.createDirectory(atPath: staging, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(atPath: staging) }
 
         let list = try Self.runSync("/usr/bin/tar", ["-tf", path])
         try ArchiveSafety.validate(memberNames: list.split(separator: "\n").map(String.init))
@@ -75,31 +78,35 @@ public struct DXVKComponent: Sendable {
         try ArchiveSafety.validateTree(root: staging)
 
         let extractedRoot = staging + "/" + DXVKComponent.archiveRoot
-        for arch in ["x32", "x64"] {
-            for dll in DXVKComponent.dllNames where !fm.fileExists(atPath: "\(extractedRoot)/\(arch)/\(dll)") {
-                throw RunnerError.extractionFailed("missing \(arch)/\(dll)")
+        for architecture in ["x32", "x64"] {
+            for dllName in DXVKComponent.dllNames {
+                let dllPath = "\(extractedRoot)/\(architecture)/\(dllName)"
+                if !fileManager.fileExists(atPath: dllPath) {
+                    throw RunnerError.extractionFailed("missing \(architecture)/\(dllName)")
+                }
             }
         }
-        if fm.fileExists(atPath: installDirectory) {
-            try fm.removeItem(atPath: installDirectory)
+        if fileManager.fileExists(atPath: installDirectory) {
+            try fileManager.removeItem(atPath: installDirectory)
         }
-        try fm.createDirectory(atPath: paths.dxvkMacOSDir, withIntermediateDirectories: true)
-        try fm.moveItem(atPath: extractedRoot, toPath: installDirectory)
+        try fileManager.createDirectory(atPath: paths.dxvkMacOSDir, withIntermediateDirectories: true)
+        try fileManager.moveItem(atPath: extractedRoot, toPath: installDirectory)
     }
 
-    private static func runSync(_ exe: String, _ args: [String]) throws -> String {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: exe)
-        p.arguments = args
-        let out = Pipe(), err = Pipe()
-        p.standardOutput = out
-        p.standardError = err
-        try p.run()
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        let errData = err.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        guard p.terminationStatus == 0 else {
-            throw RunnerError.extractionFailed(String(decoding: errData, as: UTF8.self))
+    private static func runSync(_ executable: String, _ arguments: [String]) throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        let standardOutputPipe = Pipe()
+        let standardErrorPipe = Pipe()
+        process.standardOutput = standardOutputPipe
+        process.standardError = standardErrorPipe
+        try process.run()
+        let data = standardOutputPipe.fileHandleForReading.readDataToEndOfFile()
+        let errorData = standardErrorPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw RunnerError.extractionFailed(String(decoding: errorData, as: UTF8.self))
         }
         return String(decoding: data, as: UTF8.self)
     }

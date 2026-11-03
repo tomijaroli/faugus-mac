@@ -12,19 +12,19 @@ public enum JSONFile {
     /// Creates parent directories, writes to a `.tmp-*` sibling, then renames over the target.
     public static func atomicWrite(_ data: Data, to path: String) throws {
         let url = URL(fileURLWithPath: path)
-        let dir = url.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let directory = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-        let tmp = dir.appendingPathComponent(".tmp-" + UUID().uuidString.lowercased())
+        let temporaryURL = directory.appendingPathComponent(".tmp-" + UUID().uuidString.lowercased())
         do {
-            try data.write(to: tmp, options: [])
+            try data.write(to: temporaryURL, options: [])
             // rename(2) replaces atomically on the same volume.
-            if rename(tmp.path, url.path) != 0 {
+            if rename(temporaryURL.path, url.path) != 0 {
                 let code = errno
                 throw NSError(domain: NSPOSIXErrorDomain, code: Int(code))
             }
         } catch {
-            try? FileManager.default.removeItem(at: tmp)
+            try? FileManager.default.removeItem(at: temporaryURL)
             throw error
         }
     }
@@ -49,8 +49,8 @@ public enum JSONFile {
                 throw JSONFileError.unreadable(path: path, underlying: "cannot read file")
             }
             return try JSONParser.parse(data)
-        } catch let e as JSONFileError {
-            throw e
+        } catch let fileError as JSONFileError {
+            throw fileError
         } catch {
             throw JSONFileError.unreadable(path: path, underlying: "\(error)")
         }

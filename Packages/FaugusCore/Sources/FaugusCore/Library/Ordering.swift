@@ -38,7 +38,7 @@ public enum CategorySelection: Hashable, Sendable {
         switch self {
         case .all: "all"
         case .uncategorized: "uncategorized"
-        case let .named(n): n
+        case let .named(name): name
         }
     }
 }
@@ -48,8 +48,8 @@ extension Game {
     /// stores `False`) is none.
     public var categoryNames: [String] {
         switch category {
-        case let .string(s): [s]
-        case let .array(a): a.compactMap(\.stringValue)
+        case let .string(text): [text]
+        case let .array(elements): elements.compactMap(\.stringValue)
         default: []
         }
     }
@@ -63,11 +63,11 @@ public enum LibraryOrdering {
     public static func gameInCategory(
         _ game: Game, _ selection: CategorySelection, noneLabel: String = "None"
     ) -> Bool {
-        let cats = game.categoryNames
+        let categories = game.categoryNames
         switch selection {
         case .all: return true
-        case .uncategorized: return cats.isEmpty || cats == [noneLabel]
-        case let .named(name): return (cats.isEmpty ? [noneLabel] : cats).contains(name)
+        case .uncategorized: return categories.isEmpty || categories == [noneLabel]
+        case let .named(name): return (categories.isEmpty ? [noneLabel] : categories).contains(name)
         }
     }
 
@@ -94,21 +94,22 @@ public enum LibraryOrdering {
         case .alpha:
             return games.sorted(by: byTitle)
         case .playtime:
-            return games.sorted { a, b in
-                a.playtime != b.playtime ? a.playtime > b.playtime : byTitle(a, b)
+            return games.sorted { first, second in
+                first.playtime != second.playtime ? first.playtime > second.playtime : byTitle(first, second)
             }
         case .lastplayed:
-            func key(_ g: Game) -> Double {
-                GameFormatting.parseISO(g.lastPlayed).map { -$0.timeIntervalSince1970 } ?? .infinity
+            func key(_ game: Game) -> Double {
+                GameFormatting.parseISO(game.lastPlayed).map { -$0.timeIntervalSince1970 } ?? .infinity
             }
-            return games.sorted { a, b in
-                let ka = key(a), kb = key(b)
-                return ka != kb ? ka < kb : byTitle(a, b)
+            return games.sorted { first, second in
+                let firstKey = key(first), secondKey = key(second)
+                return firstKey != secondKey ? firstKey < secondKey : byTitle(first, second)
             }
         case .custom:
-            return games.sorted { a, b in
-                let ia = customOrder[a.gameID] ?? 999_999, ib = customOrder[b.gameID] ?? 999_999
-                return ia != ib ? ia < ib : byTitle(a, b)
+            return games.sorted { first, second in
+                let firstPosition = customOrder[first.gameID] ?? 999_999
+                let secondPosition = customOrder[second.gameID] ?? 999_999
+                return firstPosition != secondPosition ? firstPosition < secondPosition : byTitle(first, second)
             }
         }
     }

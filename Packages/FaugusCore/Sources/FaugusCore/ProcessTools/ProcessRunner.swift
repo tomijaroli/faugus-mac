@@ -33,15 +33,15 @@ public enum ProcessRunner {
         }
 
         let out = Pipe()
-        let err = Pipe()
+        let standardErrorPipe = Pipe()
         process.standardOutput = out
-        process.standardError = err
+        process.standardError = standardErrorPipe
         process.standardInput = FileHandle.nullDevice
 
         // Buffered, so the exit status can never be missed whichever side is first.
         let (exits, exitSink) = AsyncStream<Int32>.makeStream()
-        process.terminationHandler = { p in
-            exitSink.yield(p.terminationStatus)
+        process.terminationHandler = { finishedProcess in
+            exitSink.yield(finishedProcess.terminationStatus)
             exitSink.finish()
         }
 
@@ -51,10 +51,10 @@ public enum ProcessRunner {
 
         // Drain both pipes while the child runs, otherwise a chatty child blocks on a full pipe.
         async let outData = readAll(out.fileHandleForReading)
-        async let errData = readAll(err.fileHandleForReading)
+        async let errData = readAll(standardErrorPipe.fileHandleForReading)
         var status: Int32 = -1
-        for await s in exits {
-            status = s
+        for await exitStatus in exits {
+            status = exitStatus
         }
 
         return await ProcessResult(
@@ -65,9 +65,9 @@ public enum ProcessRunner {
     }
 
     private static func readAll(_ handle: FileHandle) async -> Data {
-        await withCheckedContinuation { cont in
+        await withCheckedContinuation { continuation in
             DispatchQueue.global().async {
-                cont.resume(returning: (try? handle.readToEnd()) ?? Data())
+                continuation.resume(returning: (try? handle.readToEnd()) ?? Data())
             }
         }
     }

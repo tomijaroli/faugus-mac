@@ -13,10 +13,10 @@ struct DuplicateGameView: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        let t = model.translator
+        let translate = model.translator
         VStack(alignment: .leading, spacing: 10) {
-            Text(t.format("Duplicate %s", game.title)).font(.title3.weight(.semibold))
-            Text(t("Title"))
+            Text(translate.format("Duplicate %s", game.title)).font(.title3.weight(.semibold))
+            Text(translate("Title"))
             TextField("", text: $title)
                 .focused($focused)
                 .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.red, lineWidth: invalid ? 1.5 : 0))
@@ -24,9 +24,9 @@ struct DuplicateGameView: View {
                 .onSubmit { confirm() }
                 .accessibilityIdentifier("duplicate-title")
             HStack {
-                Button(t("Cancel"), role: .cancel) { dismiss() }
+                Button(translate("Cancel"), role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction).frame(maxWidth: .infinity)
-                Button(t("Ok")) { confirm() }
+                Button(translate("Ok")) { confirm() }
                     .keyboardShortcut(.defaultAction).frame(maxWidth: .infinity)
                     .accessibilityIdentifier("duplicate-ok")
             }
@@ -41,7 +41,7 @@ struct DuplicateGameView: View {
                 warning = nil
             }
         })) {
-            Button(t("Ok")) {}
+            Button(translate("Ok")) {}
         }
     }
 
@@ -67,27 +67,27 @@ struct DeleteGameView: View {
     @State private var removePrefix = false
 
     var body: some View {
-        let t = model.translator
+        let translate = model.translator
         let others = model.gamesSharingPrefix(with: game)
         let offers = GameEditing.offersPrefixRemoval(for: game, paths: model.paths)
         VStack(spacing: 16) {
-            Text(t.format("Are you sure you want to delete %s?", game.title)).multilineTextAlignment(.center)
+            Text(translate.format("Are you sure you want to delete %s?", game.title)).multilineTextAlignment(.center)
             if offers {
-                Toggle(t("Also remove the prefix:"), isOn: $removePrefix)
+                Toggle(translate("Also remove the prefix:"), isOn: $removePrefix)
                     .disabled(others > 0)
                     .accessibilityIdentifier("delete-remove-prefix")
                 Text(game.prefix).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
                 if others > 0 {
                     Text(others == 1
-                        ? t("WARNING: This prefix is used by 1 other game.")
-                        : t.format("WARNING: This prefix is used by %d other games.", String(others)))
+                        ? translate("WARNING: This prefix is used by 1 other game.")
+                        : translate.format("WARNING: This prefix is used by %d other games.", String(others)))
                         .foregroundStyle(.red)
                 }
             }
             HStack {
-                Button(t("No"), role: .cancel) { dismiss() }
+                Button(translate("No"), role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction).frame(maxWidth: .infinity)
-                Button(t("Yes"), role: .destructive) {
+                Button(translate("Yes"), role: .destructive) {
                     model.delete(game, removePrefix: removePrefix && others == 0)
                     dismiss()
                 }

@@ -19,9 +19,9 @@ struct RunnerManagerView: View {
     @State private var rosettaBusy = false
 
     var body: some View {
-        let t = model.translator
+        let translate = model.translator
         VStack(alignment: .leading, spacing: 12) {
-            Text(t("Runner Manager")).font(.title2.weight(.semibold))
+            Text(translate("Runner Manager")).font(.title2.weight(.semibold))
             rosettaBox()
             Picker("", selection: $flavor) {
                 ForEach(WineFlavor.allCases, id: \.self) { Text(label(for: $0)).tag($0) }
@@ -38,7 +38,7 @@ struct RunnerManagerView: View {
                                 .foregroundStyle(.secondary).padding(.vertical, 20)
                         }
                         ForEach(rows) { row in
-                            runnerRow(row, t)
+                            runnerRow(row, translate)
                             Divider()
                         }
                     }
@@ -54,7 +54,7 @@ struct RunnerManagerView: View {
             }
             HStack {
                 Spacer()
-                Button(t("Close")) { dismiss() }.keyboardShortcut(.defaultAction)
+                Button(translate("Close")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
@@ -66,8 +66,8 @@ struct RunnerManagerView: View {
         .onDisappear { downloads.values.forEach { $0.cancel() } }
     }
 
-    private func label(for f: WineFlavor) -> String {
-        switch f {
+    private func label(for wineFlavor: WineFlavor) -> String {
+        switch wineFlavor {
         case .staging: "Wine Staging"
         case .devel: "Wine Devel"
         case .stable: "Wine Stable"
@@ -76,7 +76,7 @@ struct RunnerManagerView: View {
 
     // MARK: Rows
 
-    private func runnerRow(_ row: RunnerRow, _ t: Translator) -> some View {
+    private func runnerRow(_ row: RunnerRow, _ translate: Translator) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.isLatest ? "\(row.version) (\(latestWord))" : row.version)
@@ -88,7 +88,7 @@ struct RunnerManagerView: View {
             if let value = progress[row.id] {
                 ProgressView(value: value).frame(width: 100)
             }
-            actionButton(row, t)
+            actionButton(row, translate)
         }
         .padding(.vertical, 6)
     }
@@ -98,15 +98,15 @@ struct RunnerManagerView: View {
     }
 
     @ViewBuilder
-    private func actionButton(_ row: RunnerRow, _ t: Translator) -> some View {
+    private func actionButton(_ row: RunnerRow, _ translate: Translator) -> some View {
         if downloads[row.id] != nil {
-            Button(t("Cancel")) { downloads[row.id]?.cancel() }
+            Button(translate("Cancel")) { downloads[row.id]?.cancel() }
                 .frame(width: 96)
         } else if row.isInstalled {
-            Button(t("Remove"), role: .destructive) { remove(row) }
+            Button(translate("Remove"), role: .destructive) { remove(row) }
                 .frame(width: 96)
         } else {
-            Button(t("Download")) { download(row) }
+            Button(translate("Download")) { download(row) }
                 .disabled(row.remote == nil)
                 .frame(width: 96)
         }
@@ -152,10 +152,10 @@ struct RunnerManagerView: View {
         let installer = RunnerInstaller(paths: model.paths)
         downloads[row.id] = Task {
             do {
-                _ = try await installer.install(remote) { p in
+                _ = try await installer.install(remote) { fraction in
                     Task {
                         @MainActor in if !Task.isCancelled {
-                            progress[row.id] = p
+                            progress[row.id] = fraction
                         }
                     }
                 }

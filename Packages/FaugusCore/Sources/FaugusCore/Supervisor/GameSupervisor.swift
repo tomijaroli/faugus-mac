@@ -27,11 +27,11 @@ public enum SupervisorFailure: Equatable, Sendable, CustomStringConvertible {
         switch self {
         case let .gameNotFound(id): "Game \"\(id)\" was not found in games.json"
         case .rosettaMissing: "Rosetta 2 is required to run Wine"
-        case let .runnerNotFound(n): "\(n) was not found"
-        case let .runnerInstallFailed(m): "Could not install the Wine runner: \(m)"
-        case let .componentInstallFailed(m): "Could not install DXVK-macOS: \(m)"
-        case let .prefixFailed(m): m
-        case let .launchFailed(m): m
+        case let .runnerNotFound(name): "\(name) was not found"
+        case let .runnerInstallFailed(message): "Could not install the Wine runner: \(message)"
+        case let .componentInstallFailed(message): "Could not install DXVK-macOS: \(message)"
+        case let .prefixFailed(message): message
+        case let .launchFailed(message): message
         }
     }
 }
@@ -58,7 +58,7 @@ public struct SupervisorOptions: Sendable {
     /// Opens a `steam://` URL (Steam-type games). Returns false when it could not be started.
     public var openSteamURL: @Sendable (String) -> Bool = { url in
         (try? ProcessSpawner.spawn(
-            argv: ["/usr/bin/open", url],
+            commandLine: ["/usr/bin/open", url],
             options: .init(environment: ["PATH": "/usr/bin:/bin"], newSession: true)
         )) != nil
     }
@@ -97,12 +97,12 @@ public actor GameSupervisor {
         running = RunningGames(paths: paths)
     }
 
-    private func emit(_ e: SupervisorEvent) {
-        sink(e)
-        switch e {
-        case let .failed(f): log.write("FAILED: \(f)")
-        case let .starting(c): log.write("command: \(c)")
-        case let .exited(s, p): log.write("exited status=\(s) playtime=\(p)s")
+    private func emit(_ event: SupervisorEvent) {
+        sink(event)
+        switch event {
+        case let .failed(failure): log.write("FAILED: \(failure)")
+        case let .starting(command): log.write("command: \(command)")
+        case let .exited(status, playtimeSeconds): log.write("exited status=\(status) playtime=\(playtimeSeconds)s")
         default: break
         }
     }
@@ -118,9 +118,9 @@ public actor GameSupervisor {
             }
             return failure
         } catch {
-            let f = SupervisorFailure.launchFailed("\(error)")
-            emit(.failed(f))
-            return f
+            let failure = SupervisorFailure.launchFailed("\(error)")
+            emit(.failed(failure))
+            return failure
         }
     }
 
@@ -166,7 +166,10 @@ public actor GameSupervisor {
         if graphics.backend == .dxvk, !dxvk.isInstalled {
             if options.allowDownloads {
                 do {
-                    try await dxvk.install { [sink] p in sink(.downloadingComponent(name: "DXVK-macOS", progress: p)) }
+                    try await dxvk.install { [sink] progress in sink(.downloadingComponent(
+                        name: "DXVK-macOS",
+                        progress: progress
+                    )) }
                 } catch {
                     graphics = GraphicsPlan.resolve(requested: .wined3d, capabilities: runner.capabilities)
                     log.write("DXVK-macOS unavailable (\(error)); using wined3d")
@@ -220,9 +223,9 @@ public actor GameSupervisor {
         catch { log.write("could not apply graphics backend: \(error)") }
 
         // 7. Pre-launch hook (fire and forget, like upstream)
-        let pre = options.preLaunch ?? game.preLaunch
-        if !isFileRun, !pre.isEmpty {
-            spawnHook(pre, env: plan.environment)
+        let preLaunchCommand = options.preLaunch ?? game.preLaunch
+        if !isFileRun, !preLaunchCommand.isEmpty {
+            spawnHook(preLaunchCommand, environment: plan.environment)
         }
 
         // 8. Spawn
@@ -248,7 +251,7 @@ public actor GameSupervisor {
         let pid: pid_t
         do {
             pid = try ProcessSpawner.spawn(
-                argv: plan.argv,
+                commandLine: plan.commandLine,
                 options: .init(
                     workingDirectory: plan.workingDirectory, environment: plan.environment,
                     outputFile: options.logs ? plan.logDirectory + "/wine.log" : nil, newSession: true
@@ -282,13 +285,13 @@ public actor GameSupervisor {
                 stopRequested = true
                 emit(.stopping)
                 Task { [weak self] in
-                    await self?.terminate(runner: runner, prefix: plan.prefix, env: plan.environment)
+                    await self?.terminate(runner: runner, prefix: plan.prefix, environment: plan.environment)
                 }
             }
 
             if gameExit != nil, !serverStarted {
                 serverStarted = true
-                waitForWineserver(runner: runner, env: plan.environment)
+                waitForWineserver(runner: runner, environment: plan.environment)
             }
 
             if !isFileRun, Date().timeIntervalSince(lastSave) >= options.playtimeSaveInterval {
@@ -300,11 +303,11 @@ public actor GameSupervisor {
         // 10. Cleanup (mirrors on_process_exit)
         if !isFileRun {
             ProcessScanner.killByFaugusID(gameID)
-            let post = options.postLaunch ?? game.postLaunch
-            if !post.isEmpty {
-                var env = plan.environment
-                env.removeValue(forKey: "FAUGUSID")
-                spawnHook(post, env: env)
+            let postLaunchCommand = options.postLaunch ?? game.postLaunch
+            if !postLaunchCommand.isEmpty {
+                var hookEnvironment = plan.environment
+                hookEnvironment.removeValue(forKey: "FAUGUSID")
+                spawnHook(postLaunchCommand, environment: hookEnvironment)
             }
             saveProgress(gameBaseline: gameBaseline, totalBaseline: totalBaseline)
             try? running.unmark(gameID: gameID)
@@ -335,11 +338,11 @@ public actor GameSupervisor {
 
         var needInstall: RemoteRunner?
         switch resolution {
-        case let .installed(r):
-            if wantsUpdateCheck, updatesAllowed, let flavor = r.flavor,
+        case let .installed(installedRunner):
+            if wantsUpdateCheck, updatesAllowed, let flavor = installedRunner.flavor,
                let remotes = try? await options.feed(),
                let latest = GcenxFeed.latest(flavor, in: remotes),
-               VersionKey(latest.version) > VersionKey(r.version ?? "")
+               VersionKey(latest.version) > VersionKey(installedRunner.version ?? "")
             {
                 needInstall = latest
             }
@@ -360,8 +363,8 @@ public actor GameSupervisor {
 
         if let remote = needInstall {
             do {
-                _ = try await RunnerInstaller(paths: paths).install(remote) { [sink] p in
-                    sink(.downloadingRunner(name: remote.directoryName, progress: p))
+                _ = try await RunnerInstaller(paths: paths).install(remote) { [sink] progress in
+                    sink(.downloadingRunner(name: remote.directoryName, progress: progress))
                 }
                 resolution = store.resolve(wanted, defaultRunner: defaultRunner)
             } catch {
@@ -373,8 +376,8 @@ public actor GameSupervisor {
                 }
             }
         }
-        if case let .installed(r) = resolution {
-            return (r, nil)
+        if case let .installed(installedRunner) = resolution {
+            return (installedRunner, nil)
         }
         return (nil, .runnerNotFound(identifier))
     }
@@ -401,11 +404,11 @@ public actor GameSupervisor {
         log.write("wine process exited with status \(status)")
     }
 
-    private func waitForWineserver(runner: InstalledRunner, env: [String: String]) {
+    private func waitForWineserver(runner: InstalledRunner, environment: [String: String]) {
         do {
             let pid = try ProcessSpawner.spawn(
-                argv: [runner.wineserverBinary, "-w"],
-                options: .init(workingDirectory: nil, environment: env, newSession: false)
+                commandLine: [runner.wineserverBinary, "-w"],
+                options: .init(workingDirectory: nil, environment: environment, newSession: false)
             )
             Task { [weak self] in
                 _ = await ProcessSpawner.waitForExit(pid: pid)
@@ -422,10 +425,10 @@ public actor GameSupervisor {
 
     /// Graceful, then forced (plan section 5 "Stop"). The grace period ends as soon as the
     /// game process has exited and nothing tagged with this game's `FAUGUSID` is left.
-    private func terminate(runner: InstalledRunner, prefix: String, env: [String: String]) async {
-        let t0 = Date()
+    private func terminate(runner: InstalledRunner, prefix: String, environment: [String: String]) async {
+        let startDate = Date()
         func stamp(_ what: String) {
-            log.write(String(format: "stop +%.2fs: %@", Date().timeIntervalSince(t0), what))
+            log.write(String(format: "stop +%.2fs: %@", Date().timeIntervalSince(startDate), what))
         }
         if gamePID > 0 {
             killpg(gamePID, SIGTERM)
@@ -435,8 +438,8 @@ public actor GameSupervisor {
         if !prefixSharedWithOtherRunningGame(prefix: prefix) {
             // Not awaited: Wine's own graceful shutdown can take 10 s, far beyond our grace.
             serverKill = try? ProcessSpawner.spawn(
-                argv: [runner.wineserverBinary, "-k"],
-                options: .init(workingDirectory: nil, environment: env, newSession: false)
+                commandLine: [runner.wineserverBinary, "-k"],
+                options: .init(workingDirectory: nil, environment: environment, newSession: false)
             )
             stamp("wineserver -k started")
         }
@@ -476,10 +479,10 @@ public actor GameSupervisor {
         )
     }
 
-    private func spawnHook(_ command: String, env: [String: String]) {
+    private func spawnHook(_ command: String, environment: [String: String]) {
         _ = try? ProcessSpawner.spawn(
-            argv: ["/bin/sh", "-c", command],
-            options: .init(workingDirectory: nil, environment: env, newSession: true)
+            commandLine: ["/bin/sh", "-c", command],
+            options: .init(workingDirectory: nil, environment: environment, newSession: true)
         )
     }
 }

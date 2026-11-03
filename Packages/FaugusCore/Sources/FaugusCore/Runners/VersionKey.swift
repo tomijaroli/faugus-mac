@@ -25,13 +25,13 @@ public struct VersionKey: Comparable, Hashable, Sendable {
                 text = ""
             }
         }
-        for c in string {
-            if c.isASCII, c.isNumber {
+        for character in string {
+            if character.isASCII, character.isNumber {
                 flushText()
-                digits.append(c)
-            } else if c.isLetter {
+                digits.append(character)
+            } else if character.isLetter {
                 flushDigits()
-                text.append(c)
+                text.append(character)
             } else {
                 flushDigits()
                 flushText() // separators: . _ - space
@@ -43,8 +43,8 @@ public struct VersionKey: Comparable, Hashable, Sendable {
     }
 
     public static func < (lhs: VersionKey, rhs: VersionKey) -> Bool {
-        for (a, b) in zip(lhs.parts, rhs.parts) where a != b {
-            switch (a, b) {
+        for (leftPart, rightPart) in zip(lhs.parts, rhs.parts) where leftPart != rightPart {
+            switch (leftPart, rightPart) {
             case let (.number(x), .number(y)): return x < y
             case let (.text(x), .text(y)): return x < y
             case (.number, .text): return false // numbers sort after text (11.0 > 11.rc1)

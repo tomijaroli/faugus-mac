@@ -25,21 +25,21 @@ public enum RunnerCatalog {
         let installedNames = Set(installed.map(\.name))
         var rows: [RunnerRow] = []
         var seen: Set<String> = []
-        for (i, r) in releases.enumerated() where seen.insert(r.directoryName).inserted {
+        for (index, release) in releases.enumerated() where seen.insert(release.directoryName).inserted {
             rows.append(
                 RunnerRow(
-                    flavor: flavor, version: r.version, directoryName: r.directoryName, remote: r,
-                    isInstalled: installedNames.contains(r.directoryName), isLatest: i == 0
+                    flavor: flavor, version: release.version, directoryName: release.directoryName, remote: release,
+                    isInstalled: installedNames.contains(release.directoryName), isLatest: index == 0
                 )
             )
         }
         let extras = installed.filter { $0.flavor == flavor && !seen.contains($0.name) }
             .sorted { VersionKey($0.version ?? $0.name) > VersionKey($1.version ?? $1.name) }
-        for r in extras {
+        for extra in extras {
             rows.append(
                 RunnerRow(
-                    flavor: flavor, version: r.version ?? r.name, directoryName: r.name, remote: nil,
-                    isInstalled: true, isLatest: releases.isEmpty && rows.isEmpty && extras.first == r
+                    flavor: flavor, version: extra.version ?? extra.name, directoryName: extra.name, remote: nil,
+                    isInstalled: true, isLatest: releases.isEmpty && rows.isEmpty && extras.first == extra
                 )
             )
         }

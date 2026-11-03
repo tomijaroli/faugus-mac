@@ -16,13 +16,14 @@ enum FilePicker {
         panel.allowsMultipleSelection = false
         panel.treatsFilePackagesAsDirectories = true
         if let startIn, !startIn.isEmpty {
-            var dir = (startIn as NSString).expandingTildeInPath
+            var directoryPath = (startIn as NSString).expandingTildeInPath
             var isDirectory: ObjCBool = false
-            if !(FileManager.default.fileExists(atPath: dir, isDirectory: &isDirectory) && isDirectory.boolValue) {
-                dir = (dir as NSString).deletingLastPathComponent
+            let exists = FileManager.default.fileExists(atPath: directoryPath, isDirectory: &isDirectory)
+            if !(exists && isDirectory.boolValue) {
+                directoryPath = (directoryPath as NSString).deletingLastPathComponent
             }
-            if FileManager.default.fileExists(atPath: dir) {
-                panel.directoryURL = URL(fileURLWithPath: dir)
+            if FileManager.default.fileExists(atPath: directoryPath) {
+                panel.directoryURL = URL(fileURLWithPath: directoryPath)
             }
         }
         return panel.runModal() == .OK ? panel.url?.path : nil

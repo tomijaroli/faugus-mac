@@ -8,8 +8,10 @@ public struct EnvironmentVariableStore: Sendable {
     }
 
     public func load() -> [String] {
-        guard case let .array(a) = JSONFile.load(paths.environmentVariablesFile, default: .array([])) else { return [] }
-        return a.compactMap(\.stringValue)
+        guard case let .array(lines) = JSONFile.load(paths.environmentVariablesFile, default: .array([])) else {
+            return []
+        }
+        return lines.compactMap(\.stringValue)
     }
 
     /// `update_envar_file`: blank lines are dropped.
@@ -33,25 +35,35 @@ public struct ConfigColor: Equatable, Sendable {
         self.alpha = min(max(alpha, 0), 1)
     }
 
-    private static func clamp(_ v: Int) -> Int {
-        min(max(v, 0), 255)
+    private static func clamp(_ value: Int) -> Int {
+        min(max(value, 0), 255)
     }
 
     public static let fallback = ConfigColor(red: 61, green: 174, blue: 233)
 
     /// Accepts `rgb(1,2,3)` and `rgba(1,2,3,0.5)`, with or without spaces.
     public init?(_ string: String) {
-        let s = string.trimmingCharacters(in: CharacterSet(charactersIn: "\" ")).lowercased()
-        guard let open = s.firstIndex(of: "("), let close = s.lastIndex(of: ")"), open < close else { return nil }
-        let name = s[s.startIndex ..< open]
+        let trimmed = string.trimmingCharacters(in: CharacterSet(charactersIn: "\" ")).lowercased()
+        guard let open = trimmed.firstIndex(of: "("), let close = trimmed.lastIndex(of: ")"), open < close else {
+            return nil
+        }
+        let name = trimmed[trimmed.startIndex ..< open]
         guard name == "rgb" || name == "rgba" else { return nil }
-        let parts = s[s.index(after: open) ..< close].split(separator: ",")
+        let parts = trimmed[trimmed.index(after: open) ..< close].split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
         guard parts.count == (name == "rgb" ? 3 : 4) else { return nil }
-        guard let r = Double(parts[0]), let g = Double(parts[1]), let b = Double(parts[2]) else { return nil }
-        let a = parts.count == 4 ? Double(parts[3]) : 1
-        guard let a else { return nil }
-        self.init(red: Int(r.rounded()), green: Int(g.rounded()), blue: Int(b.rounded()), alpha: a)
+        guard let redValue = Double(parts[0]),
+              let greenValue = Double(parts[1]),
+              let blueValue = Double(parts[2])
+        else { return nil }
+        let parsedAlpha = parts.count == 4 ? Double(parts[3]) : 1
+        guard let parsedAlpha else { return nil }
+        self.init(
+            red: Int(redValue.rounded()),
+            green: Int(greenValue.rounded()),
+            blue: Int(blueValue.rounded()),
+            alpha: parsedAlpha
+        )
     }
 
     /// `Gdk.RGBA.to_string()`: `rgb(...)` when opaque, `rgba(...)` otherwise.
@@ -62,15 +74,15 @@ public struct ConfigColor: Equatable, Sendable {
         return "rgba(\(red),\(green),\(blue),\(Self.trim(alpha)))"
     }
 
-    private static func trim(_ d: Double) -> String {
-        var s = String(format: "%.2f", d)
-        while s.hasSuffix("0") {
-            s.removeLast()
+    private static func trim(_ value: Double) -> String {
+        var text = String(format: "%.2f", value)
+        while text.hasSuffix("0") {
+            text.removeLast()
         }
-        if s.hasSuffix(".") {
-            s.removeLast()
+        if text.hasSuffix(".") {
+            text.removeLast()
         }
-        return s
+        return text
     }
 }
 
@@ -88,18 +100,18 @@ public enum LogsMaintenance {
         return String(format: "%.1f TB", total)
     }
 
-    /// Size of every regular file below `dir`, or `nil` when the directory does not exist.
-    public static func size(of dir: String) -> Int64? {
-        let fm = FileManager.default
+    /// Size of every regular file below `directory`, or `nil` when the directory does not exist.
+    public static func size(of directory: String) -> Int64? {
+        let fileManager = FileManager.default
         var isDirectory: ObjCBool = false
-        guard fm.fileExists(atPath: dir, isDirectory: &isDirectory), isDirectory.boolValue,
-              let walker = fm.enumerator(atPath: dir)
+        guard fileManager.fileExists(atPath: directory, isDirectory: &isDirectory), isDirectory.boolValue,
+              let walker = fileManager.enumerator(atPath: directory)
         else { return nil }
         var total: Int64 = 0
-        for case let rel as String in walker {
-            let attrs = try? fm.attributesOfItem(atPath: dir + "/" + rel)
-            if attrs?[.type] as? FileAttributeType == .typeRegular {
-                total += (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+        for case let relativePath as String in walker {
+            let attributes = try? fileManager.attributesOfItem(atPath: directory + "/" + relativePath)
+            if attributes?[.type] as? FileAttributeType == .typeRegular {
+                total += (attributes?[.size] as? NSNumber)?.int64Value ?? 0
             }
         }
         return total
@@ -108,10 +120,10 @@ public enum LogsMaintenance {
     /// `on_clear_logs_clicked`. Empties the logs folder but keeps the folder itself, so a game
     /// that is running keeps a place to write.
     public static func clear(paths: FaugusPaths) throws {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: paths.logsDirectory) else { return }
-        for name in try fm.contentsOfDirectory(atPath: paths.logsDirectory) {
-            try fm.removeItem(atPath: paths.logsDirectory + "/" + name)
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: paths.logsDirectory) else { return }
+        for name in try fileManager.contentsOfDirectory(atPath: paths.logsDirectory) {
+            try fileManager.removeItem(atPath: paths.logsDirectory + "/" + name)
         }
     }
 }

@@ -72,55 +72,56 @@ struct RunnerTests {
     }
 
     @Test func rejectsEscapingSymlinks() throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let root = paths.home + "/tree"
-        let fm = FileManager.default
-        try fm.createDirectory(atPath: root + "/a/b", withIntermediateDirectories: true)
-        try fm.createSymbolicLink(atPath: root + "/a/ok", withDestinationPath: "b")
-        try fm.createSymbolicLink(atPath: root + "/a/b/up", withDestinationPath: "../b")
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(atPath: root + "/a/b", withIntermediateDirectories: true)
+        try fileManager.createSymbolicLink(atPath: root + "/a/ok", withDestinationPath: "b")
+        try fileManager.createSymbolicLink(atPath: root + "/a/b/up", withDestinationPath: "../b")
         #expect(throws: Never.self) { try ArchiveSafety.validateTree(root: root) }
 
-        try fm.createSymbolicLink(atPath: root + "/a/escape", withDestinationPath: "../../outside")
+        try fileManager.createSymbolicLink(atPath: root + "/a/escape", withDestinationPath: "../../outside")
         #expect(throws: RunnerError.self) { try ArchiveSafety.validateTree(root: root) }
-        try fm.removeItem(atPath: root + "/a/escape")
-        try fm.createSymbolicLink(atPath: root + "/abs", withDestinationPath: "/etc")
+        try fileManager.removeItem(atPath: root + "/a/escape")
+        try fileManager.createSymbolicLink(atPath: root + "/abs", withDestinationPath: "/etc")
         #expect(throws: RunnerError.self) { try ArchiveSafety.validateTree(root: root) }
     }
 
     // MARK: Store
 
     /// Builds a fake runner tree shaped like a Gcenx archive.
-    private func makeFakeRunnerTarball(in dir: String, flavorApp: String = "Wine Staging") throws -> String {
-        let fm = FileManager.default
-        let src = dir + "/src"
-        let wine = src + "/\(flavorApp).app/Contents/Resources/wine"
-        try fm.createDirectory(atPath: wine + "/bin", withIntermediateDirectories: true)
-        try fm.createDirectory(atPath: wine + "/lib/GStreamer.framework", withIntermediateDirectories: true)
-        for exe in ["wine", "wineserver"] {
-            try Data("#!/bin/sh\necho fake-\(exe)\n".utf8).write(to: URL(fileURLWithPath: wine + "/bin/" + exe))
-            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wine + "/bin/" + exe)
+    private func makeFakeRunnerTarball(in directory: String, flavorApp: String = "Wine Staging") throws -> String {
+        let fileManager = FileManager.default
+        let sourceDirectory = directory + "/src"
+        let wine = sourceDirectory + "/\(flavorApp).app/Contents/Resources/wine"
+        try fileManager.createDirectory(atPath: wine + "/bin", withIntermediateDirectories: true)
+        try fileManager.createDirectory(atPath: wine + "/lib/GStreamer.framework", withIntermediateDirectories: true)
+        for executableName in ["wine", "wineserver"] {
+            try Data("#!/bin/sh\necho fake-\(executableName)\n".utf8)
+                .write(to: URL(fileURLWithPath: wine + "/bin/" + executableName))
+            try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wine + "/bin/" + executableName)
         }
-        for lib in ["libMoltenVK.dylib", "libvulkan.dylib", "libSDL2.dylib"] {
-            try Data().write(to: URL(fileURLWithPath: wine + "/lib/" + lib))
+        for libraryName in ["libMoltenVK.dylib", "libvulkan.dylib", "libSDL2.dylib"] {
+            try Data().write(to: URL(fileURLWithPath: wine + "/lib/" + libraryName))
         }
-        let tar = dir + "/fake.tar.xz"
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
-        p.arguments = ["-cJf", tar, "-C", src, "."]
-        try p.run()
-        p.waitUntilExit()
-        #expect(p.terminationStatus == 0)
-        return tar
+        let tarballPath = directory + "/fake.tar.xz"
+        let tarProcess = Process()
+        tarProcess.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
+        tarProcess.arguments = ["-cJf", tarballPath, "-C", sourceDirectory, "."]
+        try tarProcess.run()
+        tarProcess.waitUntilExit()
+        #expect(tarProcess.terminationStatus == 0)
+        return tarballPath
     }
 
     @Test func installsExtractsAndDetectsCapabilities() async throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        let tar = try makeFakeRunnerTarball(in: paths.home)
+        let tarballPath = try makeFakeRunnerTarball(in: paths.home)
         let installer = RunnerInstaller(paths: paths)
         let runner = try await installer.installArchive(
-            at: tar,
+            at: tarballPath,
             directoryName: "Wine-Staging-11.21",
             sourceTag: "11.21"
         )
@@ -130,7 +131,7 @@ struct RunnerTests {
         #expect(runner.version == "11.21")
         #expect(runner.wineRoot.hasSuffix("Wine Staging.app/Contents/Resources/wine"))
         #expect(FileManager.default.isExecutableFile(atPath: runner.wineBinary))
-        #expect(runner.capabilities == RunnerCapabilities(vulkan: true, sdl: true, gstreamer: true))
+        #expect(runner.capabilities == RunnerCapabilities(vulkan: true, sdlSupported: true, gstreamer: true))
         #expect(FileManager.default.fileExists(atPath: runner.directory + "/.faugus-install.json"))
         // No staging leftovers.
         let entries = try FileManager.default.contentsOfDirectory(atPath: paths.runnersDirectory)
@@ -138,10 +139,13 @@ struct RunnerTests {
     }
 
     @Test func manifestDeclaresDXMTAndD3DMetalOnly() async throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        let tar = try makeFakeRunnerTarball(in: paths.home)
-        let runner = try await RunnerInstaller(paths: paths).installArchive(at: tar, directoryName: "Wine-Devel-1.0")
+        let tarballPath = try makeFakeRunnerTarball(in: paths.home)
+        let runner = try await RunnerInstaller(paths: paths).installArchive(
+            at: tarballPath,
+            directoryName: "Wine-Devel-1.0"
+        )
         #expect(!runner.capabilities.dxmt)
         try JSONFile.save(["dxmt": true], to: runner.directory + "/faugus-runner.json")
         let reread = RunnerStore(paths: paths).find(name: "Wine-Devel-1.0")!
@@ -150,58 +154,58 @@ struct RunnerTests {
     }
 
     @Test func refusesArchiveWithoutWine() async throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        let src = paths.home + "/src"
-        try FileManager.default.createDirectory(atPath: src + "/x", withIntermediateDirectories: true)
-        try Data("hi".utf8).write(to: URL(fileURLWithPath: src + "/x/readme"))
-        let tar = paths.home + "/nowine.tar.xz"
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
-        p.arguments = ["-cJf", tar, "-C", src, "."]
-        try p.run()
-        p.waitUntilExit()
+        let sourceDirectory = paths.home + "/src"
+        try FileManager.default.createDirectory(atPath: sourceDirectory + "/x", withIntermediateDirectories: true)
+        try Data("hi".utf8).write(to: URL(fileURLWithPath: sourceDirectory + "/x/readme"))
+        let tarballPath = paths.home + "/nowine.tar.xz"
+        let tarProcess = Process()
+        tarProcess.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
+        tarProcess.arguments = ["-cJf", tarballPath, "-C", sourceDirectory, "."]
+        try tarProcess.run()
+        tarProcess.waitUntilExit()
 
         await #expect(throws: RunnerError.self) {
-            try await RunnerInstaller(paths: paths).installArchive(at: tar, directoryName: "Wine-Staging-1")
+            try await RunnerInstaller(paths: paths).installArchive(at: tarballPath, directoryName: "Wine-Staging-1")
         }
         let leftovers = (try? FileManager.default.contentsOfDirectory(atPath: paths.runnersDirectory)) ?? []
         #expect(leftovers.isEmpty)
     }
 
     @Test func refusesArchiveWithEscapingSymlink() async throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
-        let tar0 = try makeFakeRunnerTarball(in: paths.home)
-        _ = tar0
+        let unusedTarballPath = try makeFakeRunnerTarball(in: paths.home)
+        _ = unusedTarballPath
         try FileManager.default.createSymbolicLink(
             atPath: paths.home + "/src/evil", withDestinationPath: "../../../../etc"
         )
-        let tar = paths.home + "/evil.tar.xz"
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
-        p.arguments = ["-cJf", tar, "-C", paths.home + "/src", "."]
-        try p.run()
-        p.waitUntilExit()
+        let tarballPath = paths.home + "/evil.tar.xz"
+        let tarProcess = Process()
+        tarProcess.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
+        tarProcess.arguments = ["-cJf", tarballPath, "-C", paths.home + "/src", "."]
+        try tarProcess.run()
+        tarProcess.waitUntilExit()
 
         await #expect(throws: RunnerError.self) {
-            try await RunnerInstaller(paths: paths).installArchive(at: tar, directoryName: "Wine-Staging-2")
+            try await RunnerInstaller(paths: paths).installArchive(at: tarballPath, directoryName: "Wine-Staging-2")
         }
         #expect(RunnerStore(paths: paths).installed().isEmpty)
     }
 
     @Test func resolution() async throws {
-        let paths = try TestSupport.makeTempHome()
+        let paths = try TestSupport.makeTemporaryHome()
         defer { TestSupport.cleanup(paths) }
         let store = RunnerStore(paths: paths)
         #expect(store.resolve("Default", defaultRunner: "Wine-Staging Latest") == .missingLatest(.staging))
         #expect(store.resolve("Foo", defaultRunner: "Wine-Staging Latest") == .missing("Foo"))
 
-        let tar = try makeFakeRunnerTarball(in: paths.home)
+        let tarballPath = try makeFakeRunnerTarball(in: paths.home)
         let installer = RunnerInstaller(paths: paths)
-        _ = try await installer.installArchive(at: tar, directoryName: "Wine-Staging-11.9")
-        _ = try await installer.installArchive(at: tar, directoryName: "Wine-Staging-11.21")
-        _ = try await installer.installArchive(at: tar, directoryName: "Wine-Devel-11.30")
+        _ = try await installer.installArchive(at: tarballPath, directoryName: "Wine-Staging-11.9")
+        _ = try await installer.installArchive(at: tarballPath, directoryName: "Wine-Staging-11.21")
+        _ = try await installer.installArchive(at: tarballPath, directoryName: "Wine-Devel-11.30")
 
         guard case let .installed(latest) = store.resolve("Default", defaultRunner: "Wine-Staging Latest") else {
             Issue.record("expected installed")

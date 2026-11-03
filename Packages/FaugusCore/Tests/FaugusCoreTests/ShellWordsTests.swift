@@ -47,9 +47,9 @@ struct ShellWordsTests {
 
     @Test func environmentExtractionMatchesUpstream() throws {
         let words = try ShellWords.split(#"FOO=1 BAR="a b" wrapper --flag=x 1BAD=z =x"#)
-        let (env, argv) = ShellWords.extractEnvironment(from: words)
-        #expect(env.map { "\($0.0)=\($0.1)" } == ["FOO=1", "BAR=a b"])
-        #expect(argv == ["wrapper", "--flag=x", "1BAD=z", "=x"])
+        let (environment, arguments) = ShellWords.extractEnvironment(from: words)
+        #expect(environment.map { "\($0.0)=\($0.1)" } == ["FOO=1", "BAR=a b"])
+        #expect(arguments == ["wrapper", "--flag=x", "1BAD=z", "=x"])
         #expect(ShellWords.isIdentifier("_a1"))
         #expect(!ShellWords.isIdentifier("1a"))
         #expect(!ShellWords.isIdentifier(""))
