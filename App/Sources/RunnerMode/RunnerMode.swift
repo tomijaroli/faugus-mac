@@ -11,6 +11,7 @@ final class RunnerMode {
     private var translator: Translator = .identity
     private var windowTimer: Timer?
     private var gameID = ""
+    private var prefix = ""
     private var isSteam = false
     private var splashShownAt = Date()
 
@@ -76,6 +77,8 @@ final class RunnerMode {
         adhocGame: Game?
     ) async {
         self.gameID = gameID
+        let game = adhocGame ?? (try? GamesStore(paths: paths).loadAll())?.first { $0.gameID == gameID }
+        prefix = paths.expand(game?.prefix ?? "")
         let config = try? FaugusConfig.load(paths: paths)
         let language =
             ProcessInfo.processInfo.environment["FAUGUS_LANG"]
@@ -84,7 +87,6 @@ final class RunnerMode {
         // Running a file in the prefix shows no splash (upstream), only errors.
         let splashEnabled = runFile == nil && (config?.bool("splash-window-enabled") ?? true)
 
-        let game = adhocGame ?? (try? GamesStore(paths: paths).loadAll())?.first { $0.gameID == gameID }
         isSteam = game?.runner == "Steam"
         if splashEnabled {
             splash.model.title = game?.title ?? gameID
@@ -157,8 +159,12 @@ final class RunnerMode {
         windowTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, self.splash.isVisible else { return }
-                let timedOut = Date().timeIntervalSince(self.splashShownAt) > 120
-                if timedOut || GameWindowWatcher.gameWindowVisible(gameID: self.gameID) {
+                // 30 s: long enough for a real window, short enough that a launcher which
+                // crashes before creating one does not sit on "Starting game..." forever.
+                let timedOut = Date().timeIntervalSince(self.splashShownAt) > 30
+                if timedOut
+                    || GameWindowWatcher.gameWindowVisible(gameID: self.gameID, prefix: self.prefix)
+                {
                     self.splash.close()
                 }
             }

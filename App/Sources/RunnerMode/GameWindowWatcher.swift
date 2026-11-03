@@ -7,9 +7,16 @@ import Foundation
 /// Screen Recording permission.
 enum GameWindowWatcher {
     /// `true` when any on-screen, normal-layer window of at least 200x150 belongs to a process
-    /// tagged `FAUGUSID=<gameID>`.
-    static func gameWindowVisible(gameID: String) -> Bool {
-        let tagged = Set(ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: gameID))
+    /// tagged `FAUGUSID=<gameID>`, or (Wine) `WINEPREFIX=<prefix>`.
+    ///
+    /// Battle.net's `Launcher.exe` exits immediately and the real `Battle.net.exe` is spawned by
+    /// wineserver, which strips `FAUGUSID` from the environment. Matching the prefix is what lets
+    /// the splash close for that class of launcher.
+    static func gameWindowVisible(gameID: String, prefix: String? = nil) -> Bool {
+        var tagged = Set(ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: gameID))
+        if let prefix, !prefix.isEmpty {
+            tagged.formUnion(ProcessScanner.pids(withEnvironment: "WINEPREFIX", equalTo: prefix))
+        }
         guard !tagged.isEmpty else { return false }
         guard let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
             as? [[String: Any]]
