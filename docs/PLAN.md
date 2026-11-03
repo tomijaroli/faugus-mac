@@ -149,7 +149,7 @@ Not affiliated."
 - **P2** library and settings. **P3** runtime and tools.
   **P4** macOS integration (tray, Discord RPC, SteamGridDB, Desktop/App Menu shortcuts; Steam
   shortcuts and auto-create-shortcuts dropped — see `docs/parity.md`).
-  **P5** gamepad and console (done). **P6** backup and Linux import. **P7** i18n and release.
+  **P5** gamepad and console (done). **P6** backup and Linux import (done). **P7** i18n and release.
 
 Port semver 0.x until parity; 1.0.0 at full 2.5.6 parity.
 

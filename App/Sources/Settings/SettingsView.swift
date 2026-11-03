@@ -1,9 +1,9 @@
 import AppKit
 import FaugusCore
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// Port of upstream's `Settings` dialog. Options whose feature has not landed yet (backup)
-/// are added with that feature, and the Linux-only ones are dropped (see `docs/parity.md`).
+/// Port of upstream's `Settings` dialog. Linux-only options are dropped (see `docs/parity.md`).
 struct SettingsView: View { // swiftlint:disable:this type_body_length
     let model: AppModel
     let dismiss: () -> Void
@@ -23,6 +23,8 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     @State private var toolsBusy = 0
     @State private var showWinetricks = false
     @State private var showInterfaceSounds = false
+    @State private var showBackup = false
+    @State private var restoreRequest: RestoreRequest?
 
     enum PrefixTool { case winetricks, winecfg, run }
 
@@ -79,6 +81,18 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         }
         .sheet(isPresented: $showInterfaceSounds) {
             InterfaceSoundsView(model: model, configuration: $configuration) { showInterfaceSounds = false }
+        }
+        .sheet(isPresented: $showBackup) {
+            BackupWindow(model: model, configuration: $configuration) { showBackup = false }
+        }
+        .sheet(item: $restoreRequest) { request in
+            RestoreWindow(model: model, archivePath: request.path) {
+                restoreRequest = nil
+                if let reloaded = try? FaugusConfig.load(paths: model.paths) {
+                    configuration = reloaded
+                    original = reloaded
+                }
+            }
         }
         .sheet(isPresented: $showWinetricks) {
             WinetricksView(
@@ -193,6 +207,13 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
                     .help(translate("Prevents the system from suspending while gaming"))
                 Toggle("Discord RPC", isOn: flag("discord-rpc-enabled"))
                     .help(translate("Shows the running game as your Discord activity"))
+            }
+
+            Section(translate("Backup")) {
+                HStack {
+                    Button(translate("Backup")) { showBackup = true }
+                    Button(translate("Restore")) { chooseRestoreArchive(translate) }
+                }
             }
 
             Section(translate("Global Environment Variables")) {
@@ -461,6 +482,18 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
             environmentVariables.append(line)
         }
         newEnvironmentVariable = ""
+    }
+
+    private func chooseRestoreArchive(_ translate: Translator) {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        panel.title = translate("Select a backup file to restore")
+        panel.allowedContentTypes = [UTType(filenameExtension: "tar") ?? .data, .zip]
+        if panel.runModal() == .OK, let url = panel.url {
+            restoreRequest = RestoreRequest(path: url.path)
+        }
     }
 
     private func choosePrefixFolder(_ translate: Translator) {

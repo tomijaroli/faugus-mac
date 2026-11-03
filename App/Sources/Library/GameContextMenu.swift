@@ -15,6 +15,7 @@ struct GameContextMenu: View {
         Button(running ? translate("Stop") : supportsLogs ? translate("Play with logs") : translate("Play")) {
             model.play(game, withLogs: supportsLogs)
         }
+        .disabled(!model.canPlay(game))
         Button(translate("Edit")) { actions.edit(game) }
         Button(translate("Delete")) { actions.delete(game) }
         if game.runner != "Steam" {

@@ -259,6 +259,10 @@ final class AppModel { // swiftlint:disable:this type_body_length
         running[game.gameID] != nil
     }
 
+    func canPlay(_ game: Game) -> Bool {
+        isRunning(game) || !game.needsAttention
+    }
+
     /// Spawns `Faugus --game <id> [--logs]` in its own session, so quitting the launcher never
     /// stops a game (upstream behaviour; plan section 5).
     func play(_ game: Game, withLogs: Bool) {
@@ -266,6 +270,7 @@ final class AppModel { // swiftlint:disable:this type_body_length
             stop(game)
             return
         }
+        guard canPlay(game) else { return }
         guard let executablePath = Bundle.main.executablePath ?? CommandLine.arguments.first else { return }
         var arguments = [executablePath, "--game", game.gameID]
         if withLogs {
@@ -380,11 +385,13 @@ final class AppModel { // swiftlint:disable:this type_body_length
 
     /// Adds or replaces a game (matched on `gameid`) and writes games.json.
     func save(_ game: Game) {
+        var saved = game
+        saved.needsAttention = false
         var all = (try? GamesStore(paths: paths).loadAll()) ?? []
-        if let index = all.firstIndex(where: { $0.gameID == game.gameID }) {
-            all[index] = game
+        if let index = all.firstIndex(where: { $0.gameID == saved.gameID }) {
+            all[index] = saved
         } else {
-            all.append(game)
+            all.append(saved)
         }
         write(all, deleted: nil)
     }

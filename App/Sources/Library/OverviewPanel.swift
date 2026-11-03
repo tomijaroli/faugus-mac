@@ -62,6 +62,9 @@ struct OverviewPanel: View {
         let playtime = GameFormatting.playtimeDisplay(seconds: seconds, translate)
         let categories = GameFormatting.categoryLine(game.categoryNames)
 
+        if game.needsAttention {
+            lines.append(translate("Needs attention"))
+        }
         if !categories.isEmpty {
             lines.append(categories)
         }

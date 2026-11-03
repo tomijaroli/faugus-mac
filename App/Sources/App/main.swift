@@ -41,6 +41,8 @@ case let .createShortcut(file):
 case let .invalid(message):
     FileHandle.standardError.write(Data("Faugus: \(message)\n".utf8))
     exit(2)
+case let .daemon(once):
+    DaemonMode.run(once: once)
 case .splash, .donate, .winetricksLog:
     // Upstream starts these as helper processes because GTK windows cannot share a process.
     // Here the runner draws its own splash and Winetricks has its own window; the upstream
@@ -49,7 +51,6 @@ case .splash, .donate, .winetricksLog:
         .write(Data("Faugus: \(launchMode) is built into the app and is not a separate mode\n".utf8))
     exit(64)
 default:
-    // Daemon and dialog modes arrive in later phases (docs/parity.md).
     FileHandle.standardError.write(Data("Faugus: \(launchMode) is not implemented yet\n".utf8))
     exit(64)
 }

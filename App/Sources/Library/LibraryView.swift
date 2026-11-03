@@ -159,7 +159,12 @@ struct LibraryView: View {
                     model.isRunning(selectedGame) ? translate("Stop") : translate("Play"),
                     systemImage: model.isRunning(selectedGame) ? "stop.fill" : "play.fill"
                 ) { model.play(selectedGame, withLogs: false) }
-                    .help(model.isRunning(selectedGame) ? translate("Stop") : translate("Play"))
+                    .help(
+                        selectedGame.needsAttention
+                            ? translate("Needs attention")
+                            : (model.isRunning(selectedGame) ? translate("Stop") : translate("Play"))
+                    )
+                    .disabled(!model.canPlay(selectedGame))
             }
         }
     }
@@ -261,6 +266,9 @@ private struct GameRow: View {
     }
 
     private func subtitle(_ translate: Translator) -> String? {
+        if game.needsAttention {
+            return translate("Needs attention")
+        }
         var parts: [String] = []
         if let playtime = GameFormatting.playtimeDisplay(seconds: model.playtimeSeconds(game), translate) {
             parts.append(translate.format("Playtime: {}", playtime))

@@ -18,3 +18,9 @@ fi
 
 # Upstream icons and sounds (CC BY 4.0, see NOTICE.md and assets/LICENSE).
 rsync -a --delete --exclude='meson.build' "${SRCROOT}/upstream/assets/" "${DEST}/assets/"
+
+# Backup LaunchAgent (`SMAppService.agent`).
+AGENT_DEST="${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchAgents"
+mkdir -p "${AGENT_DEST}"
+cp "${SRCROOT}/App/Resources/LaunchAgents/me.tomijaroli.faugus-mac.backup.plist" \
+    "${AGENT_DEST}/me.tomijaroli.faugus-mac.backup.plist"
