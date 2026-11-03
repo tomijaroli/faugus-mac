@@ -12,7 +12,7 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 | Games backup snapshots (20 kept) | `launcher.py:backup_games` | `FaugusCore/Games` | done |
 | gettext + 70% completeness filter | `language_config.py` | `FaugusCore/I18n` | done |
 | Paths (XDG to Library) | `path_manager.py` | `FaugusCore/Paths` | done |
-| Runner Manager (Gcenx Wine) | Proton Manager | `RunnerManager` | wip (P1: install Staging Latest, list, delete, Rosetta; versions/Devel/Stable in P3) |
+| Runner Manager (Gcenx Wine) | Proton Manager | `RunnerManager` | done (P3.1: Staging/Devel/Stable tabs, newest-first releases with Latest marker, Download with progress / Cancel / Remove, installed-only runners kept, Rosetta box) |
 | Graphics backend per game | n/a | `Graphics` | done (default/dxvk/wined3d/wined3d-vulkan; dxmt/d3dmetal only when a runner declares them) |
 | Prefix creation | umu-run | `Prefix` | done (verified on real Wine Staging 11.21) |
 | Runner mode (`--game`) | `runner.py` | `RunnerMode` | done (pre/post-launch hooks, `--logs`, Rosetta prompt; `--run <file>` with `--in-game <id>` or `--in-prefix <dir>`: no splash, no playtime, no hooks, untagged so it never touches a running game; `--splash`/`--donate` in P3+) |

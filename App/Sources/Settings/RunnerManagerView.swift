@@ -1,52 +1,56 @@
 import FaugusCore
 import SwiftUI
 
-/// Minimal Runner Manager (P1): install Wine Staging Latest, list and remove runners, and
-/// install Rosetta. The full manager (Devel/Stable, versions, DXVK) arrives in P3.
+/// Runner Manager (upstream's Proton Manager): Gcenx Wine Staging, Devel and Stable builds,
+/// one tab per flavor, newest first, with Download, Cancel and Remove per release.
 struct RunnerManagerView: View {
     let model: AppModel
     let dismiss: () -> Void
 
-    @State private var runners: [InstalledRunner] = []
-    @State private var busy = false
-    @State private var progress: Double?
-    @State private var status = ""
+    @State private var flavor: WineFlavor = .staging
+    @State private var feed: [RemoteRunner] = []
+    @State private var feedLoaded = false
+    @State private var feedError: String?
+    @State private var installed: [InstalledRunner] = []
+    @State private var downloads: [String: Task<Void, Never>] = [:]
+    @State private var progress: [String: Double] = [:]
+    @State private var errors: [String: String] = [:]
     @State private var rosetta: Bool?
+    @State private var rosettaBusy = false
 
     var body: some View {
         let t = model.translator
         VStack(alignment: .leading, spacing: 12) {
             Text(t("Runner Manager")).font(.title2.weight(.semibold))
-            GroupBox("Rosetta 2") {
-                HStack {
-                    Text(rosetta == nil ? "…" : (rosetta! ? "Installed" : "Not installed"))
-                    Spacer()
-                    if rosetta == false {
-                        Button("Install Rosetta") { Task { await installRosetta() } }.disabled(busy)
-                    }
-                }.padding(4)
+            rosettaBox()
+            Picker("", selection: $flavor) {
+                ForEach(WineFlavor.allCases, id: \.self) { Text(label(for: $0)).tag($0) }
             }
-            GroupBox("Runner Manager") {
-                VStack(alignment: .leading, spacing: 6) {
-                    if runners.isEmpty {
-                        Text("No runner installed.").foregroundStyle(.secondary)
-                    }
-                    ForEach(runners) { r in
-                        HStack {
-                            Text(r.name)
-                            Spacer()
-                            Button(t("Delete"), role: .destructive) { remove(r) }.disabled(busy)
+            .pickerStyle(.segmented).labelsHidden()
+            .accessibilityIdentifier("runner-flavor")
+
+            GroupBox {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        let rows = RunnerCatalog.rows(flavor: flavor, remote: feed, installed: installed)
+                        if rows.isEmpty {
+                            Text(feedLoaded ? "No release found." : "Loading…")
+                                .foregroundStyle(.secondary).padding(.vertical, 20)
+                        }
+                        ForEach(rows) { row in
+                            runnerRow(row, t)
+                            Divider()
                         }
                     }
-                    Divider()
-                    HStack {
-                        Button("Install \(WineFlavor.staging.latestIdentifier)") { Task { await installLatest() } }
-                            .disabled(busy)
-                        if let progress { ProgressView(value: progress).frame(width: 140) }
-                        else if busy { ProgressView().controlSize(.small) }
-                        Text(status).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                    }
-                }.padding(4)
+                    .padding(.horizontal, 6)
+                }
+                .frame(height: 320)
+            }
+            if let feedError {
+                HStack {
+                    Text(feedError).font(.caption).foregroundStyle(.red).lineLimit(2)
+                    Button("Retry") { Task { await loadFeed() } }
+                }
             }
             HStack {
                 Spacer()
@@ -54,43 +58,115 @@ struct RunnerManagerView: View {
             }
         }
         .padding(20)
-        .frame(width: 520)
-        .task { await refresh() }
+        .frame(width: 560)
+        .task { installed = model.installedRunners(); await loadFeed() }
+        .task { rosetta = await Rosetta.isInstalled() }
+        .onDisappear { downloads.values.forEach { $0.cancel() } }
     }
 
-    private func refresh() async {
-        runners = model.installedRunners()
-        rosetta = await Rosetta.isInstalled()
+    private func label(for f: WineFlavor) -> String {
+        switch f {
+        case .staging: return "Wine Staging"
+        case .devel: return "Wine Devel"
+        case .stable: return "Wine Stable"
+        }
     }
 
-    private func remove(_ r: InstalledRunner) {
-        try? RunnerInstaller(paths: model.paths).uninstall(name: r.name)
-        runners = model.installedRunners()
+    // MARK: Rows
+
+    private func runnerRow(_ row: RunnerRow, _ t: Translator) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.isLatest ? "\(row.version) (\(latestWord))" : row.version)
+                if let message = errors[row.id] {
+                    Text(message).font(.caption).foregroundStyle(.red).lineLimit(2)
+                }
+            }
+            Spacer()
+            if let value = progress[row.id] {
+                ProgressView(value: value).frame(width: 100)
+            }
+            actionButton(row, t)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var latestWord: String { model.translator("Latest") }
+
+    @ViewBuilder
+    private func actionButton(_ row: RunnerRow, _ t: Translator) -> some View {
+        if downloads[row.id] != nil {
+            Button(t("Cancel")) { downloads[row.id]?.cancel() }
+                .frame(width: 96)
+        } else if row.isInstalled {
+            Button(t("Remove"), role: .destructive) { remove(row) }
+                .frame(width: 96)
+        } else {
+            Button(t("Download")) { download(row) }
+                .disabled(row.remote == nil)
+                .frame(width: 96)
+        }
+    }
+
+    // MARK: Rosetta
+
+    private func rosettaBox() -> some View {
+        GroupBox("Rosetta 2") {
+            HStack {
+                Text(rosetta == nil ? "…" : (rosetta! ? "Installed" : "Not installed"))
+                Spacer()
+                if rosetta == false {
+                    Button("Install Rosetta") { Task { await installRosetta() } }.disabled(rosettaBusy)
+                }
+            }.padding(4)
+        }
     }
 
     private func installRosetta() async {
-        busy = true; status = "Installing Rosetta 2…"
-        do { try await Rosetta.install(); status = "" } catch { status = "\(error)" }
-        busy = false
-        await refresh()
+        rosettaBusy = true
+        do { try await Rosetta.install() } catch { feedError = "\(error)" }
+        rosettaBusy = false
+        rosetta = await Rosetta.isInstalled()
     }
 
-    private func installLatest() async {
-        busy = true; progress = 0; status = "Looking up the latest release…"
-        defer { busy = false; progress = nil }
+    // MARK: Actions
+
+    private func loadFeed() async {
+        feedError = nil
         do {
-            let feed = try await GcenxFeed.fetchAll()
-            guard let latest = GcenxFeed.latest(.staging, in: feed) else {
-                status = "No Wine Staging release found."; return
-            }
-            status = "Downloading \(latest.directoryName)…"
-            _ = try await RunnerInstaller(paths: model.paths).install(latest) { p in
-                Task { @MainActor in progress = p }
-            }
-            status = "Installed \(latest.directoryName)."
+            feed = try await GcenxFeed.fetchAll()
         } catch {
-            status = "\(error)"
+            feedError = "\(error)"
         }
-        await refresh()
+        feedLoaded = true
+    }
+
+    private func download(_ row: RunnerRow) {
+        guard let remote = row.remote else { return }
+        errors[row.id] = nil
+        progress[row.id] = 0
+        let installer = RunnerInstaller(paths: model.paths)
+        downloads[row.id] = Task {
+            do {
+                _ = try await installer.install(remote) { p in
+                    Task { @MainActor in if !Task.isCancelled { progress[row.id] = p } }
+                }
+            } catch {
+                if !Task.isCancelled { errors[row.id] = "\(error)" }
+            }
+            downloads[row.id] = nil
+            progress[row.id] = nil
+            installed = model.installedRunners()
+        }
+    }
+
+    private func remove(_ row: RunnerRow) {
+        do {
+            try RunnerInstaller(paths: model.paths).uninstall(name: row.directoryName)
+            errors[row.id] = nil
+        } catch {
+            errors[row.id] = "\(error)"
+        }
+        installed = model.installedRunners()
     }
 }
