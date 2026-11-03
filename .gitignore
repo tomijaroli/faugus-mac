@@ -8,3 +8,4 @@ dist/
 *.xcworkspace
 xcuserdata/
 Packages/*/.build/
+TestPrograms/build/
