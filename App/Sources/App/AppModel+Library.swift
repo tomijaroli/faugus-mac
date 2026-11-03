@@ -17,7 +17,10 @@ extension AppModel {
     }
 
     var interfaceMode: InterfaceMode {
-        InterfaceMode(configValue: activeConfig?.string("interface-mode") ?? "List")
+        ConsoleMode.interfaceMode(
+            isConsole: isConsoleMode,
+            stored: InterfaceMode(configValue: activeConfig?.string("interface-mode") ?? "List")
+        )
     }
 
     /// Sorted and filtered like upstream's flowbox sort and filter functions.

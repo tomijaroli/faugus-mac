@@ -2,9 +2,8 @@ import AppKit
 import FaugusCore
 import SwiftUI
 
-/// Port of upstream's `Settings` dialog. Options whose feature has not landed yet (gamepad,
-/// sounds, backup) are added with that feature, and the Linux-only ones are dropped
-/// (see `docs/parity.md`).
+/// Port of upstream's `Settings` dialog. Options whose feature has not landed yet (backup)
+/// are added with that feature, and the Linux-only ones are dropped (see `docs/parity.md`).
 struct SettingsView: View { // swiftlint:disable:this type_body_length
     let model: AppModel
     let dismiss: () -> Void
@@ -23,6 +22,7 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     @State private var pendingTool: PrefixTool?
     @State private var toolsBusy = 0
     @State private var showWinetricks = false
+    @State private var showInterfaceSounds = false
 
     enum PrefixTool { case winetricks, winecfg, run }
 
@@ -48,9 +48,9 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
     var body: some View {
         let translate = model.translator
         VStack(spacing: 0) {
-            TabView {
-                general(translate).tabItem { Text(translate("General")) }
-                interface(translate).tabItem { Text(translate("Interface")) }
+            TabView(selection: Binding(get: { model.settingsTab }, set: { model.settingsTab = $0 })) {
+                general(translate).tabItem { Text(translate("General")) }.tag(0)
+                interface(translate).tabItem { Text(translate("Interface")) }.tag(1)
             }
             .padding([.horizontal, .top], 12)
 
@@ -76,6 +76,9 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
         }
         .sheet(isPresented: $showRunnerManager, onDismiss: { runners = model.installedRunners() }) {
             RunnerManagerView(model: model) { showRunnerManager = false }
+        }
+        .sheet(isPresented: $showInterfaceSounds) {
+            InterfaceSoundsView(model: model, configuration: $configuration) { showInterfaceSounds = false }
         }
         .sheet(isPresented: $showWinetricks) {
             WinetricksView(
@@ -108,6 +111,7 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
 
     // MARK: General
 
+    // swiftlint:disable:next function_body_length
     private func general(_ translate: Translator) -> some View {
         Form {
             Section(translate("Default Prefixes Location")) {
@@ -164,6 +168,9 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
                             "Checks for and updates the runner and other required components when launching a game"
                         )
                     )
+                Toggle(translate("Gamepad navigation"), isOn: flag("gamepad-navigation"))
+                    .help(translate("Allows navigation through the application using a gamepad"))
+                    .disabled(model.isConsoleMode)
                 Toggle(translate("Autostart"), isOn: flag("autostart-enabled"))
                     .help(translate("Automatically starts the application with the system"))
                 Toggle(translate("System tray icon"), isOn: flag("system-tray"))
@@ -225,6 +232,10 @@ struct SettingsView: View { // swiftlint:disable:this type_body_length
                 Picker(translate("Interface Mode"), selection: text("interface-mode")) {
                     ForEach(InterfaceMode.allCases, id: \.rawValue) { Text(translate($0.label)).tag($0.rawValue) }
                 }
+            }
+
+            Section {
+                Button(translate("Interface Sounds")) { showInterfaceSounds = true }
             }
 
             Section {

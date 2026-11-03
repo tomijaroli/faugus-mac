@@ -71,8 +71,40 @@ struct LibraryView: View {
         }
         .navigationTitle("Faugus")
         .environment(\.layoutDirection, model.isRightToLeft ? .rightToLeft : .leftToRight)
-        .onAppear { model.ensureSelection() }
+        .onAppear {
+            model.ensureSelection()
+            model.libraryActions = actions
+        }
         .onChange(of: model.visibleGames.map(\.gameID)) { _, _ in model.ensureSelection() }
+        .onChange(of: model.wantsNewGame) { _, wanted in
+            if wanted {
+                editor = .new(model: model)
+                model.wantsNewGame = false
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { model.showGamepadOverlay },
+            set: {
+                if !$0 {
+                    model.dismissGamepadOverlay()
+                }
+            }
+        )) {
+            GamepadListSheet(model: model) { model.dismissGamepadOverlay() }
+        }
+        .alert(
+            model.runningGameWarning.map { model.translator.format("%s is running", $0) } ?? "",
+            isPresented: Binding(
+                get: { model.runningGameWarning != nil },
+                set: {
+                    if !$0 {
+                        model.runningGameWarning = nil
+                    }
+                }
+            )
+        ) {
+            Button(model.translator("Ok")) { model.runningGameWarning = nil }
+        }
         .background(WindowConfigurator(model: model))
         .accessibilityIdentifier("library")
     }
@@ -195,6 +227,10 @@ private struct GameListView: View {
             }
         }
         .accessibilityIdentifier("library-list")
+        .onAppear {
+            model.gamepadColumnCount = 1
+            model.gamepadGridIsHorizontal = false
+        }
     }
 }
 

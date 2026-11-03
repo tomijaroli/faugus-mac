@@ -91,6 +91,14 @@ struct GameGridView: View {
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(phases: [.down, .repeat]) { press in handleKey(press) }
+        .onAppear { updateGamepadLayout() }
+        .onChange(of: lanes) { _, _ in updateGamepadLayout() }
+        .onChange(of: horizontal) { _, _ in updateGamepadLayout() }
+    }
+
+    private func updateGamepadLayout() {
+        model.gamepadColumnCount = lanes
+        model.gamepadGridIsHorizontal = horizontal
     }
 
     /// Items per row (per column when scrolling horizontally), as many as fit up to the maximum,

@@ -81,6 +81,8 @@ struct CarrouselView: View {
             return .handled
         }
         .onAppear {
+            model.gamepadColumnCount = 1
+            model.gamepadGridIsHorizontal = false
             syncToSelection(animated: false)
             installScrollMonitor()
         }

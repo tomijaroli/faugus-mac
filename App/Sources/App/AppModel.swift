@@ -34,6 +34,21 @@ final class AppModel { // swiftlint:disable:this type_body_length
     var actionError: String?
     /// `--shortcut <file>` or the Finder service, shown as a sheet on the running launcher.
     var pendingShortcutFile: String?
+    /// Gamepad Y / Menu overlays (power menu and the gamepad-friendly context list).
+    var showGamepadOverlay = false
+    var gamepadOverlayTitle = "Faugus"
+    var gamepadOverlayIndex = 0
+    var gamepadOverlayConfirm = false
+    var wantsNewGame = false
+    /// Settings General / Interface, cycled with LB / RB.
+    var settingsTab = 0
+    /// `"%s is running"` from gamepad confirm on a running game.
+    var runningGameWarning: String?
+    var gamepadColumnCount = 1
+    var gamepadGridIsHorizontal = false
+    @ObservationIgnored var gamepadOverlayItems: [GamepadOverlayItem] = []
+    @ObservationIgnored var libraryActions: GameActions?
+    @ObservationIgnored private var gamepadMonitor: GamepadMonitor?
 
     // Library state (search, sort, category, zoom and selection of the main window).
     var searchText = ""
@@ -88,6 +103,8 @@ final class AppModel { // swiftlint:disable:this type_body_length
         self.paths = paths
         reload()
         startPolling()
+        SoundPlayer.shared.model = self
+        gamepadMonitor = GamepadMonitor(model: self)
     }
 
     // MARK: Loading

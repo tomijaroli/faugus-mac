@@ -35,9 +35,13 @@ struct WindowConfigurator: NSViewRepresentable {
         }
 
         @MainActor private func apply(to window: NSWindow) {
-            guard let configuration = model?.config,
-                  InterfaceMode(configValue: configuration.string("interface-mode")) != .list else { return }
-            switch configuration.string("startup-window-size") {
+            guard let model,
+                  let configuration = model.config,
+                  model.interfaceMode != .list else { return }
+            switch ConsoleMode.startupWindowSize(
+                isConsole: model.isConsoleMode,
+                stored: configuration.string("startup-window-size")
+            ) {
             case "Remember":
                 let width = CGFloat(configuration.int("width", default: 1280))
                 let height = CGFloat(configuration.int("height", default: 720))
@@ -71,7 +75,7 @@ struct WindowConfigurator: NSViewRepresentable {
         }
 
         @MainActor private func saveSize(of window: NSWindow) {
-            guard let model, model.config?.string("startup-window-size") == "Remember",
+            guard let model, !model.isConsoleMode, model.config?.string("startup-window-size") == "Remember",
                   model.interfaceMode != .list, !window.styleMask.contains(.fullScreen), !window.isZoomed
             else { return }
             let size = window.contentLayoutRect.size
