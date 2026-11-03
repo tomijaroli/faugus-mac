@@ -21,10 +21,13 @@ final class ArtworkCache: @unchecked Sendable {
         cache.object(forKey: Self.key(path: path, maxPixel: maxPixel) as NSString)
     }
 
+    /// Decodes off the main thread (as a `CGImage`, which is Sendable) and builds the `NSImage`
+    /// back on the main actor.
+    @MainActor
     func load(path: String, maxPixel: Int) async -> NSImage? {
         let key = Self.key(path: path, maxPixel: maxPixel)
         if let hit = cache.object(forKey: key as NSString) { return hit }
-        let image = await Task.detached(priority: .utility) { () -> NSImage? in
+        let decoded = await Task.detached(priority: .utility) { () -> CGImage? in
             let url = URL(fileURLWithPath: path) as CFURL
             guard let src = CGImageSourceCreateWithURL(url, nil) else { return nil }
             let options: [CFString: Any] = [
@@ -32,9 +35,9 @@ final class ArtworkCache: @unchecked Sendable {
                 kCGImageSourceCreateThumbnailWithTransform: true,
                 kCGImageSourceThumbnailMaxPixelSize: maxPixel,
             ]
-            guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary) else { return nil }
-            return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+            return CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary)
         }.value
+        let image = decoded.map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
         if let image { cache.setObject(image, forKey: key as NSString) }
         return image
     }
