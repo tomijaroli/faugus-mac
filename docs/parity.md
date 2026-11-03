@@ -20,7 +20,7 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 | List mode, context menu | `launcher.py` | `Library` | wip (P1: Play with logs, Edit, Delete, Duplicate, Hide, locations, Show logs; Category and Run file in P2) |
 | Grid / Covers / Carrousel | `launcher.py` | `Library` | todo |
 | Add / Edit / Duplicate / Delete | `launcher.py` | `AddGame` | wip (P1: Windows type; delete offers prefix to Trash; other types in P2) |
-| Settings | `launcher.py` | `Settings` | wip (P1 sheet hosts the minimal Runner Manager only) |
+| Settings | `launcher.py` | `Settings` | wip (P2.2: General and Interface tabs, language, global env vars, clear logs, live preview with Cancel revert, Cmd+,; tray/autostart/Discord/gamepad/SteamGridDB/sounds/backup rows land with their features) |
 | Tray | `tray_sni.py` | `Tray` | todo |
 | Gamepad / console mode | `gamepad.py` | `Gamepad` | todo |
 | Backup / restore | `backup.py` | `Backup` | todo |
@@ -45,4 +45,5 @@ Status: `todo`, `wip`, `done`, `dropped`, `deviation`.
 | Process tagging | `FAUGUSID` and `WINEPREFIX` are placed last in `envp`; Wine overwrites the start of the argv/env block when it renames itself, and the scanner skips the resulting empty strings. |
 | Play | Toolbar Play and double-click run without logs; "Play with logs" is the context-menu item, as upstream. |
 | Delete prefix | The prefix goes to the Trash, never `rm`, and only when no other game uses it. |
+| Settings | Header bar, Theme (Adwaita/GTK engine), GPU, MangoHud, GameMode, Wayland driver, WOW64 and the winetricks/winecfg buttons are not shown (Linux only, or arrive in P3). Default Runner lists installed runners. Color Scheme drives the macOS appearance. A language change applies immediately instead of after a restart. |
 | Context menu | Standard SwiftUI menu; upstream's gamepad-friendly popover arrives with P5. |

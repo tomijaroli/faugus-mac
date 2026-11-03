@@ -9,6 +9,11 @@ import Observation
 final class AppModel {
     let paths: FaugusPaths
     private(set) var config: FaugusConfig?
+    var showSettings = false
+    /// The unsaved Settings draft. Interface options preview live and revert on Cancel.
+    var previewConfig: FaugusConfig? {
+        didSet { applyAppearance() }
+    }
     private(set) var games: [Game] = []
     private(set) var translator: Translator = .identity
     private(set) var languageCode: String = "en_US"
@@ -16,6 +21,9 @@ final class AppModel {
     /// `gameid -> runner pid`, refreshed once per second and on `refresh-menu`.
     private(set) var running: [String: Int32] = [:]
     private(set) var actionError: String?
+
+    /// What the library draws with: the Settings draft while the dialog is open.
+    var activeConfig: FaugusConfig? { previewConfig ?? config }
 
     var isRightToLeft: Bool { LanguageCatalogs.isRightToLeft(languageCode) }
 
@@ -41,6 +49,7 @@ final class AppModel {
             games = try GamesStore(paths: paths).load(showHidden: cfg.bool("show-hidden"))
             running = RunningGames(paths: paths).load()
             loadError = nil
+            applyAppearance()
         } catch {
             loadError = "\(error)"
         }
@@ -81,6 +90,46 @@ final class AppModel {
             FileManager.default.fileExists(atPath: dir.path)
         else { return nil }
         return LanguageCatalogs(localeDir: dir)
+    }
+
+    // MARK: Settings
+
+    /// `interface-theme` (system/light/dark) drives the app appearance; `accent-mode`
+    /// `custom` supplies a tint.
+    func applyAppearance() {
+        guard let cfg = activeConfig else { return }
+        switch cfg.string("interface-theme", default: "system") {
+        case "light": NSApp?.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApp?.appearance = NSAppearance(named: .darkAqua)
+        default: NSApp?.appearance = nil
+        }
+    }
+
+    /// The custom accent colour, or `nil` for the system one.
+    var accentColor: ConfigColor? {
+        guard let cfg = activeConfig, cfg.accentColor() != "system" else { return nil }
+        return ConfigColor(cfg.accentColor())
+    }
+
+    /// Settings "Ok": writes `config.json` and `envar.json`.
+    func saveSettings(_ cfg: FaugusConfig, envars: [String]) {
+        do {
+            try cfg.save()
+            try EnvarStore(paths: paths).save(envars)
+            actionError = nil
+        } catch {
+            actionError = "\(error)"
+        }
+        previewConfig = nil
+        reload()
+    }
+
+    func discardSettingsPreview() { previewConfig = nil }
+
+    func logsSize() -> Int64? { LogsMaintenance.size(of: paths.logsDir) }
+
+    func clearLogs() {
+        do { try LogsMaintenance.clear(paths: paths) } catch { actionError = "\(error)" }
     }
 
     // MARK: Running games

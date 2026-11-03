@@ -7,7 +7,6 @@ struct LibraryView: View {
     @State private var selection: String?
     @State private var editor: GameEditorState?
     @State private var gameToDelete: Game?
-    @State private var showSettings = false
     @Environment(\.openWindow) private var openWindow
 
     private var selectedGame: Game? { model.games.first { $0.gameID == selection } }
@@ -41,15 +40,19 @@ struct LibraryView: View {
                     ) { model.play(g, withLogs: false) }
                     .help(model.isRunning(g) ? t("Stop") : t("Play"))
                 }
-                Button(t("Settings"), systemImage: "gearshape") { showSettings = true }
+                Button(t("Settings"), systemImage: "gearshape") { model.showSettings = true }
                     .help(t("Settings"))
             }
         }
         .sheet(item: $editor) { state in
             GameEditorView(model: model, state: state) { editor = nil }
         }
-        .sheet(isPresented: $showSettings) {
-            RunnerManagerView(model: model) { showSettings = false }
+        .sheet(isPresented: $model.showSettings) {
+            if model.config != nil {
+                SettingsView(model: model) { model.showSettings = false }
+            } else {
+                RunnerManagerView(model: model) { model.showSettings = false }
+            }
         }
         .confirmationDialog(
             gameToDelete.map { t.format("Delete %s", $0.title) } ?? "",

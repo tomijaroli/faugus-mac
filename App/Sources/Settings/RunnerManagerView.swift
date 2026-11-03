@@ -16,7 +16,7 @@ struct RunnerManagerView: View {
     var body: some View {
         let t = model.translator
         VStack(alignment: .leading, spacing: 12) {
-            Text(t("Settings")).font(.title2.weight(.semibold))
+            Text(t("Runner Manager")).font(.title2.weight(.semibold))
             GroupBox("Rosetta 2") {
                 HStack {
                     Text(rosetta == nil ? "…" : (rosetta! ? "Installed" : "Not installed"))
