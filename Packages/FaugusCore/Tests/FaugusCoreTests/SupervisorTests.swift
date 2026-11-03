@@ -62,7 +62,7 @@ struct SupervisorTests {
         var o = SupervisorOptions()
         o.allowDownloads = false
         o.pollInterval = .milliseconds(100)
-        o.playtimeSaveInterval = 5
+        o.playtimeSaveInterval = 0.5
         o.stopGrace = .milliseconds(400)
         o.baseEnvironment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory()]
         return o

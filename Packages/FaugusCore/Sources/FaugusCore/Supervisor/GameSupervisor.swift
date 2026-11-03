@@ -45,8 +45,9 @@ public struct SupervisorOptions: Sendable {
     /// Upstream honours `FAUGUS_DISABLE_UPDATES` and the `automatic-updates` setting.
     public var allowDownloads = true
     public var checkForRunnerUpdates = true
-    public var pollInterval: Duration = .seconds(1)
-    public var playtimeSaveInterval: Int = 30
+    public var pollInterval: Duration = .milliseconds(250)
+    /// Seconds between playtime saves (wall clock, independent of `pollInterval`).
+    public var playtimeSaveInterval: Double = 30
     public var stopGrace: Duration = .seconds(3)
     public var baseEnvironment: [String: String] = ProcessInfo.processInfo.environment
     public var feed: @Sendable () async throws -> [RemoteRunner] = { try await GcenxFeed.fetchAll() }
@@ -206,11 +207,10 @@ public actor GameSupervisor {
         }
 
         // 9. Supervise
-        var ticks = 0
+        var lastSave = Date()
         var serverStarted = false
         while !serverWaitDone {
             try? await Task.sleep(for: options.pollInterval)
-            ticks += 1
 
             if !stopRequested, running.consumeStopRequest(gameID: gameID) {
                 stopRequested = true
@@ -223,7 +223,8 @@ public actor GameSupervisor {
                 waitForWineserver(runner: runner, env: plan.environment)
             }
 
-            if ticks % max(1, options.playtimeSaveInterval) == 0 {
+            if Date().timeIntervalSince(lastSave) >= options.playtimeSaveInterval {
+                lastSave = Date()
                 saveProgress(gameBaseline: gameBaseline, totalBaseline: totalBaseline)
             }
         }
@@ -320,20 +321,33 @@ public actor GameSupervisor {
 
     private func serverWaitFinished() { serverWaitDone = true }
 
-    /// Graceful, then forced (plan section 5 "Stop").
+    /// Graceful, then forced (plan section 5 "Stop"). The grace period ends as soon as the
+    /// game process has exited and nothing tagged with this game's `FAUGUSID` is left.
     private func terminate(runner: InstalledRunner, prefix: String, env: [String: String]) async {
+        let t0 = Date()
+        func stamp(_ what: String) { log.write(String(format: "stop +%.2fs: %@", Date().timeIntervalSince(t0), what)) }
         if gamePID > 0 { killpg(gamePID, SIGTERM) }
+        stamp("SIGTERM sent")
+        var serverKill: pid_t?
         if !prefixSharedWithOtherRunningGame(prefix: prefix) {
-            if let pid = try? ProcessSpawner.spawn(
+            // Not awaited: Wine's own graceful shutdown can take 10 s, far beyond our grace.
+            serverKill = try? ProcessSpawner.spawn(
                 argv: [runner.wineserverBinary, "-k"],
                 options: .init(workingDirectory: nil, environment: env, newSession: false))
-            {
-                _ = await ProcessSpawner.waitForExit(pid: pid)
-            }
+            stamp("wineserver -k started")
         }
-        try? await Task.sleep(for: options.stopGrace)
-        ProcessScanner.killByFaugusID(gameID)
+        let graceEnd = Date().addingTimeInterval(Double(options.stopGrace.components.seconds)
+            + Double(options.stopGrace.components.attoseconds) / 1e18)
+        while Date() < graceEnd {
+            if gameExit != nil, ProcessScanner.pids(withEnvironment: "FAUGUSID", equalTo: gameID).isEmpty { break }
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        let leftovers = ProcessScanner.killByFaugusID(gameID)
+        if let serverKill, ProcessSpawner.isAlive(serverKill) { kill(serverKill, SIGKILL) }
         if gameExit == nil, gamePID > 0 { killpg(gamePID, SIGKILL) }
+        stamp("done (force-killed \(leftovers.count))")
+        // Everything for this game is gone; there is no point waiting for the idle wineserver.
+        if gameExit != nil || leftovers.isEmpty { serverWaitDone = true }
     }
 
     private func prefixSharedWithOtherRunningGame(prefix: String) -> Bool {
