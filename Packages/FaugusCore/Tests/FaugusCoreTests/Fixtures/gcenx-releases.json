@@ -1,0 +1,290 @@
+[
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.21/wine-devel-11.21-osx64.tar.xz",
+        "digest": "sha256:9909b486657e10ab66c7279371ae1f990345b596b3b1b3a0cf21f28af24fa0ce",
+        "name": "wine-devel-11.21-osx64.tar.xz",
+        "size": 225612636
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.21/wine-staging-11.21-osx64.tar.xz",
+        "digest": "sha256:d7bcd5abf4df27aae397a7898aef074fea4a2e0b51e0a55aa9659517bbf9d452",
+        "name": "wine-staging-11.21-osx64.tar.xz",
+        "size": 228148688
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-10-31T12:50:09Z",
+    "tag_name": "11.21"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.20/wine-devel-11.20-osx64.tar.xz",
+        "digest": "sha256:33bbe09ac5d867d75d6d3aef23b66d25ff81cb62c33bc3f405c138bbf7195ad7",
+        "name": "wine-devel-11.20-osx64.tar.xz",
+        "size": 225619020
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.20/wine-staging-11.20-osx64.tar.xz",
+        "digest": "sha256:4df858c5e72920deaf123cbc29fa2b9e64c23bcf2dea59e0a7047b879b9cd952",
+        "name": "wine-staging-11.20-osx64.tar.xz",
+        "size": 227975304
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-10-29T04:08:38Z",
+    "tag_name": "11.20"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.18/wine-devel-11.18-osx64.tar.xz",
+        "digest": "sha256:aa0ea4c82e636ae7bca2076387cb0a5affa26509ad13f119ecd0d62bd7ba6f82",
+        "name": "wine-devel-11.18-osx64.tar.xz",
+        "size": 190974384
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.18/wine-staging-11.18-osx64.tar.xz",
+        "digest": "sha256:b63704b91af269bc026a87f12bd297c4a50caaf570c322e600b6621ef918f127",
+        "name": "wine-staging-11.18-osx64.tar.xz",
+        "size": 193105336
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-09-25T15:27:48Z",
+    "tag_name": "11.18"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.17/wine-devel-11.17-osx64.tar.xz",
+        "digest": "sha256:c2b3a8274dbc594deaa64e40469b607cbc4aa8ef5656dec4c5f6f3dac0da770c",
+        "name": "wine-devel-11.17-osx64.tar.xz",
+        "size": 191290556
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.17/wine-staging-11.17-osx64.tar.xz",
+        "digest": "sha256:aff31fb4ce1a2d769d7c4525664331cad70a8c3a92b587a374f82517532069e2",
+        "name": "wine-staging-11.17-osx64.tar.xz",
+        "size": 193354896
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-09-11T04:24:08Z",
+    "tag_name": "11.17"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.16/wine-devel-11.16-osx64.tar.xz",
+        "digest": "sha256:6f9af818b7af6001aeed7818cb32bf0155598c5ea4e3b33380a03cf814e033cd",
+        "name": "wine-devel-11.16-osx64.tar.xz",
+        "size": 191440520
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.16/wine-staging-11.16-osx64.tar.xz",
+        "digest": "sha256:cd68f230c773a761b8a0423a08c51fbe49e89b6e52246f3866898d259a4988c6",
+        "name": "wine-staging-11.16-osx64.tar.xz",
+        "size": 193568360
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-08-24T11:54:10Z",
+    "tag_name": "11.16"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.15/wine-devel-11.15-osx64.tar.xz",
+        "digest": "sha256:3f8e89a4874953a69e7be3dcdcc262d0346e462a9374bd116770fffb9e2a99d2",
+        "name": "wine-devel-11.15-osx64.tar.xz",
+        "size": 191398232
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.15/wine-staging-11.15-osx64.tar.xz",
+        "digest": "sha256:a8c50d0e14fb7982a21506287e1e41e1990fe77c74fa2a32da7dbcf7b21de1e2",
+        "name": "wine-staging-11.15-osx64.tar.xz",
+        "size": 193561920
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-08-08T20:31:36Z",
+    "tag_name": "11.15"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.14/wine-devel-11.14-osx64.tar.xz",
+        "digest": "sha256:63ceb7633c0e477d2bd5b1057a38e539076d14678ded0f648706936492b5a400",
+        "name": "wine-devel-11.14-osx64.tar.xz",
+        "size": 189973788
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.14/wine-staging-11.14-osx64.tar.xz",
+        "digest": "sha256:cc8ff0f2f95e26e591d049092c16898f10718b7c74addfbf6498ad06ca3bab42",
+        "name": "wine-staging-11.14-osx64.tar.xz",
+        "size": 192256088
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-07-27T17:55:09Z",
+    "tag_name": "11.14"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.13/wine-devel-11.13-osx64.tar.xz",
+        "digest": "sha256:214e2044d32870688c715c9edb1005a61beb7ba21ffe8e819da485163f754bd0",
+        "name": "wine-devel-11.13-osx64.tar.xz",
+        "size": 189855828
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.13/wine-staging-11.13-osx64.tar.xz",
+        "digest": "sha256:dc7bbd684ee0e820871851055115f3c829ed65c13939000e52f0a15a027537bf",
+        "name": "wine-staging-11.13-osx64.tar.xz",
+        "size": 192152268
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-07-17T17:13:02Z",
+    "tag_name": "11.13"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.10/wine-devel-11.10-osx64.tar.xz",
+        "digest": "sha256:6d0637c3526fbe7051a5f8968dbde68fbc3ac417717648b9331c46642b52173b",
+        "name": "wine-devel-11.10-osx64.tar.xz",
+        "size": 188035604
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.10/wine-staging-11.10-osx64.tar.xz",
+        "digest": "sha256:940bdd1a177872020be01c5c33917cb8eecc1cc3193ad554914fb6efd90d7889",
+        "name": "wine-staging-11.10-osx64.tar.xz",
+        "size": 190110136
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-06-04T14:47:19Z",
+    "tag_name": "11.10"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.9/wine-devel-11.9-osx64.tar.xz",
+        "digest": "sha256:e0ac24b3c525d7dd2c88e6447e94fa106fd05a581a178773f47c7a254d4f6296",
+        "name": "wine-devel-11.9-osx64.tar.xz",
+        "size": 187868332
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.9/wine-staging-11.9-osx64.tar.xz",
+        "digest": "sha256:8729601835659814de4c284d33a234a90da50913fa6e6fca260f90e0b2ba8bb2",
+        "name": "wine-staging-11.9-osx64.tar.xz",
+        "size": 189942264
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-05-17T22:13:54Z",
+    "tag_name": "11.9"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.8/wine-devel-11.8-osx64.tar.xz",
+        "digest": "sha256:5c9f0984961ee6289f4f2c4fe751c27f02b6c28855154e3f99b7e2bd8108b620",
+        "name": "wine-devel-11.8-osx64.tar.xz",
+        "size": 186467520
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.8/wine-staging-11.8-osx64.tar.xz",
+        "digest": "sha256:3ab51478ab609e6b0be588385a6f0f877842943f6037a3f32c999b829c1179ab",
+        "name": "wine-staging-11.8-osx64.tar.xz",
+        "size": 188537088
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-05-02T23:50:37Z",
+    "tag_name": "11.8"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.7/wine-devel-11.7-osx64.tar.xz",
+        "digest": "sha256:12be8c6a12ac930caf40b67b579a7790d6ce7a79142d144cbb489c6e9b2660fe",
+        "name": "wine-devel-11.7-osx64.tar.xz",
+        "size": 320111712
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.7/wine-staging-11.7-osx64.tar.xz",
+        "digest": "sha256:fd0b9e54c7c17d972d922b686301c37fe4f3e9986f01f49fdff858118c045d94",
+        "name": "wine-staging-11.7-osx64.tar.xz",
+        "size": 189397976
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-04-18T00:42:52Z",
+    "tag_name": "11.7"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.6_1/wine-devel-11.6_1-osx64.tar.xz",
+        "digest": "sha256:737c5bbcef4dab626e6dcb58f3736bf910780de25d53e52e7d7c01e521da725a",
+        "name": "wine-devel-11.6_1-osx64.tar.xz",
+        "size": 319775820
+      },
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.6_1/wine-staging-11.6_1-osx64.tar.xz",
+        "digest": "sha256:9e73898fc83b0137638fe90d4868387f30b5993e86aeaef7422d8b1655238014",
+        "name": "wine-staging-11.6_1-osx64.tar.xz",
+        "size": 322511424
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-04-16T14:30:51Z",
+    "tag_name": "11.6_1"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.0_1/wine-stable-11.0_1-osx64.tar.xz",
+        "digest": "sha256:b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388",
+        "name": "wine-stable-11.0_1-osx64.tar.xz",
+        "size": 185303032
+      }
+    ],
+    "draft": false,
+    "name": "",
+    "prerelease": false,
+    "published_at": "2026-04-16T14:05:00Z",
+    "tag_name": "11.0_1"
+  }
+]
