@@ -111,6 +111,30 @@ public struct PrefixManager: Sendable {
         try JSONFile.save(marker.json(), to: markerPath(prefix))
     }
 
+    /// `wineboot -u` on an already-populated prefix after a Linux import. Gecko/Mono prompts
+    /// stay suppressed so restore never blocks on a dialog.
+    public func updateAfterImport(
+        prefix: String,
+        runner: InstalledRunner,
+        baseEnvironment: [String: String] = ProcessInfo.processInfo.environment
+    ) async throws {
+        var environment = LaunchEnvironment.wineBase(prefix: prefix, runner: runner, base: baseEnvironment)
+        environment["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d;mscoree,mshtml="
+        environment["WINEDEBUG"] = "-all"
+        _ = try await ProcessRunner.run(
+            runner.wineBinary,
+            ["wineboot", "-u"],
+            environment: environment,
+            currentDirectory: prefix
+        )
+        _ = try? await ProcessRunner.run(
+            runner.wineserverBinary,
+            ["-w"],
+            environment: environment,
+            currentDirectory: prefix
+        )
+    }
+
     /// Makes the DLLs in `prefix` match `plan`: DXVK copies in, or the runner's builtin DLLs
     /// are restored. Never writes into the runner.
     public func applyGraphics(
@@ -159,6 +183,31 @@ public struct PrefixManager: Sendable {
     private func dllsPresent(dxvk _: DXVKComponent, system32: String, syswow64 _: String) -> Bool {
         let fileManager = FileManager.default
         return DXVKComponent.dllNames.allSatisfy { fileManager.fileExists(atPath: system32 + "/" + $0) }
+    }
+
+    /// Linux Proton ships its own native d3d DLLs; swap them for this runner's builtins.
+    public func replaceProtonGraphicsDLLs(prefix: String, runner: InstalledRunner) throws {
+        let fileManager = FileManager.default
+        let system32 = windowsDirectory(prefix) + "/system32"
+        let syswow64 = windowsDirectory(prefix) + "/syswow64"
+        for dllName in LinuxFixup.protonGraphicsDLLs {
+            let builtin64 = runner.wineRoot + "/lib/wine/x86_64-windows/" + dllName
+            let builtin32 = runner.wineRoot + "/lib/wine/i386-windows/" + dllName
+            let system32Path = system32 + "/" + dllName
+            if fileManager.fileExists(atPath: builtin64), LinuxFixup.shouldReplaceGraphicsDLL(at: system32Path) {
+                try copyReplacing(from: builtin64, to: system32Path)
+            }
+            let syswow64Path = syswow64 + "/" + dllName
+            if fileManager.fileExists(atPath: builtin32), fileManager.fileExists(atPath: syswow64),
+               LinuxFixup.shouldReplaceGraphicsDLL(at: syswow64Path)
+            {
+                try copyReplacing(from: builtin32, to: syswow64Path)
+            }
+        }
+        if var marker = marker(prefix: prefix) {
+            marker.dxvk = nil
+            try JSONFile.save(marker.json(), to: markerPath(prefix))
+        }
     }
 
     private func copyReplacing(from source: String, to destination: String) throws {

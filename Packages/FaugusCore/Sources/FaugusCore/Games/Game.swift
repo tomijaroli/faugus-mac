@@ -225,6 +225,18 @@ public struct Game: Equatable, Sendable, Identifiable {
         }
     }
 
+    /// Linux-import flag. Play is disabled until the user edits and saves the game.
+    public var needsAttention: Bool {
+        get { raw["mac-needs-attention"]?.isTruthy ?? false }
+        set {
+            if newValue {
+                raw["mac-needs-attention"] = .bool(true)
+            } else {
+                raw["mac-needs-attention"] = nil
+            }
+        }
+    }
+
     // MARK: Persistence
 
     /// `game_to_save_dict`: `GAME_FIELDS` in upstream order with upstream's normalisations,

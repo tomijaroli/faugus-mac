@@ -168,6 +168,10 @@ public struct FaugusConfig: Equatable, Sendable {
         values[key] = value
     }
 
+    public mutating func removeValue(_ key: String) {
+        values[key] = nil
+    }
+
     public func accentColor() -> String {
         string("accent-mode") == "custom" ? string("accent-color") : "system"
     }

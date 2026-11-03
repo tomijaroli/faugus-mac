@@ -75,6 +75,22 @@ public struct ShortcutLibrary: Sendable {
         return Set(ShortcutLocation.allCases.filter { !bundlePaths(in: $0, marker: marker).isEmpty })
     }
 
+    /// Every Faugus-marked shortcut bundle, used when assembling a backup.
+    public func allBundles() -> [(marker: ShortcutMarker, path: String)] {
+        var bundles: [(ShortcutMarker, String)] = []
+        for location in ShortcutLocation.allCases {
+            let directoryPath = directory(for: location)
+            let entries = (try? FileManager.default.contentsOfDirectory(atPath: directoryPath)) ?? []
+            for name in entries.sorted() where name.hasSuffix(".app") && !name.hasPrefix(".") {
+                let bundlePath = directoryPath + "/" + name
+                if let marker = ShortcutBundle.marker(atBundlePath: bundlePath) {
+                    bundles.append((marker, bundlePath))
+                }
+            }
+        }
+        return bundles
+    }
+
     // MARK: Install
 
     /// Writes the shortcut into each location (replacing the one that already carries the same

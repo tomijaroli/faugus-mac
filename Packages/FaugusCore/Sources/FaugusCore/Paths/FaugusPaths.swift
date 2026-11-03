@@ -165,6 +165,31 @@ public struct FaugusPaths: Equatable, Sendable {
         stateDirectory + "/stop-" + gameID
     }
 
+    public var backupLockFile: String {
+        stateDirectory + "/backup.lock"
+    }
+
+    public var backupCancelFile: String {
+        stateDirectory + "/backup.cancel"
+    }
+
+    public var backupDaemonTokenFile: String {
+        stateDirectory + "/daemon.token"
+    }
+
+    public var backupStagingDirectory: String {
+        tempDirectory + "/temp-backup"
+    }
+
+    public var restoreStagingDirectory: String {
+        tempDirectory + "/temp-restore"
+    }
+
+    /// Upstream's default when `backup-dest-dir` is empty: `~/Faugus Backup`.
+    public var defaultBackupDestination: String {
+        h("Faugus Backup")
+    }
+
     public func gameLogsDirectory(gameID: String) -> String {
         logsDirectory + "/" + gameID
     }
