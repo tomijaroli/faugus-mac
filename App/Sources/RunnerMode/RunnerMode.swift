@@ -9,7 +9,7 @@ final class RunnerMode {
     private let paths = FaugusPaths.live
     private let splash = SplashPanel()
     private var translator: Translator = .identity
-    private var windowTimer: Timer?
+    private var windowWatcherTask: Task<Void, Never>?
     private var gameID = ""
     private var prefix = ""
     private var isSteam = false
@@ -122,7 +122,7 @@ final class RunnerMode {
         RunnerModeRelay.shared.mode = self
 
         let failure = await supervisor.run()
-        windowTimer?.invalidate()
+        windowWatcherTask?.cancel()
         splash.close()
         if let failure {
             showFailure(failure)
@@ -155,18 +155,19 @@ final class RunnerMode {
         }
     }
 
+    /// Polls on the main actor with `Task.sleep` rather than `Timer.scheduledTimer`. A timer
+    /// scheduled from the startup `Task` often never fires while `await supervisor.run()` holds
+    /// the process, which left Battle.net on "Starting game..." until Stop.
     private func startWindowWatcher() {
-        windowTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.splash.isVisible else { return }
-                // 30 s: long enough for a real window, short enough that a launcher which
-                // crashes before creating one does not sit on "Starting game..." forever.
-                let timedOut = Date().timeIntervalSince(self.splashShownAt) > 30
-                if timedOut
-                    || GameWindowWatcher.gameWindowVisible(gameID: self.gameID, prefix: self.prefix)
-                {
+        windowWatcherTask?.cancel()
+        windowWatcherTask = Task { @MainActor [weak self] in
+            while let self, !Task.isCancelled, self.splash.isVisible {
+                let timedOut = Date().timeIntervalSince(self.splashShownAt) > 15
+                if timedOut || GameWindowWatcher.gameWindowVisible(gameID: self.gameID, prefix: self.prefix) {
                     self.splash.close()
+                    return
                 }
+                try? await Task.sleep(for: .milliseconds(250))
             }
         }
     }

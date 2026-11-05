@@ -13,7 +13,7 @@ final class SplashModel {
 }
 
 /// The floating "starting game" window (upstream `FaugusSplash`). Closed once the game's own
-/// window appears, or when the game ends.
+/// window appears, when the game ends, or when the user dismisses it.
 @MainActor
 final class SplashPanel {
     let model = SplashModel()
@@ -27,7 +27,9 @@ final class SplashPanel {
             model.image = NSImage(contentsOfFile: fallbackIconPath)
         }
 
-        let host = NSHostingView(rootView: SplashView(model: model))
+        let host = NSHostingView(rootView: SplashView(model: model, onDismiss: { [weak self] in
+            self?.close()
+        }))
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 240),
             styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
@@ -61,9 +63,22 @@ final class SplashPanel {
 
 private struct SplashView: View {
     let model: SplashModel
+    var onDismiss: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 14) {
+            HStack {
+                Spacer()
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Dismiss")
+                .accessibilityIdentifier("splash-dismiss")
+            }
+            .frame(height: 18)
             if let image = model.image {
                 Image(nsImage: image)
                     .resizable().scaledToFit()
